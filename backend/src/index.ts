@@ -9,6 +9,7 @@ import uploadRoutes from "./routes/uploads";
 import transactionRoutes from "./routes/transactions";
 import chartRoutes from "./routes/charts";
 import accountRoutes from "./routes/account";
+import categoryRoutes from "./routes/categories";
 
 const app = express();
 const port = process.env.PORT ?? 4000;
@@ -33,6 +34,7 @@ app.use("/api/uploads", uploadRoutes);
 app.use("/api/transactions", transactionRoutes);
 app.use("/api/charts", chartRoutes);
 app.use("/api/account", accountRoutes);
+app.use("/api/categories", categoryRoutes);
 
 app.listen(port, () => {
   console.log(`Backend running on port ${port}`);

@@ -1,15 +1,258 @@
 /** Upload routes: parse CSV, AI categorisation, confirm. */
 
 import { Router } from "express";
+import multer from "multer";
+import Papa from "papaparse";
+import Anthropic from "@anthropic-ai/sdk";
 import { requireAuth } from "../middleware/requireAuth";
+import { pool } from "../db";
+import { TravelSpendParser } from "../parsers/travelspend";
+import { buildCategorisePrompt, parseCategoriseResponse } from "../lib/categorisePrompt";
+import { ParsedTransaction } from "../parsers/types";
 
 const router = Router();
+const upload = multer({ storage: multer.memoryStorage() });
+const travelspendParser = new TravelSpendParser();
+
+const SUPPORTED_PARSERS: Record<string, typeof travelspendParser> = {
+  travelspend: travelspendParser,
+};
+
+const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 MB
+const MAX_ROWS = 10_000;
 
 router.use(requireAuth);
 
-// Placeholder — implemented in Phase 4
-router.get("/", (_req, res) => {
-  res.json({ message: "uploads route" });
+/**
+ * POST /api/uploads — parses an uploaded CSV and returns preview data.
+ * Nothing is persisted at this stage; the client confirms via /confirm.
+ */
+router.post("/", upload.single("file"), async (req, res) => {
+  const userId: string = res.locals.userId;
+
+  if (!req.file) {
+    res.status(400).json({ error: "file is required" });
+    return;
+  }
+
+  const parserName: string = req.body?.parser;
+  if (!parserName || !SUPPORTED_PARSERS[parserName]) {
+    res.status(400).json({ error: `parser must be one of: ${Object.keys(SUPPORTED_PARSERS).join(", ")}` });
+    return;
+  }
+
+  if (req.file.size > MAX_FILE_BYTES) {
+    res.status(400).json({ error: "File exceeds 10 MB limit" });
+    return;
+  }
+
+  const csvText = req.file.buffer.toString("utf-8");
+  const parsed = Papa.parse<Record<string, string>>(csvText, {
+    header: true,
+    skipEmptyLines: true,
+  });
+
+  if (parsed.data.length > MAX_ROWS) {
+    res.status(400).json({ error: `File exceeds ${MAX_ROWS} row limit` });
+    return;
+  }
+
+  const parser = SUPPORTED_PARSERS[parserName];
+  const result = parser.parse(parsed.data, "", userId);
+
+  // Check for date range overlap with existing transactions
+  let overlapWarning = false;
+  if (result.transactions.length > 0) {
+    const { from, to } = result.dateRange;
+    const overlap = await pool.query(
+      `SELECT 1 FROM transactions
+       WHERE user_id = $1
+         AND date <= $2
+         AND date >= $3
+       LIMIT 1`,
+      [userId, to.toISOString(), from.toISOString()]
+    );
+    overlapWarning = (overlap.rowCount ?? 0) > 0;
+  }
+
+  res.json({
+    transactions: result.transactions.map(serializeTransaction),
+    travellers: result.travellers,
+    categories: result.categories,
+    errors: result.errors,
+    homeCurrency: result.homeCurrency,
+    dateRange: {
+      from: result.dateRange.from.toISOString(),
+      to: result.dateRange.to.toISOString(),
+    },
+    overlapWarning,
+  });
 });
+
+/**
+ * POST /api/uploads/categorise — calls Claude to suggest categories for a
+ * batch of transactions. Falls back gracefully if the AI is unavailable.
+ */
+router.post("/categorise", async (req, res) => {
+  const userId: string = res.locals.userId;
+
+  const { transactions } = req.body as {
+    transactions: { description: string; country: string | null }[];
+  };
+
+  if (!Array.isArray(transactions) || transactions.length === 0) {
+    res.status(400).json({ error: "transactions must be a non-empty array" });
+    return;
+  }
+
+  // Fetch the user's existing category names to give the model context
+  const { rows: catRows } = await pool.query<{ name: string }>(
+    "SELECT name FROM categories WHERE user_id = $1 ORDER BY name",
+    [userId]
+  );
+  const availableCategories = catRows.map((r) => r.name);
+
+  const prompt = buildCategorisePrompt(transactions, availableCategories);
+
+  try {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) throw new Error("ANTHROPIC_API_KEY not configured");
+
+    const client = new Anthropic({ apiKey });
+    const message = await client.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 4096,
+      messages: [{ role: "user", content: prompt }],
+    });
+
+    const text = message.content
+      .filter((b) => b.type === "text")
+      .map((b) => (b as { type: "text"; text: string }).text)
+      .join("");
+
+    const results = parseCategoriseResponse(text, transactions.length);
+    res.json({ results });
+  } catch (err) {
+    // Degrade gracefully — the client can let the user categorise manually
+    console.error("AI categorisation error:", err);
+    const results = transactions.map(() => ({ categoryName: "Uncategorized", confidence: 0 }));
+    res.json({ results });
+  }
+});
+
+/**
+ * POST /api/uploads/confirm — persists a confirmed upload in a single DB transaction.
+ * Inserts into uploads, travellers, transactions, and transaction_splits.
+ */
+router.post("/confirm", async (req, res) => {
+  const userId: string = res.locals.userId;
+
+  const {
+    homeCurrency,
+    sourceFormat,
+    filename,
+    transactions,
+    travellers,
+  } = req.body as {
+    homeCurrency: string;
+    sourceFormat: string;
+    filename: string;
+    transactions: Array<{
+      date: string;
+      description: string;
+      amountHome: number;
+      amountLocal: number | null;
+      localCurrency: string | null;
+      categoryId: string | null;
+      categorySource: "csv" | "ai" | "user" | null;
+      categoryConfidence: number | null;
+      paymentMethod: string | null;
+      country: string | null;
+      payer: string | null;
+      sourceFormat: string;
+      raw: Record<string, string>;
+      splits: { travellerName: string; amountHome: number }[];
+    }>;
+    travellers: string[];
+  };
+
+  if (!homeCurrency || !sourceFormat || !filename || !Array.isArray(transactions)) {
+    res.status(400).json({ error: "homeCurrency, sourceFormat, filename, and transactions are required" });
+    return;
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    // Create the upload record
+    const uploadResult = await client.query<{ id: string }>(
+      `INSERT INTO uploads (id, user_id, uploaded_at, filename, source_format, home_currency)
+       VALUES (gen_random_uuid(), $1, NOW(), $2, $3, $4)
+       RETURNING id`,
+      [userId, filename, sourceFormat, homeCurrency]
+    );
+    const uploadId = uploadResult.rows[0].id;
+
+    // Insert travellers
+    for (const name of (travellers ?? [])) {
+      await client.query(
+        `INSERT INTO travellers (id, upload_id, user_id, name)
+         VALUES (gen_random_uuid(), $1, $2, $3)`,
+        [uploadId, userId, name]
+      );
+    }
+
+    // Insert transactions and their splits
+    for (const tx of transactions) {
+      const txResult = await client.query<{ id: string }>(
+        `INSERT INTO transactions (
+           id, upload_id, user_id, date, description,
+           amount_home, amount_local, local_currency,
+           category_id, category_source, category_confidence,
+           payment_method, country, payer, source_format, raw
+         ) VALUES (
+           gen_random_uuid(), $1, $2, $3, $4,
+           $5, $6, $7,
+           $8, $9, $10,
+           $11, $12, $13, $14, $15
+         ) RETURNING id`,
+        [
+          uploadId, userId, tx.date, tx.description,
+          tx.amountHome, tx.amountLocal ?? null, tx.localCurrency ?? null,
+          tx.categoryId ?? null, tx.categorySource ?? null, tx.categoryConfidence ?? null,
+          tx.paymentMethod ?? null, tx.country ?? null, tx.payer ?? null,
+          tx.sourceFormat, JSON.stringify(tx.raw),
+        ]
+      );
+      const txId = txResult.rows[0].id;
+
+      for (const split of (tx.splits ?? [])) {
+        await client.query(
+          `INSERT INTO transaction_splits (id, transaction_id, traveller_name, amount_home)
+           VALUES (gen_random_uuid(), $1, $2, $3)`,
+          [txId, split.travellerName, split.amountHome]
+        );
+      }
+    }
+
+    await client.query("COMMIT");
+    res.json({ uploadId });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("POST /api/uploads/confirm error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  } finally {
+    client.release();
+  }
+});
+
+/** Converts a ParsedTransaction date to an ISO string for JSON serialisation. */
+function serializeTransaction(t: ParsedTransaction): Record<string, unknown> {
+  return {
+    ...t,
+    date: t.date instanceof Date ? t.date.toISOString() : t.date,
+  };
+}
 
 export default router;
