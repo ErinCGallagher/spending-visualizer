@@ -3,7 +3,7 @@
 import { Router } from "express";
 import multer from "multer";
 import Papa from "papaparse";
-import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenAI } from "@google/genai";
 import { requireAuth } from "../middleware/requireAuth";
 import { pool } from "../db";
 import { TravelSpendParser } from "../parsers/travelspend";
@@ -115,22 +115,30 @@ router.post("/categorise", async (req, res) => {
   const prompt = buildCategorisePrompt(transactions, availableCategories);
 
   try {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) throw new Error("ANTHROPIC_API_KEY not configured");
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) throw new Error("GEMINI_API_KEY not configured");
 
-    const client = new Anthropic({ apiKey });
-    const message = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 4096,
-      messages: [{ role: "user", content: prompt }],
+    const ai = new GoogleGenAI({ apiKey });
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              categoryName: { type: "string" },
+              confidence: { type: "number" },
+            },
+            required: ["categoryName", "confidence"],
+          },
+        },
+      },
     });
 
-    const text = message.content
-      .filter((b) => b.type === "text")
-      .map((b) => (b as { type: "text"; text: string }).text)
-      .join("");
-
-    const results = parseCategoriseResponse(text, transactions.length);
+    const results = parseCategoriseResponse(response.text ?? "", transactions.length);
     res.json({ results });
   } catch (err) {
     // Degrade gracefully — the client can let the user categorise manually
@@ -163,7 +171,8 @@ router.post("/confirm", async (req, res) => {
       amountHome: number;
       amountLocal: number | null;
       localCurrency: string | null;
-      categoryId: string | null;
+      categoryName?: string | null;
+      categoryId?: string | null;
       categorySource: "csv" | "ai" | "user" | null;
       categoryConfidence: number | null;
       paymentMethod: string | null;
@@ -179,6 +188,26 @@ router.post("/confirm", async (req, res) => {
   if (!homeCurrency || !sourceFormat || !filename || !Array.isArray(transactions)) {
     res.status(400).json({ error: "homeCurrency, sourceFormat, filename, and transactions are required" });
     return;
+  }
+
+  // Resolve category names to IDs for transactions that carry a name but no ID
+  const categoryNames = [
+    ...new Set(
+      transactions
+        .filter((t) => !t.categoryId && t.categoryName)
+        .map((t) => t.categoryName as string)
+    ),
+  ];
+
+  const categoryIdByName = new Map<string, string>();
+  if (categoryNames.length > 0) {
+    const { rows } = await pool.query<{ id: string; name: string }>(
+      `SELECT id, name FROM categories WHERE user_id = $1 AND name = ANY($2)`,
+      [userId, categoryNames]
+    );
+    for (const row of rows) {
+      categoryIdByName.set(row.name, row.id);
+    }
   }
 
   const client = await pool.connect();
@@ -220,7 +249,8 @@ router.post("/confirm", async (req, res) => {
         [
           uploadId, userId, tx.date, tx.description,
           tx.amountHome, tx.amountLocal ?? null, tx.localCurrency ?? null,
-          tx.categoryId ?? null, tx.categorySource ?? null, tx.categoryConfidence ?? null,
+          tx.categoryId ?? (tx.categoryName ? categoryIdByName.get(tx.categoryName) ?? null : null),
+          tx.categorySource ?? null, tx.categoryConfidence ?? null,
           tx.paymentMethod ?? null, tx.country ?? null, tx.payer ?? null,
           tx.sourceFormat, JSON.stringify(tx.raw),
         ]

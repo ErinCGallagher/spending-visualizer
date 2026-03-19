@@ -11,9 +11,8 @@ export interface CategoriseResult {
 }
 
 /**
- * Builds the prompt sent to Claude for batch category assignment.
- * Returns a structured prompt that asks for JSON output so parsing
- * is deterministic regardless of model verbosity.
+ * Builds the prompt for batch category assignment.
+ * Returns a structured prompt requesting JSON output.
  */
 export function buildCategorisePrompt(
   transactions: TransactionInput[],
@@ -48,7 +47,7 @@ Example: [{"categoryName":"Food","confidence":0.9},{"categoryName":"Transport","
 }
 
 /**
- * Parses the raw text response from Claude into structured results.
+ * Parses the JSON response into structured results.
  * Falls back to confidence-0 entries if the response is unparseable,
  * so callers always get a result of the expected length.
  */

@@ -152,12 +152,26 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-bold text-gray-900">
             Spending Visualizer
           </h1>
-          <Link
-            href="/upload"
-            className="px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md hover:bg-gray-50"
-          >
-            Import
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/transactions"
+              className="px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md hover:bg-gray-50"
+            >
+              Transactions
+            </Link>
+            <Link
+              href="/upload"
+              className="px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md hover:bg-gray-50"
+            >
+              Import
+            </Link>
+            <Link
+              href="/settings"
+              className="px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md hover:bg-gray-50"
+            >
+              Settings
+            </Link>
+          </div>
         </div>
 
         <Filters onChange={handleFiltersChange} />

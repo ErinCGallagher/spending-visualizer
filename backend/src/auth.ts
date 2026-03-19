@@ -5,6 +5,7 @@ import { Pool } from "pg";
 
 export const auth = betterAuth({
   database: new Pool({ connectionString: process.env.DATABASE_URL }),
+  baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
   trustedOrigins: [process.env.FRONTEND_URL ?? "http://localhost:3000"],
   socialProviders: {
     google: {

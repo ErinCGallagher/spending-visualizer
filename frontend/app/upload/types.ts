@@ -6,12 +6,14 @@
 export interface ParseError {
   message: string;
   row?: number;
+  field?: string;
 }
 
 export interface ParsedTransaction {
   description: string;
-  amount: number;
-  currency: string;
+  amountHome: number;
+  amountLocal: number | null;
+  localCurrency: string | null;
   date: string;
   category?: string;
   categoryName?: string;

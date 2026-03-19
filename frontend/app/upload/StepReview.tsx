@@ -26,6 +26,9 @@ function formatDate(iso: string) {
 }
 
 function formatAmount(amount: number, currency: string) {
+  if (!currency) {
+    return new Intl.NumberFormat("en-CA", { maximumFractionDigits: 2 }).format(amount);
+  }
   return new Intl.NumberFormat("en-CA", {
     style: "currency",
     currency,
@@ -50,7 +53,17 @@ export default function StepReview({
       setLoading(true);
       setError(null);
 
-      const payload = transactions.map((t) => ({
+      // Only send uncategorized transactions to the AI
+      const uncategorized = transactions
+        .map((t, i) => ({ t, i }))
+        .filter(({ t }) => !t.categoryName);
+
+      if (uncategorized.length === 0) {
+        setLoading(false);
+        return;
+      }
+
+      const payload = uncategorized.map(({ t }) => ({
         description: t.description,
         country: t.country ?? null,
       }));
@@ -76,12 +89,13 @@ export default function StepReview({
         const built: AISuggestion[] = [];
         const initialChoices: Record<number, string | null> = {};
 
-        results.forEach((r, i) => {
-          const t = transactions[i];
+        // Map results back to original transaction indices
+        results.forEach((r, resultIdx) => {
+          const { t, i } = uncategorized[resultIdx];
           built.push({
             transactionIndex: i,
             description: t.description,
-            amount: t.amount,
+            amount: t.amountHome,
             date: t.date,
             suggestedCategory: r.categoryName,
             confidence: r.confidence,
@@ -109,7 +123,7 @@ export default function StepReview({
   const lowConfidence = suggestions.filter((s) => s.confidence < 0.8);
 
   function handleContinue() {
-    // Merge chosen categories back into transactions
+    // Merge AI choices back; preserve existing categories for already-categorized transactions
     const updated = transactions.map((t, i) => ({
       ...t,
       categoryName: choices[i] ?? t.categoryName ?? undefined,
@@ -167,12 +181,23 @@ export default function StepReview({
 
   const groups = Array.from(new Set(allSubOptions.map((o) => o.group)));
 
+  const alreadyCategorized = transactions.filter((t) => t.categoryName).length;
+
   return (
     <div className="space-y-6">
-      <p className="text-sm text-gray-600">
-        {suggestions.length - lowConfidence.length} of {suggestions.length}{" "}
-        suggestions were accepted automatically (confidence ≥ 80%).
-      </p>
+      {alreadyCategorized > 0 && (
+        <p className="text-sm text-gray-600">
+          {alreadyCategorized} transaction{alreadyCategorized !== 1 ? "s" : ""}{" "}
+          already had a category from the CSV and were skipped.
+        </p>
+      )}
+      {suggestions.length > 0 && (
+        <p className="text-sm text-gray-600">
+          {suggestions.length - lowConfidence.length} of {suggestions.length}{" "}
+          uncategorised transaction{suggestions.length !== 1 ? "s" : ""} were
+          accepted automatically (confidence ≥ 80%).
+        </p>
+      )}
 
       {lowConfidence.length > 0 ? (
         <>
@@ -206,7 +231,7 @@ export default function StepReview({
                         {s.description}
                       </td>
                       <td className="py-2 pr-4 text-gray-800">
-                        {formatAmount(s.amount, t.currency)}
+                        {formatAmount(s.amount, t.localCurrency ?? "")}
                       </td>
                       <td className="py-2 pr-4 text-gray-500">
                         {s.suggestedCategory}{" "}
@@ -250,11 +275,11 @@ export default function StepReview({
             </table>
           </div>
         </>
-      ) : (
+      ) : suggestions.length > 0 ? (
         <p className="text-sm text-gray-600">
           All suggestions were high-confidence and have been accepted.
         </p>
-      )}
+      ) : null}
 
       <div className="flex gap-3">
         <button
