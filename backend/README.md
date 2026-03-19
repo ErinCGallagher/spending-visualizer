@@ -24,3 +24,17 @@ Express.js API for the spending visualiser.
 | `pnpm test` | Run tests |
 | `pnpm migrate` | Run database migrations |
 | `pnpm clear-data` | Truncate all app data tables (preserves BetterAuth tables) |
+
+## Database
+
+Create the database before running migrations for the first time:
+
+```bash
+createdb spending_visualizer
+```
+
+To wipe all app data (uploads, transactions, categories, etc.) while keeping user accounts intact:
+
+```bash
+pnpm clear-data
+```
