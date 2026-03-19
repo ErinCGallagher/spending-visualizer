@@ -1,25 +1,23 @@
 /**
- * Filter bar for the dashboard — date range, traveller, category, and
- * payment method selectors. Emits the current filter state on every change.
+ * Filter bar for the dashboard — date range and traveller selectors.
+ * Emits the current filter state on every change.
  */
 
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { format, subDays, startOfYear } from "date-fns";
+import { format, subDays } from "date-fns";
 
 export interface FilterValues {
   from: string;
   to: string;
   travellers: string[];
-  categories: string[];
-  paymentMethods: string[];
+  countries: string[];
 }
 
 interface Meta {
-  categories: { id: string; name: string }[];
   travellers: string[];
-  paymentMethods: string[];
+  countries: string[];
   dateRange: { from: string; to: string } | null;
 }
 
@@ -27,7 +25,7 @@ interface Props {
   onChange: (filters: FilterValues) => void;
 }
 
-type Preset = "30d" | "90d" | "year" | "all";
+type Preset = "30d" | "all";
 
 function isoDate(d: Date) {
   return format(d, "yyyy-MM-dd");
@@ -112,24 +110,15 @@ export default function Filters({ onChange }: Props) {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [travellers, setTravellers] = useState<string[]>([]);
-  const [categories, setCategories] = useState<string[]>([]);
-  const [paymentMethods, setPaymentMethods] = useState<string[]>([]);
-  const [activePreset, setActivePreset] = useState<Preset | null>("30d");
+  const [countries, setCountries] = useState<string[]>([]);
+  const [activePreset, setActivePreset] = useState<Preset | null>("all");
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     fetch("/api/transactions/meta", { credentials: "include" })
       .then((r) => r.json())
-      .then((data: Meta) => {
-        setMeta(data);
-        // Initialise date range to "last 30 days" if data exists
-        if (data.dateRange) {
-          const today = new Date();
-          setFrom(isoDate(subDays(today, 30)));
-          setTo(isoDate(today));
-        }
-      })
+      .then((data: Meta) => setMeta(data))
       .catch(() => {
         // Non-fatal — filters just won't have options
       });
@@ -139,12 +128,12 @@ export default function Filters({ onChange }: Props) {
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      onChange({ from, to, travellers, categories, paymentMethods });
+      onChange({ from, to, travellers, countries });
     }, 300);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [from, to, travellers, categories, paymentMethods, onChange]);
+  }, [from, to, travellers, countries, onChange]);
 
   function applyPreset(preset: Preset) {
     const today = new Date();
@@ -154,22 +143,12 @@ export default function Filters({ onChange }: Props) {
         setFrom(isoDate(subDays(today, 30)));
         setTo(isoDate(today));
         break;
-      case "90d":
-        setFrom(isoDate(subDays(today, 90)));
-        setTo(isoDate(today));
-        break;
-      case "year":
-        setFrom(isoDate(startOfYear(today)));
-        setTo(isoDate(today));
-        break;
       case "all":
-        setFrom(meta?.dateRange?.from ?? "");
-        setTo(meta?.dateRange?.to ?? "");
+        setFrom("");
+        setTo("");
         break;
     }
   }
-
-  const categoryNames = (meta?.categories ?? []).map((c) => c.name);
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
@@ -178,10 +157,8 @@ export default function Filters({ onChange }: Props) {
         <div className="flex items-center gap-1">
           {(
             [
-              { key: "30d", label: "Last 30 days" },
-              { key: "90d", label: "Last 90 days" },
-              { key: "year", label: "This year" },
               { key: "all", label: "All time" },
+              { key: "30d", label: "Last 30 days" },
             ] as { key: Preset; label: string }[]
           ).map(({ key, label }) => (
             <button
@@ -221,24 +198,20 @@ export default function Filters({ onChange }: Props) {
           />
         </div>
 
-        {/* Multi-selects */}
+        {/* Traveller multi-select */}
         <MultiSelect
           label="Traveller"
           options={meta?.travellers ?? []}
           selected={travellers}
           onChange={setTravellers}
         />
+
+        {/* Country multi-select */}
         <MultiSelect
-          label="Category"
-          options={categoryNames}
-          selected={categories}
-          onChange={setCategories}
-        />
-        <MultiSelect
-          label="Payment method"
-          options={meta?.paymentMethods ?? []}
-          selected={paymentMethods}
-          onChange={setPaymentMethods}
+          label="Country"
+          options={meta?.countries ?? []}
+          selected={countries}
+          onChange={setCountries}
         />
       </div>
     </div>

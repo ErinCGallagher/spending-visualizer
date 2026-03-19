@@ -17,6 +17,7 @@ router.use(requireAuth);
 router.get("/category-totals", async (req, res) => {
   const userId: string = res.locals.userId;
   const { from, to, traveller } = req.query as Record<string, string | undefined>;
+  const countries = [req.query.country ?? []].flat().filter(Boolean) as string[];
 
   const conditions: string[] = ["t.user_id = $1"];
   const values: unknown[] = [userId];
@@ -28,6 +29,7 @@ router.get("/category-totals", async (req, res) => {
 
   if (from) conditions.push(`t.date >= ${addParam(from)}`);
   if (to) conditions.push(`t.date <= ${addParam(to)}`);
+  if (countries.length > 0) conditions.push(`t.country = ANY(${addParam(countries)})`);
 
   const where = conditions.join(" AND ");
 
@@ -86,6 +88,7 @@ router.get("/category-totals", async (req, res) => {
 router.get("/monthly-totals", async (req, res) => {
   const userId: string = res.locals.userId;
   const { from, to, traveller, groupBy = "total" } = req.query as Record<string, string | undefined>;
+  const countries = [req.query.country ?? []].flat().filter(Boolean) as string[];
 
   if (groupBy !== "category" && groupBy !== "total") {
     res.status(400).json({ error: "groupBy must be 'category' or 'total'" });
@@ -102,6 +105,7 @@ router.get("/monthly-totals", async (req, res) => {
 
   if (from) conditions.push(`t.date >= ${addParam(from)}`);
   if (to) conditions.push(`t.date <= ${addParam(to)}`);
+  if (countries.length > 0) conditions.push(`t.country = ANY(${addParam(countries)})`);
 
   const where = conditions.join(" AND ");
 
@@ -196,6 +200,7 @@ router.get("/monthly-totals", async (req, res) => {
 router.get("/cumulative", async (req, res) => {
   const userId: string = res.locals.userId;
   const { from, to, traveller, granularity = "day" } = req.query as Record<string, string | undefined>;
+  const countries = [req.query.country ?? []].flat().filter(Boolean) as string[];
 
   if (!["day", "week", "month"].includes(granularity)) {
     res.status(400).json({ error: "granularity must be 'day', 'week', or 'month'" });
@@ -216,6 +221,7 @@ router.get("/cumulative", async (req, res) => {
 
   if (from) conditions.push(`t.date >= ${addParam(from)}`);
   if (to) conditions.push(`t.date <= ${addParam(to)}`);
+  if (countries.length > 0) conditions.push(`t.country = ANY(${addParam(countries)})`);
 
   const where = conditions.join(" AND ");
 

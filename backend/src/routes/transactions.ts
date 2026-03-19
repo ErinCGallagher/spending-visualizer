@@ -99,7 +99,7 @@ router.get("/meta", async (_req, res) => {
   const userId: string = res.locals.userId;
 
   try {
-    const [catResult, travellerResult, pmResult, dateResult] = await Promise.all([
+    const [catResult, travellerResult, pmResult, countryResult, dateResult] = await Promise.all([
       pool.query<{ id: string; name: string }>(
         `SELECT DISTINCT c.id, c.name
          FROM transactions t
@@ -123,6 +123,13 @@ router.get("/meta", async (_req, res) => {
          ORDER BY payment_method`,
         [userId]
       ),
+      pool.query<{ country: string }>(
+        `SELECT DISTINCT country
+         FROM transactions
+         WHERE user_id = $1 AND country IS NOT NULL
+         ORDER BY country`,
+        [userId]
+      ),
       pool.query<{ min_date: string | null; max_date: string | null }>(
         `SELECT MIN(date)::text AS min_date, MAX(date)::text AS max_date
          FROM transactions
@@ -141,6 +148,7 @@ router.get("/meta", async (_req, res) => {
       categories: catResult.rows.map((r) => ({ id: r.id, name: r.name })),
       travellers: travellerResult.rows.map((r) => r.traveller_name),
       paymentMethods: pmResult.rows.map((r) => r.payment_method),
+      countries: countryResult.rows.map((r) => r.country),
       dateRange,
     });
   } catch (err) {
