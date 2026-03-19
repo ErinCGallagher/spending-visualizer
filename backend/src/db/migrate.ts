@@ -20,6 +20,16 @@ async function migrate() {
     `);
 
     await client.query(`
+      CREATE TABLE IF NOT EXISTS categories (
+        id        uuid primary key default gen_random_uuid(),
+        user_id   text not null,
+        name      text not null,
+        parent_id uuid references categories(id) on delete set null,
+        unique(user_id, name)
+      )
+    `);
+
+    await client.query(`
       CREATE TABLE IF NOT EXISTS transactions (
         id                  uuid primary key default gen_random_uuid(),
         upload_id           uuid references uploads(id) on delete cascade,
@@ -29,7 +39,7 @@ async function migrate() {
         amount_home         numeric(12,2) not null,
         amount_local        numeric(12,2),
         local_currency      text,
-        category            text,
+        category_id         uuid references categories(id) on delete set null,
         category_source     text check (category_source in ('csv', 'ai', 'user')),
         category_confidence numeric(4,3),
         payment_method      text,
@@ -65,11 +75,15 @@ async function migrate() {
     `);
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_transactions_user_category
-        ON transactions(user_id, category)
+        ON transactions(user_id, category_id)
     `);
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_splits_transaction
         ON transaction_splits(transaction_id)
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_categories_user
+        ON categories(user_id)
     `);
 
     await client.query("COMMIT");

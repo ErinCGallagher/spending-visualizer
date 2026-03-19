@@ -65,6 +65,26 @@ describe("TravelSpendParser", () => {
     });
   });
 
+  describe("categories", () => {
+    it("returns distinct category names found in the CSV", () => {
+      const row2 = { ...BASE_ROW, category: "Restaurants" };
+      const result = parser.parse([BASE_ROW, row2], "upload-1", "user-1");
+      expect(result.categories).toContain("Groceries");
+      expect(result.categories).toContain("Restaurants");
+    });
+
+    it("deduplicates repeated category names", () => {
+      const result = parser.parse([BASE_ROW, BASE_ROW], "upload-1", "user-1");
+      expect(result.categories.filter((c) => c === "Groceries")).toHaveLength(1);
+    });
+
+    it("excludes null categories from the list", () => {
+      const row = { ...BASE_ROW, category: "" };
+      const result = parser.parse([row], "upload-1", "user-1");
+      expect(result.categories).toHaveLength(0);
+    });
+  });
+
   describe("field mapping", () => {
     it("maps datePaid to date", () => {
       const result = parser.parse([BASE_ROW], "upload-1", "user-1");
@@ -93,14 +113,14 @@ describe("TravelSpendParser", () => {
 
     it("maps category with source=csv when present", () => {
       const result = parser.parse([BASE_ROW], "upload-1", "user-1");
-      expect(result.transactions[0].category).toBe("Groceries");
+      expect(result.transactions[0].categoryName).toBe("Groceries");
       expect(result.transactions[0].categorySource).toBe("csv");
     });
 
-    it("sets category to null when category is empty", () => {
+    it("sets categoryName to null when category is empty", () => {
       const row = { ...BASE_ROW, category: "" };
       const result = parser.parse([row], "upload-1", "user-1");
-      expect(result.transactions[0].category).toBeNull();
+      expect(result.transactions[0].categoryName).toBeNull();
       expect(result.transactions[0].categorySource).toBeNull();
     });
 

@@ -44,8 +44,9 @@ The main view. Shows all spending charts with global filters across the top.
 Walks the user through importing a new CSV.
 - Step 1: drag-and-drop or file picker, parser selection
 - Step 2: parsed summary (transaction count, date range, travellers, home currency)
-- Step 3: AI categorisation review — list of low-confidence transactions for user input
-- Step 4: confirmation and redirect to Dashboard
+- Step 3: category organisation — arrange detected CSV categories into the user's main/sub-category hierarchy; categories already in the user's taxonomy are pre-assigned automatically
+- Step 4: AI categorisation review — list of low-confidence transactions for user input
+- Step 5: confirmation and redirect to Dashboard
 
 ### Transactions (`/transactions`) — MVP
 Tabular view of all imported transactions with filtering and deletion.
@@ -78,18 +79,19 @@ Account and data management.
 
 ### 2. AI Transaction Categorisation
 
-- Transactions that already have a `category` value are accepted as-is
-- For transactions with no category, use AI to suggest a category based on `description` and `country`
+- Transactions that already have a `category` value from the CSV are matched against the user's existing category taxonomy
+- For transactions with no category, use AI to suggest a sub-category based on `description` and `country`
 - AI returns a confidence score for each suggestion
 - Suggestions at or above 80% confidence are accepted automatically
 - Suggestions below 80% confidence are flagged for user review
 
 #### Review Flow
 
-1. After upload, display a list of low-confidence categorisations
+1. After the category organisation step, display a list of low-confidence categorisations
 2. For each, show the transaction (`description`, `amount`, `date`) and the AI's suggestion
 3. User can accept the suggestion, select a different category, or leave the transaction uncategorised
-4. User-defined categories are supported (create new categories inline)
+4. Category dropdowns show the full hierarchy (main → sub); user can assign to either level
+5. New categories created inline are added to the user's global taxonomy
 
 ### 3. Spending Charts
 
@@ -120,7 +122,7 @@ All charts and totals respond to the following filters:
 
 - **Date range** — start and end date picker; presets: this month, last month, all time
 - **Traveller** — select one, multiple, or all travellers (uses per-traveller share columns)
-- **Category** — one or more categories
+- **Category** — one or more categories; selecting a main category includes all its sub-categories
 - **Payment method** — Cash, Credit Card, etc.
 
 ---
@@ -129,6 +131,16 @@ All charts and totals respond to the following filters:
 ### CSV Support
 
 The app supports multiple CSV formats via pluggable parsers. Every format is normalised into a single internal transaction schema before storage.
+
+### Category Hierarchy
+
+Categories are global per-user and two levels deep: a **main category** with optional **sub-categories**.
+
+- Main categories have no parent (e.g. "Food & Drink", "Transport")
+- Sub-categories belong to exactly one main category (e.g. "Restaurants" → "Food & Drink")
+- A transaction is tagged with a single category, which can be either a main category or a sub-category; if it is a sub-category, the main category is inferred from the parent
+
+Category taxonomy is built up over time as the user uploads CSVs and organises the detected categories. The taxonomy persists across uploads — once "Restaurants" is placed under "Food & Drink", all future uploads apply that grouping automatically.
 
 ### Canonical Transaction Schema
 
@@ -141,7 +153,7 @@ All parsers produce this shape regardless of source format:
 | `amount_home` | decimal | Always in home currency |
 | `amount_local` | decimal | Original amount (may equal `amount_home`) |
 | `local_currency` | text | ISO code |
-| `category` | text | Nullable |
+| `category_id` | uuid | FK to `categories`; nullable |
 | `category_source` | enum | `csv`, `ai`, `user` |
 | `category_confidence` | float | Null when user-set |
 | `payment_method` | text | Nullable |
