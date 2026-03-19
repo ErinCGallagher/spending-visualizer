@@ -4,10 +4,7 @@ import { betterAuth } from "better-auth";
 import { Pool } from "pg";
 
 export const auth = betterAuth({
-  database: {
-    provider: "pg",
-    db: new Pool({ connectionString: process.env.DATABASE_URL }),
-  },
+  database: new Pool({ connectionString: process.env.DATABASE_URL }),
   trustedOrigins: [process.env.FRONTEND_URL ?? "http://localhost:3000"],
   socialProviders: {
     google: {
@@ -15,7 +12,13 @@ export const auth = betterAuth({
       clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
     },
   },
-  cookies: {
-    sameSite: "lax",
+  advanced: {
+    useSecureCookies: process.env.NODE_ENV === "production",
+    defaultCookieAttributes: {
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      httpOnly: true,
+      path: "/",
+    },
   },
 });

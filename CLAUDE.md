@@ -52,6 +52,48 @@ frontend commands:
 
 <!-- Append dated bullets when something bites us. Prevents recurring mistakes. -->
 
+#### BetterAuth (2026-03-19)
+
+**Database config — pass Pool directly, not wrapped:**
+```typescript
+// CORRECT
+export const auth = betterAuth({
+  database: new Pool({ connectionString: process.env.DATABASE_URL }),
+  ...
+});
+
+// WRONG — breaks the pg adapter
+export const auth = betterAuth({
+  database: { provider: "pg", db: new Pool(...) },
+  ...
+});
+```
+
+**Cookie config — use `advanced.defaultCookieAttributes`, not top-level `cookies`:**
+```typescript
+advanced: {
+  useSecureCookies: process.env.NODE_ENV === "production",
+  defaultCookieAttributes: {
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    httpOnly: true,
+    path: "/",
+  },
+},
+```
+
+**Middleware — use `fromNodeHeaders`, not a type cast:**
+```typescript
+import { fromNodeHeaders } from "better-auth/node";
+const session = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) });
+```
+
+**All `fetch` calls to the API must include `credentials: "include"`** or the session cookie won't be sent and every request returns 401.
+
+**BetterAuth CLI migration doesn't work with the raw `pg` adapter** — it requires Kysely. Always add BetterAuth's tables manually to `migrate.ts`. Required tables: `"user"`, `session`, `account`, `verification` — see `backend/src/db/migrate.ts` for the exact schema (camelCase quoted column names).
+
+**Run `pnpm migrate` after any schema changes.** The database must exist first (`createdb spending_visualizer`).
+
 
 ---
 

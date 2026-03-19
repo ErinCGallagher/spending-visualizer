@@ -1,8 +1,7 @@
 /** Next.js config — proxies /api/* to the backend. */
 
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   async rewrites() {
     return [
       {
