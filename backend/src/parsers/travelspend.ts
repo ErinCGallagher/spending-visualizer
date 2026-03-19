@@ -1,0 +1,123 @@
+/** TravelSpend CSV parser — maps TravelSpend export columns to canonical transaction fields. */
+
+import { CsvParser, ParsedSplit, ParsedTransaction, ParseError, ParseResult } from "./types";
+
+/** All column names that TravelSpend always exports. Columns not in this list are traveller names. */
+const FIXED_FIELDS = [
+  "amount",
+  "amountInHomeCurrency",
+  "category",
+  "conversionRate",
+  "country",
+  "countryCode",
+  "datePaid",
+  "homeCurrency",
+  "localCurrency",
+  "notes",
+  "paidBy",
+  "paidFor",
+  "paymentMethod",
+  "photo",
+  "place",
+  "latitude",
+  "longitude",
+  "type",
+  "numberOfDays",
+  "excludeFromAvg",
+  "addToBudget",
+  "categoryId",
+  "categoryIcon",
+  "categoryColor",
+  "paymentMethodId",
+  "paymentMethodIcon",
+  "paymentMethodColor",
+  "paidById",
+  "paidToId",
+  "splitObjects",
+];
+
+export class TravelSpendParser implements CsvParser {
+  readonly name = "travelspend";
+  readonly fixedFields = FIXED_FIELDS;
+
+  parse(rows: Record<string, string>[], _uploadId: string, _userId: string): ParseResult {
+    if (rows.length === 0) {
+      return {
+        transactions: [],
+        travellers: [],
+        errors: [],
+        homeCurrency: "",
+        dateRange: { from: new Date(), to: new Date() },
+      };
+    }
+
+    // Infer traveller names from columns not in fixedFields
+    const allColumns = Object.keys(rows[0]);
+    const travellers = allColumns.filter((col) => !FIXED_FIELDS.includes(col));
+
+    const transactions: ParsedTransaction[] = [];
+    const errors: ParseError[] = [];
+    let homeCurrency = "";
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const rowNum = i + 1;
+
+      // Skip non-expense rows
+      if (row["type"] !== "Expense") {
+        continue;
+      }
+
+      // Validate required fields
+      if (!row["datePaid"]) {
+        errors.push({ row: rowNum, field: "datePaid", message: "Missing datePaid" });
+        continue;
+      }
+      if (!row["amountInHomeCurrency"]?.trim()) {
+        errors.push({ row: rowNum, field: "amountInHomeCurrency", message: "Missing amountInHomeCurrency" });
+        continue;
+      }
+
+      const date = new Date(row["datePaid"]);
+      const amountHome = parseFloat(row["amountInHomeCurrency"].trim());
+      const amountLocal = row["amount"] ? parseFloat(row["amount"].trim()) : null;
+      const category = row["category"]?.trim() || null;
+
+      if (!homeCurrency && row["homeCurrency"]) {
+        homeCurrency = row["homeCurrency"];
+      }
+
+      // Build splits from per-traveller columns
+      const splits: ParsedSplit[] = travellers
+        .map((name) => ({
+          travellerName: name,
+          amountHome: parseFloat((row[name] ?? "0").trim()) || 0,
+        }))
+        .filter((s) => s.amountHome > 0);
+
+      transactions.push({
+        date,
+        description: row["notes"] ?? "",
+        amountHome,
+        amountLocal,
+        localCurrency: row["localCurrency"] || null,
+        category,
+        categorySource: category ? "csv" : null,
+        paymentMethod: row["paymentMethod"] || null,
+        country: row["country"] || null,
+        payer: row["paidBy"] || null,
+        sourceFormat: "travelspend",
+        raw: row,
+        splits,
+      });
+    }
+
+    const dates = transactions.map((t) => t.date.getTime());
+    const dateRange =
+      dates.length > 0
+        ? { from: new Date(Math.min(...dates)), to: new Date(Math.max(...dates)) }
+        : { from: new Date(), to: new Date() };
+
+    return { transactions, travellers, errors, homeCurrency, dateRange };
+  }
+}
