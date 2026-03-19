@@ -6,7 +6,8 @@ export interface ParsedTransaction {
   amountHome: number;
   amountLocal: number | null;
   localCurrency: string | null;
-  category: string | null;
+  /** Raw category name from the CSV. Resolved to a category_id after the user completes the category organisation step. */
+  categoryName: string | null;
   categorySource: "csv" | "ai" | "user" | null;
   paymentMethod: string | null;
   country: string | null;
@@ -30,6 +31,8 @@ export interface ParseError {
 export interface ParseResult {
   transactions: ParsedTransaction[];
   travellers: string[];
+  /** Distinct category names found in the CSV, for the category organisation step. */
+  categories: string[];
   errors: ParseError[];
   homeCurrency: string;
   dateRange: { from: Date; to: Date };

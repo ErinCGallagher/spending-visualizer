@@ -45,6 +45,7 @@ export class TravelSpendParser implements CsvParser {
       return {
         transactions: [],
         travellers: [],
+        categories: [],
         errors: [],
         homeCurrency: "",
         dateRange: { from: new Date(), to: new Date() },
@@ -81,7 +82,7 @@ export class TravelSpendParser implements CsvParser {
       const date = new Date(row["datePaid"]);
       const amountHome = parseFloat(row["amountInHomeCurrency"].trim());
       const amountLocal = row["amount"] ? parseFloat(row["amount"].trim()) : null;
-      const category = row["category"]?.trim() || null;
+      const categoryName = row["category"]?.trim() || null;
 
       if (!homeCurrency && row["homeCurrency"]) {
         homeCurrency = row["homeCurrency"];
@@ -101,8 +102,8 @@ export class TravelSpendParser implements CsvParser {
         amountHome,
         amountLocal,
         localCurrency: row["localCurrency"] || null,
-        category,
-        categorySource: category ? "csv" : null,
+        categoryName,
+        categorySource: categoryName ? "csv" : null,
         paymentMethod: row["paymentMethod"] || null,
         country: row["country"] || null,
         payer: row["paidBy"] || null,
@@ -118,6 +119,10 @@ export class TravelSpendParser implements CsvParser {
         ? { from: new Date(Math.min(...dates)), to: new Date(Math.max(...dates)) }
         : { from: new Date(), to: new Date() };
 
-    return { transactions, travellers, errors, homeCurrency, dateRange };
+    const categories = [...new Set(
+      transactions.map((t) => t.categoryName).filter((c): c is string => c !== null)
+    )];
+
+    return { transactions, travellers, categories, errors, homeCurrency, dateRange };
   }
 }
