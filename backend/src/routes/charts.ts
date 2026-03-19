@@ -37,26 +37,34 @@ router.get("/category-totals", async (req, res) => {
     if (traveller) {
       const travellerParam = addParam(traveller);
       const result = await pool.query<{ category: string; total: string }>(
-        `SELECT COALESCE(c.name, 'Uncategorized') AS category,
-                SUM(ts.amount_home) AS total
-         FROM transactions t
-         JOIN transaction_splits ts
-           ON ts.transaction_id = t.id AND ts.traveller_name = ${travellerParam}
-         LEFT JOIN categories c ON c.id = t.category_id
-         WHERE ${where}
-         GROUP BY c.name
+        `SELECT category, SUM(total) AS total
+         FROM (
+           SELECT COALESCE(p.name, c.name, 'Uncategorized') AS category,
+                  ts.amount_home AS total
+           FROM transactions t
+           JOIN transaction_splits ts
+             ON ts.transaction_id = t.id AND ts.traveller_name = ${travellerParam}
+           LEFT JOIN categories c ON c.id = t.category_id
+           LEFT JOIN categories p ON p.id = c.parent_id
+           WHERE ${where}
+         ) sub
+         GROUP BY category
          ORDER BY total DESC`,
         values
       );
       rows = result.rows.map((r) => ({ category: r.category, total: parseFloat(r.total) }));
     } else {
       const result = await pool.query<{ category: string; total: string }>(
-        `SELECT COALESCE(c.name, 'Uncategorized') AS category,
-                SUM(t.amount_home) AS total
-         FROM transactions t
-         LEFT JOIN categories c ON c.id = t.category_id
-         WHERE ${where}
-         GROUP BY c.name
+        `SELECT category, SUM(total) AS total
+         FROM (
+           SELECT COALESCE(p.name, c.name, 'Uncategorized') AS category,
+                  t.amount_home AS total
+           FROM transactions t
+           LEFT JOIN categories c ON c.id = t.category_id
+           LEFT JOIN categories p ON p.id = c.parent_id
+           WHERE ${where}
+         ) sub
+         GROUP BY category
          ORDER BY total DESC`,
         values
       );
@@ -104,16 +112,20 @@ router.get("/monthly-totals", async (req, res) => {
       const travellerParam = addParam(traveller);
       if (groupBy === "category") {
         const result = await pool.query<{ month: string; category: string; total: string }>(
-          `SELECT TO_CHAR(t.date, 'YYYY-MM') AS month,
-                  COALESCE(c.name, 'Uncategorized') AS category,
-                  SUM(ts.amount_home) AS total
-           FROM transactions t
-           JOIN transaction_splits ts
-             ON ts.transaction_id = t.id AND ts.traveller_name = ${travellerParam}
-           LEFT JOIN categories c ON c.id = t.category_id
-           WHERE ${where}
-           GROUP BY month, c.name
-           ORDER BY month, c.name`,
+          `SELECT month, category, SUM(total) AS total
+           FROM (
+             SELECT TO_CHAR(t.date, 'YYYY-MM') AS month,
+                    COALESCE(p.name, c.name, 'Uncategorized') AS category,
+                    ts.amount_home AS total
+             FROM transactions t
+             JOIN transaction_splits ts
+               ON ts.transaction_id = t.id AND ts.traveller_name = ${travellerParam}
+             LEFT JOIN categories c ON c.id = t.category_id
+             LEFT JOIN categories p ON p.id = c.parent_id
+             WHERE ${where}
+           ) sub
+           GROUP BY month, category
+           ORDER BY month, category`,
           values
         );
         rows = result.rows.map((r) => ({
@@ -137,14 +149,18 @@ router.get("/monthly-totals", async (req, res) => {
       }
     } else if (groupBy === "category") {
       const result = await pool.query<{ month: string; category: string; total: string }>(
-        `SELECT TO_CHAR(t.date, 'YYYY-MM') AS month,
-                COALESCE(c.name, 'Uncategorized') AS category,
-                SUM(t.amount_home) AS total
-         FROM transactions t
-         LEFT JOIN categories c ON c.id = t.category_id
-         WHERE ${where}
-         GROUP BY month, c.name
-         ORDER BY month, c.name`,
+        `SELECT month, category, SUM(total) AS total
+         FROM (
+           SELECT TO_CHAR(t.date, 'YYYY-MM') AS month,
+                  COALESCE(p.name, c.name, 'Uncategorized') AS category,
+                  t.amount_home AS total
+           FROM transactions t
+           LEFT JOIN categories c ON c.id = t.category_id
+           LEFT JOIN categories p ON p.id = c.parent_id
+           WHERE ${where}
+         ) sub
+         GROUP BY month, category
+         ORDER BY month, category`,
         values
       );
       rows = result.rows.map((r) => ({
