@@ -31,8 +31,7 @@ function buildParams(
   if (filters.from) params.set("from", filters.from);
   if (filters.to) params.set("to", filters.to);
   for (const t of filters.travellers) params.append("traveller", t);
-  for (const c of filters.categories) params.append("category", c);
-  for (const p of filters.paymentMethods) params.append("paymentMethod", p);
+  for (const c of filters.countries) params.append("country", c);
   for (const [k, v] of Object.entries(extra)) params.set(k, v);
   return params.toString();
 }
@@ -45,8 +44,7 @@ export default function DashboardPage() {
     from: "",
     to: "",
     travellers: [],
-    categories: [],
-    paymentMethods: [],
+    countries: [],
   });
 
   const [categoryData, setCategoryData] = useState<CategoryTotal[]>([]);
