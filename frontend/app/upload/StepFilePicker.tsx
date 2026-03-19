@@ -84,30 +84,51 @@ export default function StepFilePicker({ onSuccess }: Props) {
         </select>
       </div>
 
-      <div
-        {...getRootProps()}
-        className={`border-2 border-dashed rounded-lg p-10 text-center cursor-pointer transition-colors ${
-          isDragActive
-            ? "border-blue-500 bg-blue-50"
-            : "border-gray-300 hover:border-gray-400"
-        }`}
-      >
-        <input {...getInputProps()} />
-        {file ? (
-          <p className="text-sm text-gray-700">
-            <span className="font-medium">{file.name}</span>{" "}
-            <span className="text-gray-500">
-              ({(file.size / 1024).toFixed(1)} KB)
-            </span>
-          </p>
-        ) : isDragActive ? (
-          <p className="text-sm text-blue-600">Drop the CSV file here…</p>
-        ) : (
-          <p className="text-sm text-gray-500">
-            Drag and drop a CSV file here, or click to select
-          </p>
-        )}
-      </div>
+      {file ? (
+        <div className="flex items-center gap-3 border border-gray-200 rounded-lg px-4 py-3 bg-gray-50">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-8 w-8 flex-shrink-0 text-gray-400"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+          </svg>
+          <span className="flex-1 text-sm font-medium text-gray-700 truncate">
+            {file.name}
+          </span>
+          <button
+            type="button"
+            onClick={() => setFile(null)}
+            className="text-sm text-blue-600 hover:text-blue-800 flex-shrink-0"
+          >
+            Change file
+          </button>
+        </div>
+      ) : (
+        <div
+          {...getRootProps()}
+          className={`border-2 border-dashed rounded-lg p-10 text-center cursor-pointer transition-colors ${
+            isDragActive
+              ? "border-blue-500 bg-blue-50"
+              : "border-gray-300 hover:border-gray-400"
+          }`}
+        >
+          <input {...getInputProps()} />
+          {isDragActive ? (
+            <p className="text-sm text-blue-600">Drop the CSV file here…</p>
+          ) : (
+            <p className="text-sm text-gray-500">
+              Drag and drop a CSV file here, or click to select
+            </p>
+          )}
+        </div>
+      )}
 
       {errors.length > 0 && (
         <ul className="space-y-1">

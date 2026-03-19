@@ -27,6 +27,10 @@ export default function StepSummary({ result, onBack, onContinue }: Props) {
   const hasNoTransactions = result.transactions.length === 0;
   const canContinue = !hasErrors && !hasNoTransactions;
 
+  const countries = [
+    ...new Set(result.transactions.map((t) => t.country).filter(Boolean)),
+  ].sort() as string[];
+
   return (
     <div className="space-y-6">
       {result.overlapWarning && (
@@ -63,6 +67,13 @@ export default function StepSummary({ result, onBack, onContinue }: Props) {
             {result.travellers.length > 0
               ? result.travellers.join(", ")
               : "—"}
+          </dd>
+        </div>
+
+        <div>
+          <dt className="text-gray-500">Countries</dt>
+          <dd className="font-medium text-gray-900">
+            {countries.length > 0 ? countries.join(", ") : "None recorded"}
           </dd>
         </div>
       </dl>
