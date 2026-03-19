@@ -135,6 +135,11 @@ Find the root cause — never patch a symptom. One hypothesis at a time; smalles
 - Never add AI as coauthor; create a WIP branch if none exists
 - Double quotes `"` not single `'`
 
+## Environment variables
+
+- `.env` — real secrets and local config (never committed). Contains API keys, OAuth credentials, database URLs, auth secrets.
+- `.env.example` — non-secret structural defaults only (committed). Contains only safe, usable defaults like localhost URLs. Never put API keys, secrets, credentials, or placeholders for them — omit those keys entirely so developers are not prompted to fill them in insecurely.
+
 ## Planning
 
 - Never create `todo.md` files — use the TodoWrite tool for progress tracking instead

@@ -23,6 +23,10 @@ function formatDate(iso: string) {
 }
 
 export default function StepSummary({ result, onBack, onContinue }: Props) {
+  const hasErrors = result.errors.length > 0;
+  const hasNoTransactions = result.transactions.length === 0;
+  const canContinue = !hasErrors && !hasNoTransactions;
+
   return (
     <div className="space-y-6">
       {result.overlapWarning && (
@@ -63,14 +67,29 @@ export default function StepSummary({ result, onBack, onContinue }: Props) {
         </div>
       </dl>
 
-      {result.errors.length > 0 && (
+      {hasNoTransactions && (
+        <div className="rounded-md bg-red-50 border border-red-300 px-4 py-3 text-sm text-red-800">
+          <strong>No valid transactions found.</strong> The file could not be
+          parsed. Check that you selected the correct format.
+        </div>
+      )}
+
+      {hasErrors && (
         <div>
-          <p className="text-sm font-medium text-gray-700 mb-1">
-            Parse warnings
+          <p className="text-sm font-medium text-red-700 mb-1">
+            {result.errors.length} row{result.errors.length !== 1 ? "s" : ""}{" "}
+            could not be imported due to missing required fields. Fix the file
+            and re-upload to proceed.
           </p>
-          <ul className="space-y-1">
+          <ul className="space-y-1 max-h-40 overflow-y-auto">
             {result.errors.map((err, i) => (
               <li key={i} className="text-sm text-red-600">
+                {err.row != null && (
+                  <span className="font-medium">Row {err.row}: </span>
+                )}
+                {err.field && (
+                  <span className="font-medium">{err.field} — </span>
+                )}
                 {err.message}
               </li>
             ))}
@@ -87,7 +106,15 @@ export default function StepSummary({ result, onBack, onContinue }: Props) {
         </button>
         <button
           onClick={onContinue}
-          className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700"
+          disabled={!canContinue}
+          title={
+            hasNoTransactions
+              ? "No valid transactions to import"
+              : hasErrors
+              ? "Fix the errors above before continuing"
+              : undefined
+          }
+          className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Continue
         </button>

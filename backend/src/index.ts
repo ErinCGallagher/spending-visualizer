@@ -24,7 +24,7 @@ app.use(
 // BetterAuth handles all /api/auth/* routes
 app.all("/api/auth/*", toNodeHandler(auth));
 
-app.use(express.json());
+app.use(express.json({ limit: "10mb" }));
 
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true });
