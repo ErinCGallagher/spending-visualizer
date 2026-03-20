@@ -4,6 +4,15 @@ import { Router } from "express";
 import { requireAuth } from "../middleware/requireAuth";
 import { pool } from "../db";
 
+export function mapCountryTotalRow(r: { country: string; total: string; days: string; per_day: string | null }) {
+  return {
+    country: r.country,
+    total: parseFloat(r.total),
+    days: parseInt(r.days, 10),
+    perDay: r.per_day != null ? parseFloat(r.per_day) : 0,
+  };
+}
+
 const router = Router();
 
 router.use(requireAuth);
@@ -76,6 +85,71 @@ router.get("/category-totals", async (req, res) => {
     res.json(rows);
   } catch (err) {
     console.error("GET /api/charts/category-totals error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+/**
+ * GET /api/charts/country-totals
+ * Query params: from, to, traveller (single value)
+ * Returns per-country aggregate: total spent, distinct days, spent/day.
+ */
+router.get("/country-totals", async (req, res) => {
+  const userId: string = res.locals.userId;
+  const { from, to, traveller } = req.query as Record<string, string | undefined>;
+
+  const conditions: string[] = ["t.user_id = $1"];
+  const values: unknown[] = [userId];
+
+  const addParam = (value: unknown): string => {
+    values.push(value);
+    return `$${values.length}`;
+  };
+
+  if (from) conditions.push(`t.date >= ${addParam(from)}`);
+  if (to) conditions.push(`t.date <= ${addParam(to)}`);
+
+  const where = conditions.join(" AND ");
+
+  try {
+    let rows: { country: string; total: string; days: string; per_day: string }[];
+
+    if (traveller) {
+      const travellerParam = addParam(traveller);
+      const result = await pool.query<{ country: string; total: string; days: string; per_day: string }>(
+        `SELECT
+           t.country,
+           SUM(ts.amount_home)                          AS total,
+           COUNT(DISTINCT t.date::date)                  AS days,
+           SUM(ts.amount_home) / NULLIF(COUNT(DISTINCT t.date::date), 0) AS per_day
+         FROM transactions t
+         JOIN transaction_splits ts
+           ON ts.transaction_id = t.id AND ts.traveller_name = ${travellerParam}
+         WHERE ${where}
+         GROUP BY t.country
+         ORDER BY total DESC`,
+        values
+      );
+      rows = result.rows;
+    } else {
+      const result = await pool.query<{ country: string; total: string; days: string; per_day: string }>(
+        `SELECT
+           t.country,
+           SUM(t.amount_home)                           AS total,
+           COUNT(DISTINCT t.date::date)                  AS days,
+           SUM(t.amount_home) / NULLIF(COUNT(DISTINCT t.date::date), 0) AS per_day
+         FROM transactions t
+         WHERE ${where}
+         GROUP BY t.country
+         ORDER BY total DESC`,
+        values
+      );
+      rows = result.rows;
+    }
+
+    res.json(rows.map(mapCountryTotalRow));
+  } catch (err) {
+    console.error("GET /api/charts/country-totals error:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 });
