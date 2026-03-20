@@ -28,12 +28,11 @@ interface Props {
   currency: string;
 }
 
-function formatCurrency(value: number, currency: string) {
-  return new Intl.NumberFormat("en-CA", {
-    style: "currency",
-    currency,
-    maximumFractionDigits: 0,
-  }).format(value);
+function formatCurrency(value: number, currency: string, decimals = 2) {
+  return `${new Intl.NumberFormat("en-CA", {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  }).format(value)} ${currency}`;
 }
 
 export default function CountrySummaryTable({

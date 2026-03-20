@@ -15,9 +15,11 @@ interface Transaction {
   description: string;
   amountHome: number;
   localCurrency: string | null;
+  homeCurrency: string | null;
   categoryName: string | null;
-  paymentMethod: string | null;
   payer: string | null;
+  groupName: string | null;
+  groupType: string | null;
 }
 
 interface TransactionsResponse {
@@ -40,8 +42,18 @@ function formatDate(iso: string) {
   // Display dates in a readable format without importing a library
   const [year, month, day] = iso.split("-");
   const months = [
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
   ];
   return `${months[parseInt(month, 10) - 1]} ${parseInt(day, 10)}, ${year}`;
 }
@@ -81,7 +93,12 @@ export default function TransactionsPage() {
   }, []);
 
   const fetchTransactions = useCallback(
-    (currentPage: number, filterFrom: string, filterTo: string, filterCategory: string) => {
+    (
+      currentPage: number,
+      filterFrom: string,
+      filterTo: string,
+      filterCategory: string,
+    ) => {
       setLoading(true);
       setDeleteResult(null);
 
@@ -92,13 +109,15 @@ export default function TransactionsPage() {
       params.set("page", String(currentPage));
       params.set("limit", String(PAGE_LIMIT));
 
-      fetch(`/api/transactions?${params.toString()}`, { credentials: "include" })
+      fetch(`/api/transactions?${params.toString()}`, {
+        credentials: "include",
+      })
         .then((r) => r.json())
         .then((d: TransactionsResponse) => setData(d))
         .catch(() => setData(null))
         .finally(() => setLoading(false));
     },
-    []
+    [],
   );
 
   // Re-fetch whenever filters or page change
@@ -110,7 +129,7 @@ export default function TransactionsPage() {
   function handleFilterChange(
     newFrom: string,
     newTo: string,
-    newCategory: string
+    newCategory: string,
   ) {
     setPage(1);
     setFrom(newFrom);
@@ -144,7 +163,12 @@ export default function TransactionsPage() {
 
   return (
     <main className="min-h-screen">
-      <NavBar links={[{ label: "Dashboards", href: "/" }, { label: "Transactions", href: "/transactions" }]}>
+      <NavBar
+        links={[
+          { label: "Dashboards", href: "/" },
+          { label: "Transactions", href: "/transactions" },
+        ]}
+      >
         {/* Hero content */}
         <div className="py-8 flex items-center justify-between">
           <div>
@@ -172,14 +196,18 @@ export default function TransactionsPage() {
                 <input
                   type="date"
                   value={from}
-                  onChange={(e) => handleFilterChange(e.target.value, to, category)}
+                  onChange={(e) =>
+                    handleFilterChange(e.target.value, to, category)
+                  }
                   className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
                 />
                 <span className="text-gray-400">—</span>
                 <input
                   type="date"
                   value={to}
-                  onChange={(e) => handleFilterChange(from, e.target.value, category)}
+                  onChange={(e) =>
+                    handleFilterChange(from, e.target.value, category)
+                  }
                   className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
                 />
               </div>
@@ -212,12 +240,27 @@ export default function TransactionsPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-gray-200 bg-gray-50 text-left">
-                      <th className="px-4 py-3 text-xs font-semibold tracking-widest text-gray-400 uppercase">Date</th>
-                      <th className="px-4 py-3 text-xs font-semibold tracking-widest text-gray-400 uppercase">Description</th>
-                      <th className="px-4 py-3 text-xs font-semibold tracking-widest text-gray-400 uppercase">Category</th>
-                      <th className="px-4 py-3 text-xs font-semibold tracking-widest text-gray-400 uppercase text-right">Amount</th>
-                      <th className="px-4 py-3 text-xs font-semibold tracking-widest text-gray-400 uppercase">Payment Method</th>
-                      <th className="px-4 py-3 text-xs font-semibold tracking-widest text-gray-400 uppercase">Payer</th>
+                      <th className="px-4 py-3 text-xs font-semibold tracking-widest text-gray-400 uppercase">
+                        Date
+                      </th>
+                      <th className="px-4 py-3 text-xs font-semibold tracking-widest text-gray-400 uppercase">
+                        Description
+                      </th>
+                      <th className="px-4 py-3 text-xs font-semibold tracking-widest text-gray-400 uppercase">
+                        Category
+                      </th>
+                      <th className="px-4 py-3 text-xs font-semibold tracking-widest text-gray-400 uppercase text-right">
+                        Amount
+                      </th>
+                      <th className="px-4 py-3 text-xs font-semibold tracking-widest text-gray-400 uppercase">
+                        Payer
+                      </th>
+                      <th className="px-4 py-3 text-xs font-semibold tracking-widest text-gray-400 uppercase">
+                        Trip
+                      </th>
+                      <th className="px-4 py-3 text-xs font-semibold tracking-widest text-gray-400 uppercase">
+                        Type
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -230,21 +273,25 @@ export default function TransactionsPage() {
                           {t.description}
                         </td>
                         <td className="px-4 py-3 text-gray-600">
-                          {t.categoryName ?? <span className="text-gray-300">—</span>}
+                          {t.categoryName ?? (
+                            <span className="text-gray-300">—</span>
+                          )}
                         </td>
                         <td className="px-4 py-3 text-gray-900 text-right whitespace-nowrap font-medium">
                           {formatAmount(t.amountHome)}
-                          {t.localCurrency && (
-                            <span className="ml-1 text-gray-400 text-xs font-normal">
-                              {t.localCurrency}
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-gray-600">
-                          {t.paymentMethod ?? <span className="text-gray-300">—</span>}
                         </td>
                         <td className="px-4 py-3 text-gray-600">
                           {t.payer ?? <span className="text-gray-300">—</span>}
+                        </td>
+                        <td className="px-4 py-3 text-gray-600">
+                          {t.groupName ?? (
+                            <span className="text-gray-300">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-gray-600">
+                          {t.groupType ?? (
+                            <span className="text-gray-300">—</span>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -255,7 +302,8 @@ export default function TransactionsPage() {
               {/* Pagination */}
               <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200">
                 <p className="text-sm text-gray-500">
-                  {data.total.toLocaleString()} transaction{data.total !== 1 ? "s" : ""}
+                  {data.total.toLocaleString()} transaction
+                  {data.total !== 1 ? "s" : ""}
                 </p>
                 <div className="flex items-center gap-3">
                   <button
@@ -283,7 +331,9 @@ export default function TransactionsPage() {
 
         {/* Delete section */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
-          <h2 className="text-sm font-semibold text-gray-700">Delete transactions</h2>
+          <h2 className="text-sm font-semibold text-gray-700">
+            Delete transactions
+          </h2>
 
           {deleteResult !== null && (
             <div className="rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-800">
@@ -293,7 +343,9 @@ export default function TransactionsPage() {
 
           <div className="flex flex-wrap items-end gap-3">
             <div className="space-y-1">
-              <label className="block text-xs font-medium text-gray-600">From</label>
+              <label className="block text-xs font-medium text-gray-600">
+                From
+              </label>
               <input
                 type="date"
                 value={deleteFrom}
@@ -302,7 +354,9 @@ export default function TransactionsPage() {
               />
             </div>
             <div className="space-y-1">
-              <label className="block text-xs font-medium text-gray-600">To</label>
+              <label className="block text-xs font-medium text-gray-600">
+                To
+              </label>
               <input
                 type="date"
                 value={deleteTo}
@@ -325,7 +379,9 @@ export default function TransactionsPage() {
       {showDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-xl border border-gray-200 shadow-xl p-6 max-w-md w-full mx-4 space-y-4">
-            <h3 className="text-base font-semibold text-gray-900">Delete transactions</h3>
+            <h3 className="text-base font-semibold text-gray-900">
+              Delete transactions
+            </h3>
             <p className="text-sm text-gray-600">
               Are you sure? This will delete all transactions from{" "}
               <strong>{deleteFrom}</strong> to <strong>{deleteTo}</strong>. This

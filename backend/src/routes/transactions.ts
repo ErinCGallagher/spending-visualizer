@@ -39,15 +39,11 @@ router.get("/", async (req, res) => {
   if (paymentMethod) conditions.push(`t.payment_method = ${addParam(paymentMethod)}`);
 
   if (groupId) conditions.push(`t.group_id = ${addParam(groupId)}`);
+  if (groupType) conditions.push(`g.group_type = ${addParam(groupType)}`);
 
   let travellerJoin = "";
   if (traveller) {
     travellerJoin = `JOIN transaction_splits ts ON ts.transaction_id = t.id AND ts.traveller_name = ${addParam(traveller)}`;
-  }
-
-  let groupTypeJoin = "";
-  if (groupType) {
-    groupTypeJoin = `JOIN groups g ON g.id = t.group_id AND g.group_type = ${addParam(groupType)}`;
   }
 
   const where = conditions.join(" AND ");
@@ -58,7 +54,7 @@ router.get("/", async (req, res) => {
       `SELECT COUNT(*) AS count
        FROM transactions t
        ${travellerJoin}
-       ${groupTypeJoin}
+       LEFT JOIN groups g ON g.id = t.group_id
        WHERE ${where}`,
       values
     );
@@ -74,19 +70,23 @@ router.get("/", async (req, res) => {
          t.id,
          t.date,
          t.description,
-         t.amount_home   AS "amountHome",
-         t.amount_local  AS "amountLocal",
+         t.amount_home    AS "amountHome",
+         t.amount_local   AS "amountLocal",
          t.local_currency AS "localCurrency",
-         t.category_id   AS "categoryId",
-         c.name          AS "categoryName",
+         t.category_id    AS "categoryId",
+         c.name           AS "categoryName",
          t.category_source AS "categorySource",
          t.payment_method  AS "paymentMethod",
          t.country,
-         t.payer
+         t.payer,
+         u.home_currency  AS "homeCurrency",
+         g.name           AS "groupName",
+         g.group_type     AS "groupType"
        FROM transactions t
        ${travellerJoin}
-       ${groupTypeJoin}
        LEFT JOIN categories c ON c.id = t.category_id
+       LEFT JOIN uploads u ON u.id = t.upload_id
+       LEFT JOIN groups g ON g.id = t.group_id
        WHERE ${where}
        ORDER BY t.date DESC, t.id
        LIMIT ${limitParam} OFFSET ${offsetParam}`,
