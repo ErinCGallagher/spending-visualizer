@@ -8,6 +8,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Filters, { type FilterValues } from "@/app/dashboard/Filters";
+import DashboardTabBar from "@/app/dashboard/DashboardTabBar";
 import CountrySummaryTable from "@/app/dashboard/CountrySummaryTable";
 import CountryCategoryTable from "@/app/dashboard/CountryCategoryTable";
 import CategoryPieChart, {
@@ -61,24 +62,7 @@ export default function CountryDashboard({ onSwitchView }: Props) {
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
-      {/* Tab bar inside the card */}
-      <div className="flex items-center justify-between pb-4 border-b border-gray-100">
-        <h2 className="text-base font-semibold text-gray-900">Country</h2>
-        <div className="flex items-center gap-6">
-          <button
-            onClick={() => onSwitchView("overview")}
-            className="text-base font-medium pb-0.5 text-gray-400 hover:text-gray-700 transition-colors"
-          >
-            Overview
-          </button>
-          <button
-            onClick={() => onSwitchView("country")}
-            className="text-base font-medium pb-0.5 text-gray-900 border-b-2 border-emerald-700"
-          >
-            Country
-          </button>
-        </div>
-      </div>
+      <DashboardTabBar activeView="country" onSwitch={onSwitchView} />
       <div className="bg-gray-50 rounded-lg border border-gray-100 p-4">
         <Filters onChange={handleFiltersChange} />
       </div>

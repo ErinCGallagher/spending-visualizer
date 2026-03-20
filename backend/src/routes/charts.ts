@@ -161,13 +161,23 @@ router.get("/country-totals", async (req, res) => {
  */
 router.get("/monthly-totals", async (req, res) => {
   const userId: string = res.locals.userId;
-  const { from, to, traveller, groupBy = "total" } = req.query as Record<string, string | undefined>;
+  const { from, to, traveller, groupBy = "total", granularity = "month" } = req.query as Record<string, string | undefined>;
   const countries = [req.query.country ?? []].flat().filter(Boolean) as string[];
 
   if (groupBy !== "category" && groupBy !== "total") {
     res.status(400).json({ error: "groupBy must be 'category' or 'total'" });
     return;
   }
+  if (!["day", "week", "month"].includes(granularity)) {
+    res.status(400).json({ error: "granularity must be 'day', 'week', or 'month'" });
+    return;
+  }
+
+  // For month granularity keep the short YYYY-MM format; day/week use full dates.
+  const dateExpr =
+    granularity === "month"
+      ? `TO_CHAR(t.date, 'YYYY-MM')`
+      : `TO_CHAR(DATE_TRUNC('${granularity}', t.date), 'YYYY-MM-DD')`;
 
   const conditions: string[] = ["t.user_id = $1"];
   const values: unknown[] = [userId];
@@ -192,7 +202,7 @@ router.get("/monthly-totals", async (req, res) => {
         const result = await pool.query<{ month: string; category: string; total: string }>(
           `SELECT month, category, SUM(total) AS total
            FROM (
-             SELECT TO_CHAR(t.date, 'YYYY-MM') AS month,
+             SELECT ${dateExpr} AS month,
                     COALESCE(p.name, c.name, 'Uncategorized') AS category,
                     ts.amount_home AS total
              FROM transactions t
@@ -213,7 +223,7 @@ router.get("/monthly-totals", async (req, res) => {
         }));
       } else {
         const result = await pool.query<{ month: string; total: string }>(
-          `SELECT TO_CHAR(t.date, 'YYYY-MM') AS month,
+          `SELECT ${dateExpr} AS month,
                   SUM(ts.amount_home) AS total
            FROM transactions t
            JOIN transaction_splits ts
@@ -229,7 +239,7 @@ router.get("/monthly-totals", async (req, res) => {
       const result = await pool.query<{ month: string; category: string; total: string }>(
         `SELECT month, category, SUM(total) AS total
          FROM (
-           SELECT TO_CHAR(t.date, 'YYYY-MM') AS month,
+           SELECT ${dateExpr} AS month,
                   COALESCE(p.name, c.name, 'Uncategorized') AS category,
                   t.amount_home AS total
            FROM transactions t
@@ -248,7 +258,7 @@ router.get("/monthly-totals", async (req, res) => {
       }));
     } else {
       const result = await pool.query<{ month: string; total: string }>(
-        `SELECT TO_CHAR(t.date, 'YYYY-MM') AS month,
+        `SELECT ${dateExpr} AS month,
                 SUM(t.amount_home) AS total
          FROM transactions t
          WHERE ${where}
