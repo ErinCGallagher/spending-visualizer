@@ -7,8 +7,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
+import NavBar from "@/app/components/NavBar";
 import Filters, { type FilterValues } from "@/app/dashboard/Filters";
 import CategoryPieChart, {
   type CategoryTotal,
@@ -52,22 +52,7 @@ function buildParams(
 export default function DashboardPage() {
   const { data: session } = authClient.useSession();
   const firstName = session?.user?.name?.split(" ")[0] ?? "";
-  const router = useRouter();
-
-  const [profileOpen, setProfileOpen] = useState(false);
-  const profileRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
-        setProfileOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
-
-  const [view, setView] = useState<"overview" | "country">("overview");
+  const [view, setView] = useState<"overview" | "trip">("overview");
 
   const [meta, setMeta] = useState<Meta | null>(null);
   const [metaLoading, setMetaLoading] = useState(true);
@@ -188,73 +173,25 @@ export default function DashboardPage() {
 
   return (
     <main className="min-h-screen">
-      {/* Green header — navbar + hero, extends down to overlap content */}
-      <div className="bg-emerald-800 pb-32">
-        <div className="max-w-6xl mx-auto px-6">
-          {/* Navbar row */}
-          <div className="h-14 flex items-center justify-between">
-            <span className="text-sm font-semibold text-white tracking-tight">
-              Spending Visualizer
-            </span>
-            <div className="flex items-center gap-6">
-              <Link href="/transactions" className="text-sm text-emerald-200 hover:text-white font-medium">
-                Transactions
-              </Link>
-              {/* Profile dropdown */}
-              <div ref={profileRef} className="relative">
-                <button
-                  onClick={() => setProfileOpen((o) => !o)}
-                  className="flex items-center gap-1.5 text-emerald-200 hover:text-white transition-colors"
-                >
-                  {/* User icon */}
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-7 h-7">
-                    <path fillRule="evenodd" d="M18.685 19.097A9.723 9.723 0 0 0 21.75 12c0-5.385-4.365-9.75-9.75-9.75S2.25 6.615 2.25 12a9.723 9.723 0 0 0 3.065 7.097A9.716 9.716 0 0 0 12 21.75a9.716 9.716 0 0 0 6.685-2.653Zm-12.54-1.285A7.486 7.486 0 0 1 12 15a7.486 7.486 0 0 1 5.855 2.812A8.224 8.224 0 0 1 12 20.25a8.224 8.224 0 0 1-5.855-2.438ZM15.75 9a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" clipRule="evenodd" />
-                  </svg>
-                  {/* Chevron down */}
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                    <path fillRule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
-                  </svg>
-                </button>
-
-                {profileOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-40 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20">
-                    <button
-                      onClick={() => { setProfileOpen(false); router.push("/settings"); }}
-                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                    >
-                      Settings
-                    </button>
-                    <button
-                      onClick={() => authClient.signOut({ callbackURL: "/login" })}
-                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                    >
-                      Sign out
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
+      <NavBar links={[{ label: "Dashboards", href: "/" }, { label: "Transactions", href: "/transactions" }]}>
+        {/* Hero content */}
+        <div className="py-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-white">
+              {getGreeting()}{firstName ? `, ${firstName}` : ""}.
+            </h1>
+            <p className="mt-1 text-emerald-200 text-sm">
+              Here&apos;s your spending overview.
+            </p>
           </div>
-
-          {/* Hero content */}
-          <div className="py-8 flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-white">
-                {getGreeting()}{firstName ? `, ${firstName}` : ""}.
-              </h1>
-              <p className="mt-1 text-emerald-200 text-sm">
-                Here&apos;s your spending overview.
-              </p>
-            </div>
-            <Link
-              href="/upload"
-              className="bg-white text-emerald-800 hover:bg-emerald-50 px-5 py-2.5 rounded-lg font-medium text-sm"
-            >
-              Import transactions
-            </Link>
-          </div>
+          <Link
+            href="/upload"
+            className="bg-white text-emerald-800 hover:bg-emerald-50 px-5 py-2.5 rounded-lg font-medium text-sm"
+          >
+            Import transactions
+          </Link>
         </div>
-      </div>
+      </NavBar>
 
       {/* Content pulled up to overlap the green header */}
       <div className="max-w-6xl mx-auto px-6 -mt-24 pb-8">
@@ -323,7 +260,7 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {view === "country" && (
+        {view === "trip" && (
           <CountryDashboard onSwitchView={setView} />
         )}
       </div>

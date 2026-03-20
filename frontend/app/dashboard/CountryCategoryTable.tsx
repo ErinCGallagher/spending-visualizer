@@ -8,7 +8,7 @@
 import { type CategoryTotal } from "@/app/dashboard/CategoryPieChart";
 
 interface Props {
-  country: string | null;
+  tripName: string | null;
   filters: { from: string; to: string; travellers: string[] };
   data: CategoryTotal[];
   loading: boolean;
@@ -24,7 +24,7 @@ function formatCurrency(value: number, currency: string) {
 }
 
 export default function CountryCategoryTable({
-  country,
+  tripName,
   data,
   loading,
   currency,
@@ -32,7 +32,7 @@ export default function CountryCategoryTable({
   return (
     <div>
       <h2 className="text-sm font-semibold text-gray-700 mb-4">
-        {country ? `Categories — ${country}` : "Category breakdown"}
+        {tripName ? `Categories — ${tripName}` : "Category breakdown"}
       </h2>
 
       <table className="w-full text-sm">

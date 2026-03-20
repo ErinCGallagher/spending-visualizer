@@ -27,6 +27,7 @@ router.get("/category-totals", async (req, res) => {
   const userId: string = res.locals.userId;
   const { from, to, traveller } = req.query as Record<string, string | undefined>;
   const countries = [req.query.country ?? []].flat().filter(Boolean) as string[];
+  const groupId = typeof req.query.groupId === "string" ? req.query.groupId : undefined;
 
   const conditions: string[] = ["t.user_id = $1"];
   const values: unknown[] = [userId];
@@ -39,6 +40,7 @@ router.get("/category-totals", async (req, res) => {
   if (from) conditions.push(`t.date >= ${addParam(from)}`);
   if (to) conditions.push(`t.date <= ${addParam(to)}`);
   if (countries.length > 0) conditions.push(`t.country = ANY(${addParam(countries)})`);
+  if (groupId) conditions.push(`t.group_id = ${addParam(groupId)}`);
 
   const where = conditions.join(" AND ");
 
@@ -150,6 +152,83 @@ router.get("/country-totals", async (req, res) => {
     res.json(rows.map(mapCountryTotalRow));
   } catch (err) {
     console.error("GET /api/charts/country-totals error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+/**
+ * GET /api/charts/trip-totals
+ * Query params: from, to, traveller (single value)
+ * Returns per-trip aggregate for groups of type 'trip': total spent, distinct days, spent/day.
+ */
+router.get("/trip-totals", async (req, res) => {
+  const userId: string = res.locals.userId;
+  const { from, to, traveller } = req.query as Record<string, string | undefined>;
+
+  const conditions: string[] = ["t.user_id = $1"];
+  const values: unknown[] = [userId];
+
+  const addParam = (value: unknown): string => {
+    values.push(value);
+    return `$${values.length}`;
+  };
+
+  if (from) conditions.push(`t.date >= ${addParam(from)}`);
+  if (to) conditions.push(`t.date <= ${addParam(to)}`);
+
+  const where = conditions.join(" AND ");
+
+  try {
+    let rows: { group_id: string; trip_name: string; total: string; days: string; per_day: string | null }[];
+
+    if (traveller) {
+      const travellerParam = addParam(traveller);
+      const result = await pool.query<{ group_id: string; trip_name: string; total: string; days: string; per_day: string | null }>(
+        `SELECT
+           g.id AS group_id,
+           g.name AS trip_name,
+           SUM(ts.amount_home) AS total,
+           COUNT(DISTINCT t.date::date) AS days,
+           SUM(ts.amount_home) / NULLIF(COUNT(DISTINCT t.date::date), 0) AS per_day
+         FROM transactions t
+         JOIN groups g ON g.id = t.group_id AND g.group_type = 'trip'
+         JOIN transaction_splits ts
+           ON ts.transaction_id = t.id AND ts.traveller_name = ${travellerParam}
+         WHERE ${where}
+         GROUP BY g.id, g.name
+         ORDER BY total DESC`,
+        values
+      );
+      rows = result.rows;
+    } else {
+      const result = await pool.query<{ group_id: string; trip_name: string; total: string; days: string; per_day: string | null }>(
+        `SELECT
+           g.id AS group_id,
+           g.name AS trip_name,
+           SUM(t.amount_home) AS total,
+           COUNT(DISTINCT t.date::date) AS days,
+           SUM(t.amount_home) / NULLIF(COUNT(DISTINCT t.date::date), 0) AS per_day
+         FROM transactions t
+         JOIN groups g ON g.id = t.group_id AND g.group_type = 'trip'
+         WHERE ${where}
+         GROUP BY g.id, g.name
+         ORDER BY total DESC`,
+        values
+      );
+      rows = result.rows;
+    }
+
+    res.json(
+      rows.map((r) => ({
+        groupId: r.group_id,
+        tripName: r.trip_name,
+        total: parseFloat(r.total),
+        days: parseInt(r.days, 10),
+        perDay: r.per_day != null ? parseFloat(r.per_day) : 0,
+      }))
+    );
+  } catch (err) {
+    console.error("GET /api/charts/trip-totals error:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 });

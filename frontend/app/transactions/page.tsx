@@ -7,6 +7,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import NavBar from "@/app/components/NavBar";
 
 interface Transaction {
   id: string;
@@ -143,68 +144,60 @@ export default function TransactionsPage() {
 
   return (
     <main className="min-h-screen">
-      <div className="max-w-5xl mx-auto px-6 py-8 space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900">Transactions</h1>
-          <div className="flex items-center gap-2">
-            <Link
-              href="/"
-              className="border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg font-medium text-sm hover:bg-gray-50"
-            >
-              Dashboard
-            </Link>
-            <Link
-              href="/upload"
-              className="border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg font-medium text-sm hover:bg-gray-50"
-            >
-              Import
-            </Link>
-            <Link
-              href="/settings"
-              className="border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg font-medium text-sm hover:bg-gray-50"
-            >
-              Settings
-            </Link>
+      <NavBar links={[{ label: "Dashboards", href: "/" }, { label: "Transactions", href: "/transactions" }]}>
+        {/* Hero content */}
+        <div className="py-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-white">Transactions</h1>
+            <p className="mt-1 text-emerald-200 text-sm">
+              All your recorded transactions.
+            </p>
           </div>
+          <Link
+            href="/upload"
+            className="bg-white text-emerald-800 hover:bg-emerald-50 px-5 py-2.5 rounded-lg font-medium text-sm"
+          >
+            Import transactions
+          </Link>
         </div>
+      </NavBar>
 
-        {/* Filters */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2 text-sm">
-              <input
-                type="date"
-                value={from}
-                onChange={(e) => handleFilterChange(e.target.value, to, category)}
-                className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
-              />
-              <span className="text-gray-400">—</span>
-              <input
-                type="date"
-                value={to}
-                onChange={(e) => handleFilterChange(from, e.target.value, category)}
-                className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
-              />
-            </div>
-
-            <select
-              value={category}
-              onChange={(e) => handleFilterChange(from, to, e.target.value)}
-              className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
-            >
-              <option value="">All categories</option>
-              {(meta?.categories ?? []).map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Table */}
+      {/* Content pulled up to overlap the green header */}
+      <div className="max-w-6xl mx-auto px-6 -mt-24 pb-8 space-y-4">
+        {/* Filters + Table */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="p-4">
+            <div className="bg-gray-50 rounded-lg border border-gray-100 px-4 py-3 flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2 text-sm">
+                <input
+                  type="date"
+                  value={from}
+                  onChange={(e) => handleFilterChange(e.target.value, to, category)}
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                />
+                <span className="text-gray-400">—</span>
+                <input
+                  type="date"
+                  value={to}
+                  onChange={(e) => handleFilterChange(from, e.target.value, category)}
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
+
+              <select
+                value={category}
+                onChange={(e) => handleFilterChange(from, to, e.target.value)}
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
+              >
+                <option value="">All categories</option>
+                {(meta?.categories ?? []).map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
           {loading ? (
             <div className="flex items-center justify-center py-16">
               <p className="text-sm text-gray-400">Loading…</p>
