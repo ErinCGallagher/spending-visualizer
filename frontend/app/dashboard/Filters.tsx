@@ -151,7 +151,7 @@ export default function Filters({ onChange }: Props) {
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
+    <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-3">
         {/* Date presets */}
         <div className="flex items-center gap-1">

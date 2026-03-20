@@ -30,7 +30,7 @@ export default function CountryCategoryTable({
   currency,
 }: Props) {
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+    <div>
       <h2 className="text-sm font-semibold text-gray-700 mb-4">
         {country ? `Categories — ${country}` : "Category breakdown"}
       </h2>
