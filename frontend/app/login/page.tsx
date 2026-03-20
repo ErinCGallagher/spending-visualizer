@@ -24,8 +24,8 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div className="bg-white border border-gray-200 rounded-xl p-8 w-full max-w-sm space-y-6 shadow-sm">
+    <main className="min-h-screen flex items-center justify-center">
+      <div className="rounded-xl shadow-sm border border-gray-200 p-8 w-full max-w-sm bg-white space-y-6">
         <div className="space-y-1">
           <h1 className="text-xl font-semibold text-gray-900">
             Spending Visualizer
@@ -42,7 +42,7 @@ export default function LoginPage() {
         <button
           onClick={handleSignIn}
           disabled={loading}
-          className="w-full flex items-center justify-center gap-3 px-4 py-2.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full flex items-center justify-center gap-3 border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg font-medium text-sm bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {/* Google "G" logo */}
           <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">

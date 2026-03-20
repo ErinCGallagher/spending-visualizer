@@ -63,70 +63,67 @@ export default function StepConfirm({
   }
 
   return (
-    <div className="space-y-6">
-      <p className="text-sm text-gray-700">
-        Review the summary below and click <strong>Save</strong> to import these
-        transactions.
-      </p>
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <h2 className="text-lg font-semibold text-gray-900 mb-4">Confirm Import</h2>
 
-      <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
-        <div>
-          <dt className="text-gray-500">File</dt>
-          <dd className="font-medium text-gray-900 truncate">{filename}</dd>
+      <dl className="grid grid-cols-2 gap-4 mb-6">
+        <div className="bg-gray-50 rounded-lg p-4">
+          <dt className="text-xs text-gray-500 uppercase tracking-wide mb-1">File</dt>
+          <dd className="text-base font-medium text-gray-900">{filename}</dd>
         </div>
 
-        <div>
-          <dt className="text-gray-500">Total transactions</dt>
-          <dd className="font-medium text-gray-900">
+        <div className="bg-gray-50 rounded-lg p-4">
+          <dt className="text-xs text-gray-500 uppercase tracking-wide mb-1">Total Transactions</dt>
+          <dd className="text-base font-medium text-gray-900">
             {transactions.length.toLocaleString()}
           </dd>
         </div>
 
-        <div>
-          <dt className="text-gray-500">Categorised</dt>
-          <dd className="font-medium text-gray-900">
+        <div className="bg-gray-50 rounded-lg p-4">
+          <dt className="text-xs text-gray-500 uppercase tracking-wide mb-1">Categorised</dt>
+          <dd className="text-base font-medium text-gray-900">
             {categorised.toLocaleString()}
           </dd>
         </div>
 
-        <div>
-          <dt className="text-gray-500">Uncategorised</dt>
-          <dd className="font-medium text-gray-900">
+        <div className="bg-gray-50 rounded-lg p-4">
+          <dt className="text-xs text-gray-500 uppercase tracking-wide mb-1">Uncategorised</dt>
+          <dd className="text-base font-medium text-gray-900">
             {uncategorised.toLocaleString()}
           </dd>
         </div>
 
-        <div>
-          <dt className="text-gray-500">Travellers</dt>
-          <dd className="font-medium text-gray-900">
+        <div className="bg-gray-50 rounded-lg p-4">
+          <dt className="text-xs text-gray-500 uppercase tracking-wide mb-1">Travellers</dt>
+          <dd className="text-base font-medium text-gray-900">
             {uploadResult.travellers.length > 0
               ? uploadResult.travellers.join(", ")
               : "—"}
           </dd>
         </div>
 
-        <div>
-          <dt className="text-gray-500">Home currency</dt>
-          <dd className="font-medium text-gray-900">
+        <div className="bg-gray-50 rounded-lg p-4">
+          <dt className="text-xs text-gray-500 uppercase tracking-wide mb-1">Home Currency</dt>
+          <dd className="text-base font-medium text-gray-900">
             {uploadResult.homeCurrency}
           </dd>
         </div>
       </dl>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
 
       <div className="flex gap-3">
         <button
           onClick={onBack}
           disabled={saving}
-          className="px-4 py-2 border border-gray-300 text-sm font-medium rounded-md hover:bg-gray-50 disabled:opacity-50"
+          className="border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg font-medium hover:bg-gray-50 disabled:opacity-50"
         >
           Back
         </button>
         <button
           onClick={handleSave}
           disabled={saving}
-          className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="bg-emerald-800 hover:bg-emerald-900 text-white px-5 py-2.5 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {saving ? "Saving…" : "Save"}
         </button>

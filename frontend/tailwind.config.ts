@@ -5,7 +5,11 @@ const config: Config = {
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        warning: "#ea580c", // orange-600 — used for cautionary inline text
+      },
+    },
   },
   plugins: [],
 };

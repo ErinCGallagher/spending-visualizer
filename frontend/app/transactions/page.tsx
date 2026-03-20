@@ -142,27 +142,27 @@ export default function TransactionsPage() {
   const totalPages = data ? Math.max(1, Math.ceil(data.total / PAGE_LIMIT)) : 1;
 
   return (
-    <main className="min-h-screen bg-gray-50">
-      <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
+    <main className="min-h-screen">
+      <div className="max-w-5xl mx-auto px-6 py-8 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-gray-900">Transactions</h1>
           <div className="flex items-center gap-2">
             <Link
               href="/"
-              className="px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md hover:bg-gray-50"
+              className="border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg font-medium text-sm hover:bg-gray-50"
             >
               Dashboard
             </Link>
             <Link
               href="/upload"
-              className="px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md hover:bg-gray-50"
+              className="border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg font-medium text-sm hover:bg-gray-50"
             >
               Import
             </Link>
             <Link
               href="/settings"
-              className="px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md hover:bg-gray-50"
+              className="border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg font-medium text-sm hover:bg-gray-50"
             >
               Settings
             </Link>
@@ -170,28 +170,28 @@ export default function TransactionsPage() {
         </div>
 
         {/* Filters */}
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2 text-sm">
               <input
                 type="date"
                 value={from}
                 onChange={(e) => handleFilterChange(e.target.value, to, category)}
-                className="border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
               />
               <span className="text-gray-400">—</span>
               <input
                 type="date"
                 value={to}
                 onChange={(e) => handleFilterChange(from, e.target.value, category)}
-                className="border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
               />
             </div>
 
             <select
               value={category}
               onChange={(e) => handleFilterChange(from, to, e.target.value)}
-              className="border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
             >
               <option value="">All categories</option>
               {(meta?.categories ?? []).map((c) => (
@@ -204,7 +204,7 @@ export default function TransactionsPage() {
         </div>
 
         {/* Table */}
-        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           {loading ? (
             <div className="flex items-center justify-center py-16">
               <p className="text-sm text-gray-400">Loading…</p>
@@ -219,12 +219,12 @@ export default function TransactionsPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-gray-200 bg-gray-50 text-left">
-                      <th className="px-4 py-3 font-medium text-gray-600">Date</th>
-                      <th className="px-4 py-3 font-medium text-gray-600">Description</th>
-                      <th className="px-4 py-3 font-medium text-gray-600">Category</th>
-                      <th className="px-4 py-3 font-medium text-gray-600 text-right">Amount</th>
-                      <th className="px-4 py-3 font-medium text-gray-600">Payment Method</th>
-                      <th className="px-4 py-3 font-medium text-gray-600">Payer</th>
+                      <th className="px-4 py-3 text-xs font-semibold tracking-widest text-gray-400 uppercase">Date</th>
+                      <th className="px-4 py-3 text-xs font-semibold tracking-widest text-gray-400 uppercase">Description</th>
+                      <th className="px-4 py-3 text-xs font-semibold tracking-widest text-gray-400 uppercase">Category</th>
+                      <th className="px-4 py-3 text-xs font-semibold tracking-widest text-gray-400 uppercase text-right">Amount</th>
+                      <th className="px-4 py-3 text-xs font-semibold tracking-widest text-gray-400 uppercase">Payment Method</th>
+                      <th className="px-4 py-3 text-xs font-semibold tracking-widest text-gray-400 uppercase">Payer</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -268,7 +268,7 @@ export default function TransactionsPage() {
                   <button
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
                     disabled={page <= 1}
-                    className="px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg font-medium text-sm hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     Previous
                   </button>
@@ -278,7 +278,7 @@ export default function TransactionsPage() {
                   <button
                     onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                     disabled={page >= totalPages}
-                    className="px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg font-medium text-sm hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     Next
                   </button>
@@ -289,11 +289,11 @@ export default function TransactionsPage() {
         </div>
 
         {/* Delete section */}
-        <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
           <h2 className="text-sm font-semibold text-gray-700">Delete transactions</h2>
 
           {deleteResult !== null && (
-            <div className="rounded-md bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-800">
+            <div className="rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-800">
               {deleteResult} transaction{deleteResult !== 1 ? "s" : ""} deleted.
             </div>
           )}
@@ -305,7 +305,7 @@ export default function TransactionsPage() {
                 type="date"
                 value={deleteFrom}
                 onChange={(e) => setDeleteFrom(e.target.value)}
-                className="border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
               />
             </div>
             <div className="space-y-1">
@@ -314,13 +314,13 @@ export default function TransactionsPage() {
                 type="date"
                 value={deleteTo}
                 onChange={(e) => setDeleteTo(e.target.value)}
-                className="border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
               />
             </div>
             <button
               onClick={() => setShowDeleteModal(true)}
               disabled={!deleteFrom || !deleteTo}
-              className="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-lg font-medium text-sm disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Delete transactions
             </button>
@@ -342,14 +342,14 @@ export default function TransactionsPage() {
               <button
                 onClick={() => setShowDeleteModal(false)}
                 disabled={deleteLoading}
-                className="px-4 py-2 border border-gray-300 text-sm font-medium rounded-md hover:bg-gray-50 disabled:opacity-40"
+                className="border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg font-medium text-sm hover:bg-gray-50 disabled:opacity-40"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDeleteConfirm}
                 disabled={deleteLoading}
-                className="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 disabled:opacity-40"
+                className="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-lg font-medium text-sm disabled:opacity-40"
               >
                 {deleteLoading ? "Deleting…" : "Delete"}
               </button>

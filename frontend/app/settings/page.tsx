@@ -40,28 +40,28 @@ export default function SettingsPage() {
 
   if (isPending) {
     return (
-      <main className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <main className="min-h-screen flex items-center justify-center">
         <p className="text-sm text-gray-400">Loading…</p>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-gray-50">
-      <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
+    <main className="min-h-screen">
+      <div className="max-w-5xl mx-auto px-6 py-8 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
           <div className="flex items-center gap-2">
             <Link
               href="/"
-              className="px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md hover:bg-gray-50"
+              className="border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg font-medium text-sm hover:bg-gray-50"
             >
               Dashboard
             </Link>
             <Link
               href="/transactions"
-              className="px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md hover:bg-gray-50"
+              className="border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg font-medium text-sm hover:bg-gray-50"
             >
               Transactions
             </Link>
@@ -69,7 +69,7 @@ export default function SettingsPage() {
         </div>
 
         {/* Account info */}
-        <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
           <h2 className="text-sm font-semibold text-gray-700">Account</h2>
           <dl className="space-y-3 text-sm">
             <div className="flex items-center justify-between">
@@ -88,7 +88,7 @@ export default function SettingsPage() {
         </div>
 
         {/* Danger zone */}
-        <div className="bg-white border border-red-200 rounded-xl p-5 space-y-4">
+        <div className="bg-white rounded-xl shadow-sm border border-red-200 p-6 space-y-4">
           <h2 className="text-sm font-semibold text-red-700">Danger zone</h2>
           <p className="text-sm text-gray-600">
             Permanently delete your account and all associated data. This cannot
@@ -96,7 +96,7 @@ export default function SettingsPage() {
           </p>
           <button
             onClick={() => setShowDeleteModal(true)}
-            className="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700"
+            className="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-lg font-medium text-sm"
           >
             Delete account
           </button>
@@ -126,14 +126,14 @@ export default function SettingsPage() {
                   setDeleteError(null);
                 }}
                 disabled={deleteLoading}
-                className="px-4 py-2 border border-gray-300 text-sm font-medium rounded-md hover:bg-gray-50 disabled:opacity-40"
+                className="border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg font-medium text-sm hover:bg-gray-50 disabled:opacity-40"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDeleteConfirm}
                 disabled={deleteLoading}
-                className="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 disabled:opacity-40"
+                className="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-lg font-medium text-sm disabled:opacity-40"
               >
                 {deleteLoading ? "Deleting…" : "Delete account"}
               </button>

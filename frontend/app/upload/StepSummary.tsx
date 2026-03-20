@@ -32,69 +32,91 @@ export default function StepSummary({ result, onBack, onContinue }: Props) {
   ].sort() as string[];
 
   return (
-    <div className="space-y-6">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-6">
+      <h2 className="text-lg font-semibold text-gray-900 mb-4">
+        Review your upload
+      </h2>
+
       {result.overlapWarning && (
-        <div className="rounded-md bg-yellow-50 border border-yellow-300 px-4 py-3 text-sm text-yellow-800">
-          <strong>Warning:</strong> Some of these dates overlap with previously
-          uploaded data. Duplicate transactions may result.
+        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-800 flex items-start gap-2">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-4 w-4 flex-shrink-0 mt-0.5"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+            <line x1="12" y1="9" x2="12" y2="13" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+          <span>
+            <strong>Warning:</strong> Some of these dates overlap with previously
+            uploaded data. Duplicate transactions may result.
+          </span>
         </div>
       )}
 
-      <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
-        <div>
-          <dt className="text-gray-500">Transactions</dt>
-          <dd className="font-medium text-gray-900">
+      <div>
+        <div className="flex justify-between border-b border-gray-100 py-2">
+          <span className="text-sm text-gray-500">Transactions</span>
+          <span className="text-sm font-medium text-gray-900">
             {result.transactions.length.toLocaleString()}
-          </dd>
+          </span>
         </div>
 
-        <div>
-          <dt className="text-gray-500">Home currency</dt>
-          <dd className="font-medium text-gray-900">{result.homeCurrency}</dd>
+        <div className="flex justify-between border-b border-gray-100 py-2">
+          <span className="text-sm text-gray-500">Home currency</span>
+          <span className="text-sm font-medium text-gray-900">
+            {result.homeCurrency}
+          </span>
         </div>
 
-        <div>
-          <dt className="text-gray-500">Date range</dt>
-          <dd className="font-medium text-gray-900">
+        <div className="flex justify-between border-b border-gray-100 py-2">
+          <span className="text-sm text-gray-500">Date range</span>
+          <span className="text-sm font-medium text-gray-900">
             {formatDate(result.dateRange.from)} —{" "}
             {formatDate(result.dateRange.to)}
-          </dd>
+          </span>
         </div>
 
-        <div>
-          <dt className="text-gray-500">Travellers</dt>
-          <dd className="font-medium text-gray-900">
+        <div className="flex justify-between border-b border-gray-100 py-2">
+          <span className="text-sm text-gray-500">Travellers</span>
+          <span className="text-sm font-medium text-gray-900">
             {result.travellers.length > 0
               ? result.travellers.join(", ")
               : "—"}
-          </dd>
+          </span>
         </div>
 
-        <div>
-          <dt className="text-gray-500">Countries</dt>
-          <dd className="font-medium text-gray-900">
+        <div className="flex justify-between border-b border-gray-100 py-2 last:border-b-0">
+          <span className="text-sm text-gray-500">Countries</span>
+          <span className="text-sm font-medium text-gray-900">
             {countries.length > 0 ? countries.join(", ") : "None recorded"}
-          </dd>
+          </span>
         </div>
-      </dl>
+      </div>
 
       {hasNoTransactions && (
-        <div className="rounded-md bg-red-50 border border-red-300 px-4 py-3 text-sm text-red-800">
+        <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-800">
           <strong>No valid transactions found.</strong> The file could not be
           parsed. Check that you selected the correct format.
         </div>
       )}
 
       {hasErrors && (
-        <div>
-          <p className="text-sm font-medium text-red-700 mb-1">
+        <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-800">
+          <p className="font-medium mb-2">
             {result.errors.length} row{result.errors.length !== 1 ? "s" : ""}{" "}
             could not be imported due to missing required fields. Fix the file
             and re-upload to proceed.
           </p>
-          <ul className="space-y-1 max-h-40 overflow-y-auto">
+          <ul className="space-y-1 max-h-40 overflow-y-auto list-disc list-inside">
             {result.errors.map((err, i) => (
-              <li key={i} className="text-sm text-red-600">
+              <li key={i}>
                 {err.row != null && (
                   <span className="font-medium">Row {err.row}: </span>
                 )}
@@ -111,7 +133,7 @@ export default function StepSummary({ result, onBack, onContinue }: Props) {
       <div className="flex gap-3">
         <button
           onClick={onBack}
-          className="px-4 py-2 border border-gray-300 text-sm font-medium rounded-md hover:bg-gray-50"
+          className="border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg font-medium hover:bg-gray-50"
         >
           Back
         </button>
@@ -125,7 +147,7 @@ export default function StepSummary({ result, onBack, onContinue }: Props) {
               ? "Fix the errors above before continuing"
               : undefined
           }
-          className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="bg-emerald-800 hover:bg-emerald-900 text-white px-5 py-2.5 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Continue
         </button>
