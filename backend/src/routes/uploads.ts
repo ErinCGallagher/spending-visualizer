@@ -159,12 +159,14 @@ router.post("/confirm", async (req, res) => {
     homeCurrency,
     sourceFormat,
     filename,
+    primaryGroupId,
     transactions,
     travellers,
   } = req.body as {
     homeCurrency: string;
     sourceFormat: string;
     filename: string;
+    primaryGroupId: string;
     transactions: Array<{
       date: string;
       description: string;
@@ -181,12 +183,28 @@ router.post("/confirm", async (req, res) => {
       sourceFormat: string;
       raw: Record<string, string>;
       splits: { travellerName: string; amountHome: number }[];
+      groupId: string;
     }>;
     travellers: string[];
   };
 
   if (!homeCurrency || !sourceFormat || !filename || !Array.isArray(transactions)) {
     res.status(400).json({ error: "homeCurrency, sourceFormat, filename, and transactions are required" });
+    return;
+  }
+  if (!primaryGroupId) {
+    res.status(400).json({ error: "primaryGroupId is required" });
+    return;
+  }
+
+  // Validate all group IDs belong to this user
+  const groupIds = [...new Set([primaryGroupId, ...transactions.map((t) => t.groupId).filter(Boolean)])];
+  const { rows: groupRows } = await pool.query<{ id: string }>(
+    `SELECT id FROM groups WHERE id = ANY($1) AND user_id = $2`,
+    [groupIds, userId]
+  );
+  if (groupRows.length !== groupIds.length) {
+    res.status(400).json({ error: "One or more group IDs are invalid" });
     return;
   }
 
@@ -216,10 +234,10 @@ router.post("/confirm", async (req, res) => {
 
     // Create the upload record
     const uploadResult = await client.query<{ id: string }>(
-      `INSERT INTO uploads (id, user_id, uploaded_at, filename, source_format, home_currency)
-       VALUES (gen_random_uuid(), $1, NOW(), $2, $3, $4)
+      `INSERT INTO uploads (id, user_id, uploaded_at, filename, source_format, home_currency, group_id)
+       VALUES (gen_random_uuid(), $1, NOW(), $2, $3, $4, $5)
        RETURNING id`,
-      [userId, filename, sourceFormat, homeCurrency]
+      [userId, filename, sourceFormat, homeCurrency, primaryGroupId]
     );
     const uploadId = uploadResult.rows[0].id;
 
@@ -239,12 +257,12 @@ router.post("/confirm", async (req, res) => {
            id, upload_id, user_id, date, description,
            amount_home, amount_local, local_currency,
            category_id, category_source, category_confidence,
-           payment_method, country, payer, source_format, raw
+           payment_method, country, payer, source_format, raw, group_id
          ) VALUES (
            gen_random_uuid(), $1, $2, $3, $4,
            $5, $6, $7,
            $8, $9, $10,
-           $11, $12, $13, $14, $15
+           $11, $12, $13, $14, $15, $16
          ) RETURNING id`,
         [
           uploadId, userId, tx.date, tx.description,
@@ -252,7 +270,7 @@ router.post("/confirm", async (req, res) => {
           tx.categoryId ?? (tx.categoryName ? categoryIdByName.get(tx.categoryName) ?? null : null),
           tx.categorySource ?? null, tx.categoryConfidence ?? null,
           tx.paymentMethod ?? null, tx.country ?? null, tx.payer ?? null,
-          tx.sourceFormat, JSON.stringify(tx.raw),
+          tx.sourceFormat, JSON.stringify(tx.raw), tx.groupId ?? primaryGroupId,
         ]
       );
       const txId = txResult.rows[0].id;

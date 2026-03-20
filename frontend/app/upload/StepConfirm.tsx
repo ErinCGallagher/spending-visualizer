@@ -1,5 +1,5 @@
 /**
- * Step 5 of the upload wizard — final confirmation before saving.
+ * Step 6 of the upload wizard — final confirmation before saving.
  * Calls POST /api/uploads/confirm and redirects to the dashboard on success.
  */
 
@@ -7,12 +7,19 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { ParsedTransaction, ParsedUploadResult } from "./types";
+import type { GroupType, ParsedTransaction, ParsedUploadResult } from "./types";
+
+const GROUP_TYPE_LABELS: Record<GroupType, string> = {
+  trip: "Trip",
+  daily: "Daily Living",
+  business: "Business",
+};
 
 interface Props {
   uploadResult: ParsedUploadResult;
   transactions: ParsedTransaction[];
   filename: string;
+  primaryGroup: { id: string; name: string; groupType: GroupType };
   onBack: () => void;
 }
 
@@ -20,6 +27,7 @@ export default function StepConfirm({
   uploadResult,
   transactions,
   filename,
+  primaryGroup,
   onBack,
 }: Props) {
   const router = useRouter();
@@ -28,6 +36,11 @@ export default function StepConfirm({
 
   const categorised = transactions.filter((t) => t.categoryName).length;
   const uncategorised = transactions.length - categorised;
+
+  // Count transactions assigned to the secondary group (if any)
+  const secondaryCount = transactions.filter(
+    (t) => t.groupId && t.groupId !== primaryGroup.id
+  ).length;
 
   async function handleSave() {
     setSaving(true);
@@ -42,6 +55,7 @@ export default function StepConfirm({
           homeCurrency: uploadResult.homeCurrency,
           sourceFormat: "travelspend",
           filename,
+          primaryGroupId: primaryGroup.id,
           transactions,
           travellers: uploadResult.travellers,
         }),
@@ -63,10 +77,10 @@ export default function StepConfirm({
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">Confirm Import</h2>
+    <div className="space-y-6">
+      <h2 className="text-lg font-semibold text-gray-900">Confirm Import</h2>
 
-      <dl className="grid grid-cols-2 gap-4 mb-6">
+      <dl className="grid grid-cols-2 gap-4">
         <div className="bg-gray-50 rounded-lg p-4">
           <dt className="text-xs text-gray-500 uppercase tracking-wide mb-1">File</dt>
           <dd className="text-base font-medium text-gray-900">{filename}</dd>
@@ -94,6 +108,28 @@ export default function StepConfirm({
         </div>
 
         <div className="bg-gray-50 rounded-lg p-4">
+          <dt className="text-xs text-gray-500 uppercase tracking-wide mb-1">Primary Group</dt>
+          <dd className="text-base font-medium text-gray-900">
+            {primaryGroup.name}
+            <span className="ml-2 text-xs text-gray-400 font-normal">
+              {GROUP_TYPE_LABELS[primaryGroup.groupType]}
+            </span>
+          </dd>
+        </div>
+
+        {secondaryCount > 0 && (
+          <div className="bg-gray-50 rounded-lg p-4">
+            <dt className="text-xs text-gray-500 uppercase tracking-wide mb-1">
+              Secondary Group
+            </dt>
+            <dd className="text-base font-medium text-gray-900">
+              {secondaryCount.toLocaleString()} transaction
+              {secondaryCount !== 1 ? "s" : ""} assigned separately
+            </dd>
+          </div>
+        )}
+
+        <div className="bg-gray-50 rounded-lg p-4">
           <dt className="text-xs text-gray-500 uppercase tracking-wide mb-1">Travellers</dt>
           <dd className="text-base font-medium text-gray-900">
             {uploadResult.travellers.length > 0
@@ -110,7 +146,7 @@ export default function StepConfirm({
         </div>
       </dl>
 
-      {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
+      {error && <p className="text-sm text-red-600">{error}</p>}
 
       <div className="flex gap-3">
         <button

@@ -22,7 +22,7 @@ router.get("/", async (req, res) => {
     return;
   }
 
-  const { from, to, category, paymentMethod, traveller, page, limit } = params;
+  const { from, to, category, paymentMethod, traveller, groupId, groupType, page, limit } = params;
 
   // Build query dynamically to avoid joining transaction_splits unless needed
   const conditions: string[] = ["t.user_id = $1"];
@@ -38,9 +38,16 @@ router.get("/", async (req, res) => {
   if (category) conditions.push(`t.category_id = ${addParam(category)}`);
   if (paymentMethod) conditions.push(`t.payment_method = ${addParam(paymentMethod)}`);
 
+  if (groupId) conditions.push(`t.group_id = ${addParam(groupId)}`);
+
   let travellerJoin = "";
   if (traveller) {
     travellerJoin = `JOIN transaction_splits ts ON ts.transaction_id = t.id AND ts.traveller_name = ${addParam(traveller)}`;
+  }
+
+  let groupTypeJoin = "";
+  if (groupType) {
+    groupTypeJoin = `JOIN groups g ON g.id = t.group_id AND g.group_type = ${addParam(groupType)}`;
   }
 
   const where = conditions.join(" AND ");
@@ -51,6 +58,7 @@ router.get("/", async (req, res) => {
       `SELECT COUNT(*) AS count
        FROM transactions t
        ${travellerJoin}
+       ${groupTypeJoin}
        WHERE ${where}`,
       values
     );
@@ -77,6 +85,7 @@ router.get("/", async (req, res) => {
          t.payer
        FROM transactions t
        ${travellerJoin}
+       ${groupTypeJoin}
        LEFT JOIN categories c ON c.id = t.category_id
        WHERE ${where}
        ORDER BY t.date DESC, t.id
@@ -99,7 +108,7 @@ router.get("/meta", async (_req, res) => {
   const userId: string = res.locals.userId;
 
   try {
-    const [catResult, travellerResult, pmResult, countryResult, dateResult] = await Promise.all([
+    const [catResult, travellerResult, pmResult, countryResult, dateResult, groupResult] = await Promise.all([
       pool.query<{ id: string; name: string }>(
         `SELECT DISTINCT c.id, c.name
          FROM transactions t
@@ -136,6 +145,13 @@ router.get("/meta", async (_req, res) => {
          WHERE user_id = $1`,
         [userId]
       ),
+      pool.query<{ id: string; name: string; groupType: string }>(
+        `SELECT id, name, group_type AS "groupType"
+         FROM groups
+         WHERE user_id = $1
+         ORDER BY group_type, name`,
+        [userId]
+      ),
     ]);
 
     const dateRow = dateResult.rows[0];
@@ -150,6 +166,7 @@ router.get("/meta", async (_req, res) => {
       paymentMethods: pmResult.rows.map((r) => r.payment_method),
       countries: countryResult.rows.map((r) => r.country),
       dateRange,
+      groups: groupResult.rows,
     });
   } catch (err) {
     console.error("GET /api/transactions/meta error:", err);

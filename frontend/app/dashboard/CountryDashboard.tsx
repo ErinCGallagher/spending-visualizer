@@ -1,6 +1,6 @@
 /**
- * Country Dashboard — per-country spending summary with category breakdown.
- * Owns its own filter state and drives the country summary table, category
+ * Trip Dashboard — per-trip spending summary with category breakdown.
+ * Owns its own filter state and drives the trip summary table, category
  * table, and category pie chart.
  */
 
@@ -22,7 +22,7 @@ interface FilterState {
 }
 
 interface Props {
-  onSwitchView: (view: "overview" | "country") => void;
+  onSwitchView: (view: "overview" | "trip") => void;
 }
 
 export default function CountryDashboard({ onSwitchView }: Props) {
@@ -31,7 +31,7 @@ export default function CountryDashboard({ onSwitchView }: Props) {
     to: "",
     travellers: [],
   });
-  const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
+  const [selectedGroup, setSelectedGroup] = useState<{ id: string; name: string } | null>(null);
   const [categoryData, setCategoryData] = useState<CategoryTotal[]>([]);
   const [categoryLoading, setCategoryLoading] = useState(false);
   const currency = "CAD";
@@ -42,13 +42,13 @@ export default function CountryDashboard({ onSwitchView }: Props) {
     if (filterState.from) params.set("from", filterState.from);
     if (filterState.to) params.set("to", filterState.to);
     for (const t of filterState.travellers) params.append("traveller", t);
-    if (selectedCountry) params.set("country", selectedCountry);
+    if (selectedGroup) params.set("groupId", selectedGroup.id);
     fetch(`/api/charts/category-totals?${params}`, { credentials: "include" })
       .then((r) => r.json())
       .then((data) => setCategoryData(data))
       .catch(() => setCategoryData([]))
       .finally(() => setCategoryLoading(false));
-  }, [selectedCountry, filterState]);
+  }, [selectedGroup, filterState]);
 
   const handleFiltersChange = useCallback((f: FilterValues) => {
     setFilterState({
@@ -57,12 +57,12 @@ export default function CountryDashboard({ onSwitchView }: Props) {
       travellers: f.travellers,
     });
     // Reset selection when filters change so stale category data is not shown
-    setSelectedCountry(null);
+    setSelectedGroup(null);
   }, []);
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
-      <DashboardTabBar activeView="country" onSwitch={onSwitchView} />
+      <DashboardTabBar activeView="trip" onSwitch={onSwitchView} />
       <div className="bg-gray-50 rounded-lg border border-gray-100 p-4">
         <Filters onChange={handleFiltersChange} />
       </div>
@@ -71,8 +71,8 @@ export default function CountryDashboard({ onSwitchView }: Props) {
         <div className="bg-gray-50 rounded-lg border border-gray-100 p-5">
           <CountrySummaryTable
             filters={filterState}
-            onSelect={setSelectedCountry}
-            selectedCountry={selectedCountry}
+            onSelect={setSelectedGroup}
+            selectedGroupId={selectedGroup?.id ?? null}
             currency={currency}
           />
         </div>
@@ -80,7 +80,7 @@ export default function CountryDashboard({ onSwitchView }: Props) {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="bg-gray-50 rounded-lg border border-gray-100 p-5">
             <CountryCategoryTable
-              country={selectedCountry}
+              tripName={selectedGroup?.name ?? null}
               filters={filterState}
               data={categoryData}
               loading={categoryLoading}

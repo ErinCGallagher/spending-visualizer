@@ -1,14 +1,15 @@
 /**
- * Table showing per-country spending totals, days, and daily average.
- * Fetches from /api/charts/country-totals with date and traveller filters applied.
+ * Table showing per-trip spending totals, days, and daily average.
+ * Fetches from /api/charts/trip-totals with date and traveller filters applied.
  */
 
 "use client";
 
 import { useEffect, useState } from "react";
 
-interface CountryTotal {
-  country: string;
+interface TripTotal {
+  groupId: string;
+  tripName: string;
   total: number;
   days: number;
   perDay: number;
@@ -22,8 +23,8 @@ interface FilterState {
 
 interface Props {
   filters: FilterState;
-  onSelect: (country: string | null) => void;
-  selectedCountry: string | null;
+  onSelect: (group: { id: string; name: string } | null) => void;
+  selectedGroupId: string | null;
   currency: string;
 }
 
@@ -38,10 +39,10 @@ function formatCurrency(value: number, currency: string) {
 export default function CountrySummaryTable({
   filters,
   onSelect,
-  selectedCountry,
+  selectedGroupId,
   currency,
 }: Props) {
-  const [data, setData] = useState<CountryTotal[]>([]);
+  const [data, setData] = useState<TripTotal[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -51,27 +52,26 @@ export default function CountrySummaryTable({
     if (filters.to) params.set("to", filters.to);
     for (const t of filters.travellers) params.append("traveller", t);
 
-    fetch(`/api/charts/country-totals?${params}`, { credentials: "include" })
+    fetch(`/api/charts/trip-totals?${params}`, { credentials: "include" })
       .then((r) => r.json())
       .then((d) => setData(d))
       .catch(() => setData([]))
       .finally(() => setLoading(false));
   }, [filters]);
 
-  function handleRowClick(country: string) {
-    onSelect(selectedCountry === country ? null : country);
+  function handleRowClick(row: TripTotal) {
+    const isSelected = selectedGroupId === row.groupId;
+    onSelect(isSelected ? null : { id: row.groupId, name: row.tripName });
   }
 
   return (
     <div>
-      <h2 className="text-sm font-semibold text-gray-700 mb-4">
-        Spending by country
-      </h2>
+      <h2 className="text-sm font-semibold text-gray-700 mb-4">Spending by trip</h2>
 
       <table className="w-full text-sm">
         <thead>
           <tr className="text-left text-xs text-gray-500 border-b border-gray-200">
-            <th className="pb-2 font-medium">Country</th>
+            <th className="pb-2 font-medium">Trip</th>
             <th className="pb-2 font-medium text-right">Total Spent</th>
             <th className="pb-2 font-medium text-right">Days</th>
             <th className="pb-2 font-medium text-right">Spent/Day</th>
@@ -106,21 +106,17 @@ export default function CountrySummaryTable({
           ) : (
             data.map((row) => (
               <tr
-                key={row.country}
-                onClick={() => handleRowClick(row.country)}
+                key={row.groupId}
+                onClick={() => handleRowClick(row)}
                 className={`cursor-pointer border-b border-gray-100 last:border-0 hover:bg-gray-50 ${
-                  selectedCountry === row.country ? "bg-blue-50" : ""
+                  selectedGroupId === row.groupId ? "bg-blue-50" : ""
                 }`}
               >
-                <td className="py-2 pr-4 font-medium text-gray-900">
-                  {row.country}
-                </td>
+                <td className="py-2 pr-4 font-medium text-gray-900">{row.tripName}</td>
                 <td className="py-2 pr-4 text-right text-gray-700">
                   {formatCurrency(row.total, currency)}
                 </td>
-                <td className="py-2 pr-4 text-right text-gray-700">
-                  {row.days}
-                </td>
+                <td className="py-2 pr-4 text-right text-gray-700">{row.days}</td>
                 <td className="py-2 text-right text-gray-700">
                   {formatCurrency(row.perDay, currency)}
                 </td>

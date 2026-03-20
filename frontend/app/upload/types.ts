@@ -20,6 +20,7 @@ export interface ParsedTransaction {
   country?: string | null;
   traveller?: string;
   paymentMethod?: string;
+  groupId?: string;
 }
 
 export interface ParsedUploadResult {
@@ -44,6 +45,15 @@ export interface CategoryAssignment {
   categoryName: string;
   /** null means "new standalone main category"; a string is the main category name to nest under */
   parentName: string | null;
+}
+
+export type GroupType = "trip" | "daily" | "business";
+
+export interface Group {
+  id: string;
+  name: string;
+  groupType: GroupType;
+  createdAt: string;
 }
 
 export interface AISuggestion {

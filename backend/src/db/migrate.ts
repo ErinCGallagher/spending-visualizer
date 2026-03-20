@@ -124,6 +124,24 @@ async function migrate() {
       )
     `);
 
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS groups (
+        id          uuid primary key default gen_random_uuid(),
+        user_id     text not null,
+        name        text not null,
+        group_type  text not null check (group_type in ('trip', 'daily', 'business')),
+        created_at  timestamptz not null default now()
+      )
+    `);
+
+    await client.query(`
+      ALTER TABLE uploads ADD COLUMN IF NOT EXISTS group_id uuid references groups(id)
+    `);
+
+    await client.query(`
+      ALTER TABLE transactions ADD COLUMN IF NOT EXISTS group_id uuid references groups(id)
+    `);
+
     // Indexes
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_transactions_user_date
@@ -140,6 +158,14 @@ async function migrate() {
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_categories_user
         ON categories(user_id)
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_groups_user
+        ON groups(user_id)
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_transactions_group
+        ON transactions(group_id)
     `);
 
     await client.query("COMMIT");

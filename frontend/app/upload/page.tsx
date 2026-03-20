@@ -1,6 +1,6 @@
 /**
- * Upload wizard — guides the user through a 5-step flow to parse a CSV,
- * organise categories, review AI suggestions, and confirm the import.
+ * Upload wizard — guides the user through a 6-step flow to parse a CSV,
+ * organise categories, review AI suggestions, assign groups, and confirm the import.
  */
 
 "use client";
@@ -10,22 +10,26 @@ import StepFilePicker from "./StepFilePicker";
 import StepSummary from "./StepSummary";
 import StepCategories from "./StepCategories";
 import StepReview from "./StepReview";
+import StepGroup from "./StepGroup";
 import StepConfirm from "./StepConfirm";
 import type {
   Category,
   CategoryAssignment,
+  Group,
+  GroupType,
   ParsedTransaction,
   ParsedUploadResult,
 } from "./types";
 
-type Step = 1 | 2 | 3 | 4 | 5;
+type Step = 1 | 2 | 3 | 4 | 5 | 6;
 
 const STEP_LABELS: Record<Step, string> = {
   1: "Select file",
   2: "Review summary",
   3: "Organise categories",
   4: "Review suggestions",
-  5: "Confirm",
+  5: "Assign group",
+  6: "Confirm",
 };
 
 interface WizardState {
@@ -34,6 +38,7 @@ interface WizardState {
   taxonomy: Category[];
   assignments: CategoryAssignment[];
   transactions: ParsedTransaction[];
+  primaryGroup: { id: string; name: string; groupType: GroupType } | null;
 }
 
 export default function UploadPage() {
@@ -44,6 +49,7 @@ export default function UploadPage() {
     taxonomy: [],
     assignments: [],
     transactions: [],
+    primaryGroup: null,
   });
 
   function goTo(s: Step) {
@@ -57,7 +63,7 @@ export default function UploadPage() {
 
         {/* Step indicator */}
         <nav className="flex items-center mb-8">
-          {([1, 2, 3, 4, 5] as Step[]).map((s, index) => (
+          {([1, 2, 3, 4, 5, 6] as Step[]).map((s, index) => (
             <div key={s} className="flex items-center">
               <div className="flex flex-col items-center">
                 <div
@@ -73,15 +79,13 @@ export default function UploadPage() {
                 </div>
                 <span
                   className={`mt-1 text-xs ${
-                    s === step
-                      ? "font-bold text-emerald-800"
-                      : "text-gray-400"
+                    s === step ? "font-bold text-emerald-800" : "text-gray-400"
                   }`}
                 >
                   {STEP_LABELS[s]}
                 </span>
               </div>
-              {index < 4 && (
+              {index < 5 && (
                 <div
                   className={`h-0.5 w-8 mb-4 ${
                     s < step ? "bg-emerald-300" : "bg-gray-200"
@@ -138,12 +142,24 @@ export default function UploadPage() {
             />
           )}
 
-          {step === 5 && state.uploadResult && (
+          {step === 5 && (
+            <StepGroup
+              transactions={state.transactions}
+              onBack={() => goTo(4)}
+              onContinue={(updated, primaryGroup) => {
+                setState((prev) => ({ ...prev, transactions: updated, primaryGroup }));
+                goTo(6);
+              }}
+            />
+          )}
+
+          {step === 6 && state.uploadResult && state.primaryGroup && (
             <StepConfirm
               uploadResult={state.uploadResult}
               transactions={state.transactions}
               filename={state.filename}
-              onBack={() => goTo(4)}
+              primaryGroup={state.primaryGroup}
+              onBack={() => goTo(5)}
             />
           )}
         </div>
