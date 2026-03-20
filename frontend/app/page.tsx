@@ -20,7 +20,9 @@ import CumulativeLineChart, {
   type CumulativePoint,
   type Granularity,
 } from "@/app/dashboard/CumulativeLineChart";
+import CategoryLineChart from "@/app/dashboard/CategoryLineChart";
 import CountryDashboard from "@/app/dashboard/CountryDashboard";
+import DashboardTabBar from "@/app/dashboard/DashboardTabBar";
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -80,15 +82,18 @@ export default function DashboardPage() {
   const [categoryData, setCategoryData] = useState<CategoryTotal[]>([]);
   const [monthlyData, setMonthlyData] = useState<MonthlyTotal[]>([]);
   const [cumulativeData, setCumulativeData] = useState<CumulativePoint[]>([]);
+  const [categoryTimelineData, setCategoryTimelineData] = useState<MonthlyTotal[]>([]);
 
   const [categoryLoading, setCategoryLoading] = useState(false);
   const [monthlyLoading, setMonthlyLoading] = useState(false);
   const [cumulativeLoading, setCumulativeLoading] = useState(false);
+  const [categoryTimelineLoading, setCategoryTimelineLoading] = useState(false);
 
   const [monthlyGroupBy, setMonthlyGroupBy] = useState<"category" | "total">(
     "category"
   );
   const [granularity, setGranularity] = useState<Granularity>("month");
+  const [categoryTimelineGranularity, setCategoryTimelineGranularity] = useState<Granularity>("month");
 
   // Determine the home currency from any loaded chart data
   const [currency, setCurrency] = useState("CAD");
@@ -105,17 +110,19 @@ export default function DashboardPage() {
   }, []);
 
   const fetchCharts = useCallback(
-    async (f: FilterValues, groupBy: "category" | "total", gran: Granularity) => {
+    async (f: FilterValues, groupBy: "category" | "total", gran: Granularity, catTimelineGran: Granularity) => {
       const base = buildParams(f);
 
       setCategoryLoading(true);
       setMonthlyLoading(true);
       setCumulativeLoading(true);
+      setCategoryTimelineLoading(true);
 
-      const [catRes, monthRes, cumRes] = await Promise.allSettled([
+      const [catRes, monthRes, cumRes, catTimelineRes] = await Promise.allSettled([
         fetch(`/api/charts/category-totals?${base}`, { credentials: "include" }),
         fetch(`/api/charts/monthly-totals?${buildParams(f, { groupBy })}`, { credentials: "include" }),
         fetch(`/api/charts/cumulative?${buildParams(f, { granularity: gran })}`, { credentials: "include" }),
+        fetch(`/api/charts/monthly-totals?${buildParams(f, { groupBy: "category", granularity: catTimelineGran })}`, { credentials: "include" }),
       ]);
 
       if (catRes.status === "fulfilled" && catRes.value.ok) {
@@ -135,6 +142,12 @@ export default function DashboardPage() {
         setCumulativeData(data);
       }
       setCumulativeLoading(false);
+
+      if (catTimelineRes.status === "fulfilled" && catTimelineRes.value.ok) {
+        const data: MonthlyTotal[] = await catTimelineRes.value.json();
+        setCategoryTimelineData(data);
+      }
+      setCategoryTimelineLoading(false);
     },
     []
   );
@@ -142,10 +155,10 @@ export default function DashboardPage() {
   // Re-fetch charts whenever filters, groupBy, or granularity change
   useEffect(() => {
     if (meta?.dateRange !== undefined) {
-      fetchCharts(filters, monthlyGroupBy, granularity);
+      fetchCharts(filters, monthlyGroupBy, granularity, categoryTimelineGranularity);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters, monthlyGroupBy, granularity, meta]);
+  }, [filters, monthlyGroupBy, granularity, categoryTimelineGranularity, meta]);
 
   const handleFiltersChange = useCallback((f: FilterValues) => {
     setFilters(f);
@@ -247,24 +260,7 @@ export default function DashboardPage() {
       <div className="max-w-6xl mx-auto px-6 -mt-24 pb-8">
         {view === "overview" && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
-            {/* Tab bar inside the card */}
-            <div className="flex items-center justify-between pb-6 border-b border-gray-100">
-              <h2 className="text-base font-semibold text-gray-900">Overview</h2>
-              <div className="flex items-center gap-6">
-                <button
-                  onClick={() => setView("overview")}
-                  className="text-base font-medium pb-0.5 text-gray-900 border-b-2 border-emerald-700"
-                >
-                  Overview
-                </button>
-                <button
-                  onClick={() => setView("country")}
-                  className="text-base font-medium pb-0.5 text-gray-400 hover:text-gray-700 transition-colors"
-                >
-                  Country
-                </button>
-              </div>
-            </div>
+            <DashboardTabBar activeView={view} onSwitch={setView} />
             <div className="bg-gray-50 rounded-lg border border-gray-100 p-4">
               <Filters onChange={handleFiltersChange} />
             </div>
@@ -307,6 +303,20 @@ export default function DashboardPage() {
                   loading={cumulativeLoading}
                   granularity={granularity}
                   onGranularityChange={setGranularity}
+                />
+              </div>
+
+              {/* Spending by category over time */}
+              <div className="lg:col-span-2 bg-gray-50 rounded-lg border border-gray-100 p-5">
+                <h2 className="text-sm font-semibold text-gray-700 mb-4">
+                  Category spending over time
+                </h2>
+                <CategoryLineChart
+                  data={categoryTimelineData}
+                  currency={currency}
+                  loading={categoryTimelineLoading}
+                  granularity={categoryTimelineGranularity}
+                  onGranularityChange={setCategoryTimelineGranularity}
                 />
               </div>
             </div>

@@ -6,6 +6,7 @@
 "use client";
 
 import { useState } from "react";
+import { format, parseISO } from "date-fns";
 import {
   BarChart,
   Bar,
@@ -174,7 +175,9 @@ export default function MonthlyBarChart({
               <XAxis
                 dataKey="month"
                 tick={{ fontSize: 11 }}
-                tickFormatter={(val: string) => val.slice(0, 7)}
+                tickFormatter={(val: string) => {
+                  try { return format(parseISO(val + "-01"), "MMM yyyy"); } catch { return val; }
+                }}
               />
               <YAxis
                 tick={{ fontSize: 11 }}
