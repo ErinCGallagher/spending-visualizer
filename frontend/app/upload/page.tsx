@@ -53,38 +53,40 @@ export default function UploadPage() {
   return (
     <main className="min-h-screen bg-gray-50">
       <div className="max-w-2xl mx-auto px-4 py-10">
-        <h1 className="text-2xl font-bold text-gray-900 mb-8">
-          Import transactions
-        </h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-6">Import transactions</h1>
 
         {/* Step indicator */}
-        <nav className="flex items-center gap-0 mb-8">
+        <nav className="flex items-center mb-8">
           {([1, 2, 3, 4, 5] as Step[]).map((s, index) => (
             <div key={s} className="flex items-center">
-              <div
-                className={`flex items-center justify-center w-7 h-7 rounded-full text-xs font-medium ${
-                  s === step
-                    ? "bg-blue-600 text-white"
-                    : s < step
-                    ? "bg-blue-100 text-blue-700"
-                    : "bg-gray-200 text-gray-500"
-                }`}
-              >
-                {s}
+              <div className="flex flex-col items-center">
+                <div
+                  className={`flex items-center justify-center w-8 h-8 rounded-full text-xs font-medium ${
+                    s === step
+                      ? "bg-emerald-800 text-white"
+                      : s < step
+                      ? "bg-emerald-100 text-emerald-700"
+                      : "bg-gray-100 text-gray-400"
+                  }`}
+                >
+                  {s}
+                </div>
+                <span
+                  className={`mt-1 text-xs ${
+                    s === step
+                      ? "font-bold text-emerald-800"
+                      : "text-gray-400"
+                  }`}
+                >
+                  {STEP_LABELS[s]}
+                </span>
               </div>
-              <span
-                className={`ml-1.5 text-xs font-medium ${
-                  s === step
-                    ? "text-blue-700"
-                    : s < step
-                    ? "text-blue-500"
-                    : "text-gray-400"
-                }`}
-              >
-                {STEP_LABELS[s]}
-              </span>
               {index < 4 && (
-                <span className="mx-3 text-gray-300 select-none">›</span>
+                <div
+                  className={`h-0.5 w-8 mb-4 ${
+                    s < step ? "bg-emerald-300" : "bg-gray-200"
+                  }`}
+                />
               )}
             </div>
           ))}

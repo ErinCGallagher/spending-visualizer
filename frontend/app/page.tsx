@@ -123,7 +123,7 @@ export default function DashboardPage() {
 
   if (metaLoading) {
     return (
-      <main className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <main className="min-h-screen flex items-center justify-center">
         <p className="text-sm text-gray-400">Loading…</p>
       </main>
     );
@@ -131,11 +131,11 @@ export default function DashboardPage() {
 
   if (meta?.dateRange === null) {
     return (
-      <main className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-4">
+      <main className="min-h-screen flex flex-col items-center justify-center gap-4">
         <p className="text-gray-500 text-sm">No transactions yet.</p>
         <Link
           href="/upload"
-          className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700"
+          className="bg-emerald-800 hover:bg-emerald-900 text-white px-5 py-2.5 rounded-lg font-medium text-sm"
         >
           Import transactions
         </Link>
@@ -144,8 +144,8 @@ export default function DashboardPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-50">
-      <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
+    <main className="min-h-screen">
+      <div className="max-w-5xl mx-auto px-6 py-8 space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-gray-900">
             Spending Visualizer
@@ -153,30 +153,32 @@ export default function DashboardPage() {
           <div className="flex items-center gap-2">
             <Link
               href="/transactions"
-              className="px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md hover:bg-gray-50"
+              className="border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg font-medium text-sm hover:bg-gray-50"
             >
               Transactions
             </Link>
             <Link
               href="/upload"
-              className="px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md hover:bg-gray-50"
+              className="border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg font-medium text-sm hover:bg-gray-50"
             >
               Import
             </Link>
             <Link
               href="/settings"
-              className="px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md hover:bg-gray-50"
+              className="border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg font-medium text-sm hover:bg-gray-50"
             >
               Settings
             </Link>
           </div>
         </div>
 
-        <Filters onChange={handleFiltersChange} />
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <Filters onChange={handleFiltersChange} />
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Category breakdown */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <h2 className="text-sm font-semibold text-gray-700 mb-4">
               Spending by category
             </h2>
@@ -188,7 +190,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Monthly spending */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <h2 className="text-sm font-semibold text-gray-700 mb-4">
               Monthly spending
             </h2>
@@ -202,7 +204,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Cumulative spending */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5 lg:col-span-2">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 lg:col-span-2">
             <h2 className="text-sm font-semibold text-gray-700 mb-4">
               Cumulative spending
             </h2>

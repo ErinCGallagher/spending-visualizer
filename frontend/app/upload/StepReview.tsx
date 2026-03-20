@@ -133,7 +133,7 @@ export default function StepReview({
 
   if (loading) {
     return (
-      <div className="space-y-4">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
         <p className="text-sm text-gray-600">Running AI categorisation…</p>
         <div className="animate-pulse space-y-2">
           {[1, 2, 3].map((n) => (
@@ -146,12 +146,12 @@ export default function StepReview({
 
   if (error) {
     return (
-      <div className="space-y-4">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
         <p className="text-sm text-red-600">{error}</p>
         <div className="flex gap-3">
           <button
             onClick={onBack}
-            className="px-4 py-2 border border-gray-300 text-sm font-medium rounded-md hover:bg-gray-50"
+            className="border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg font-medium hover:bg-gray-50"
           >
             Back
           </button>
@@ -184,20 +184,25 @@ export default function StepReview({
   const alreadyCategorized = transactions.filter((t) => t.categoryName).length;
 
   return (
-    <div className="space-y-6">
-      {alreadyCategorized > 0 && (
-        <p className="text-sm text-gray-600">
-          {alreadyCategorized} transaction{alreadyCategorized !== 1 ? "s" : ""}{" "}
-          already had a category from the CSV and were skipped.
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-6">
+      <div>
+        <h2 className="text-lg font-semibold text-gray-900 mb-1">Review Categories</h2>
+        <p className="text-sm text-gray-500 mb-4">
+          {alreadyCategorized > 0 && (
+            <>
+              {alreadyCategorized} transaction{alreadyCategorized !== 1 ? "s" : ""}{" "}
+              already had a category from the CSV and were skipped.{" "}
+            </>
+          )}
+          {suggestions.length > 0 && (
+            <>
+              {suggestions.length - lowConfidence.length} of {suggestions.length}{" "}
+              uncategorised transaction{suggestions.length !== 1 ? "s" : ""} were
+              accepted automatically (confidence ≥ 80%).
+            </>
+          )}
         </p>
-      )}
-      {suggestions.length > 0 && (
-        <p className="text-sm text-gray-600">
-          {suggestions.length - lowConfidence.length} of {suggestions.length}{" "}
-          uncategorised transaction{suggestions.length !== 1 ? "s" : ""} were
-          accepted automatically (confidence ≥ 80%).
-        </p>
-      )}
+      </div>
 
       {lowConfidence.length > 0 ? (
         <>
@@ -206,14 +211,14 @@ export default function StepReview({
             {lowConfidence.length !== 1 ? "s" : ""}:
           </p>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm border-collapse">
+            <table className="w-full text-sm">
               <thead>
-                <tr className="border-b text-left text-gray-500">
-                  <th className="py-2 pr-4 font-medium">Date</th>
-                  <th className="py-2 pr-4 font-medium">Description</th>
-                  <th className="py-2 pr-4 font-medium">Amount</th>
-                  <th className="py-2 pr-4 font-medium">AI Suggestion</th>
-                  <th className="py-2 font-medium">Category</th>
+                <tr className="text-left text-xs font-semibold tracking-widest text-gray-400 uppercase border-b border-gray-200">
+                  <th className="py-2 pr-4">Date</th>
+                  <th className="py-2 pr-4">Description</th>
+                  <th className="py-2 pr-4">Amount</th>
+                  <th className="py-2 pr-4">AI Suggestion</th>
+                  <th className="py-2">Category</th>
                 </tr>
               </thead>
               <tbody>
@@ -222,24 +227,24 @@ export default function StepReview({
                   return (
                     <tr
                       key={s.transactionIndex}
-                      className="border-b last:border-0"
+                      className="border-b border-gray-100 py-3"
                     >
-                      <td className="py-2 pr-4 text-gray-600">
+                      <td className="py-3 pr-4 text-gray-600">
                         {formatDate(s.date)}
                       </td>
-                      <td className="py-2 pr-4 text-gray-800">
+                      <td className="py-3 pr-4 text-gray-800">
                         {s.description}
                       </td>
-                      <td className="py-2 pr-4 text-gray-800">
+                      <td className="py-3 pr-4 text-gray-800">
                         {formatAmount(s.amount, t.localCurrency ?? "")}
                       </td>
-                      <td className="py-2 pr-4 text-gray-500">
-                        {s.suggestedCategory}{" "}
-                        <span className="text-xs text-gray-400">
+                      <td className="py-3 pr-4">
+                        <span className="bg-amber-50 text-amber-800 rounded-full px-2 py-0.5 text-xs font-medium">
+                          {s.suggestedCategory}{" "}
                           ({Math.round(s.confidence * 100)}%)
                         </span>
                       </td>
-                      <td className="py-2">
+                      <td className="py-3">
                         <select
                           value={choices[s.transactionIndex] ?? ""}
                           onChange={(e) =>
@@ -249,7 +254,7 @@ export default function StepReview({
                                 e.target.value === "" ? null : e.target.value,
                             }))
                           }
-                          className="border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-800"
                         >
                           <option value="">Uncategorised</option>
                           {groups.map((group) => {
@@ -284,13 +289,13 @@ export default function StepReview({
       <div className="flex gap-3">
         <button
           onClick={onBack}
-          className="px-4 py-2 border border-gray-300 text-sm font-medium rounded-md hover:bg-gray-50"
+          className="border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg font-medium hover:bg-gray-50"
         >
           Back
         </button>
         <button
           onClick={handleContinue}
-          className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700"
+          className="bg-emerald-800 hover:bg-emerald-900 text-white px-5 py-2.5 rounded-lg font-medium"
         >
           Continue
         </button>
