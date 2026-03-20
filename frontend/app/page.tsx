@@ -18,6 +18,7 @@ import CumulativeLineChart, {
   type CumulativePoint,
   type Granularity,
 } from "@/app/dashboard/CumulativeLineChart";
+import CountryDashboard from "@/app/dashboard/CountryDashboard";
 
 interface Meta {
   dateRange: { from: string; to: string } | null;
@@ -37,6 +38,8 @@ function buildParams(
 }
 
 export default function DashboardPage() {
+  const [view, setView] = useState<"overview" | "country">("overview");
+
   const [meta, setMeta] = useState<Meta | null>(null);
   const [metaLoading, setMetaLoading] = useState(true);
 
@@ -172,51 +175,81 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <Filters onChange={handleFiltersChange} />
+        {/* View tabs */}
+        <div className="flex gap-1 border-b border-gray-200">
+          <button
+            onClick={() => setView("overview")}
+            className={`px-4 py-2 text-sm font-medium rounded-t-md ${
+              view === "overview"
+                ? "bg-white border border-b-white border-gray-200 -mb-px text-gray-900"
+                : "text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            Overview
+          </button>
+          <button
+            onClick={() => setView("country")}
+            className={`px-4 py-2 text-sm font-medium rounded-t-md ${
+              view === "country"
+                ? "bg-white border border-b-white border-gray-200 -mb-px text-gray-900"
+                : "text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            Country Dashboard
+          </button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Category breakdown */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-sm font-semibold text-gray-700 mb-4">
-              Spending by category
-            </h2>
-            <CategoryPieChart
-              data={categoryData}
-              currency={currency}
-              loading={categoryLoading}
-            />
-          </div>
+        {view === "overview" && (
+          <>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <Filters onChange={handleFiltersChange} />
+            </div>
 
-          {/* Monthly spending */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-sm font-semibold text-gray-700 mb-4">
-              Monthly spending
-            </h2>
-            <MonthlyBarChart
-              data={monthlyData}
-              currency={currency}
-              loading={monthlyLoading}
-              groupBy={monthlyGroupBy}
-              onGroupByChange={setMonthlyGroupBy}
-            />
-          </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Category breakdown */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h2 className="text-sm font-semibold text-gray-700 mb-4">
+                  Spending by category
+                </h2>
+                <CategoryPieChart
+                  data={categoryData}
+                  currency={currency}
+                  loading={categoryLoading}
+                />
+              </div>
 
-          {/* Cumulative spending */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 lg:col-span-2">
-            <h2 className="text-sm font-semibold text-gray-700 mb-4">
-              Cumulative spending
-            </h2>
-            <CumulativeLineChart
-              data={cumulativeData}
-              currency={currency}
-              loading={cumulativeLoading}
-              granularity={granularity}
-              onGranularityChange={setGranularity}
-            />
-          </div>
-        </div>
+              {/* Monthly spending */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h2 className="text-sm font-semibold text-gray-700 mb-4">
+                  Monthly spending
+                </h2>
+                <MonthlyBarChart
+                  data={monthlyData}
+                  currency={currency}
+                  loading={monthlyLoading}
+                  groupBy={monthlyGroupBy}
+                  onGroupByChange={setMonthlyGroupBy}
+                />
+              </div>
+
+              {/* Cumulative spending */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 lg:col-span-2">
+                <h2 className="text-sm font-semibold text-gray-700 mb-4">
+                  Cumulative spending
+                </h2>
+                <CumulativeLineChart
+                  data={cumulativeData}
+                  currency={currency}
+                  loading={cumulativeLoading}
+                  granularity={granularity}
+                  onGranularityChange={setGranularity}
+                />
+              </div>
+            </div>
+          </>
+        )}
+
+        {view === "country" && <CountryDashboard />}
       </div>
     </main>
   );
