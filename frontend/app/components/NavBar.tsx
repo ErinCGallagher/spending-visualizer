@@ -79,7 +79,7 @@ export default function NavBar({ links, children }: NavBarProps) {
                     Settings
                   </button>
                   <button
-                    onClick={() => authClient.signOut({ callbackURL: "/login" })}
+                    onClick={() => authClient.signOut().then(() => router.push("/login"))}
                     className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
                   >
                     Sign out

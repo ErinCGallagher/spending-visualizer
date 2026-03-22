@@ -7,10 +7,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import ConfirmModal from "@/app/components/ui/ConfirmModal";
 
 export default function SettingsPage() {
+  const router = useRouter();
   const { data: session, isPending } = authClient.useSession();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -32,7 +34,8 @@ export default function SettingsPage() {
         return;
       }
 
-      await authClient.signOut({ callbackURL: "/login" });
+      await authClient.signOut();
+      router.push("/login");
     } catch {
       setDeleteError("Something went wrong. Please try again.");
       setDeleteLoading(false);
