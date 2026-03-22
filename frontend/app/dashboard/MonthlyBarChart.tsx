@@ -7,6 +7,8 @@
 
 import { useState } from "react";
 import { format, parseISO } from "date-fns";
+import { formatAmount, formatCurrency } from "@/lib/format";
+import { CHART_COLORS, pivotData } from "@/lib/chart-utils";
 import {
   BarChart,
   Bar,
@@ -17,6 +19,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
+import { SkeletonChart } from "@/app/components/ui/LoadingSkeleton";
 
 export interface MonthlyTotal {
   month: string;
@@ -32,63 +35,6 @@ interface Props {
   groupBy: "category" | "total";
 }
 
-const COLORS = [
-  "#3b82f6",
-  "#10b981",
-  "#f59e0b",
-  "#ef4444",
-  "#8b5cf6",
-  "#ec4899",
-  "#06b6d4",
-  "#84cc16",
-  "#f97316",
-  "#6366f1",
-];
-
-function formatCurrency(value: number, currency: string) {
-  return new Intl.NumberFormat("en-CA", {
-    style: "currency",
-    currency,
-    maximumFractionDigits: 0,
-  }).format(value);
-}
-
-/**
- * Pivots the flat array from the API into the shape Recharts expects:
- * one object per month, with a key per category.
- */
-function pivotData(data: MonthlyTotal[]): {
-  pivoted: Record<string, number | string>[];
-  categories: string[];
-} {
-  const months = Array.from(new Set(data.map((d) => d.month))).sort();
-  const categories = Array.from(
-    new Set(data.filter((d) => d.category).map((d) => d.category as string))
-  );
-
-  if (categories.length === 0) {
-    // Ungrouped — single bar per month
-    const pivoted = months.map((month) => {
-      const row: Record<string, number | string> = { month };
-      const match = data.find((d) => d.month === month);
-      row["Total"] = match?.total ?? 0;
-      return row;
-    });
-    return { pivoted, categories: ["Total"] };
-  }
-
-  const pivoted = months.map((month) => {
-    const row: Record<string, number | string> = { month };
-    for (const cat of categories) {
-      const match = data.find((d) => d.month === month && d.category === cat);
-      row[cat] = match?.total ?? 0;
-    }
-    return row;
-  });
-
-  return { pivoted, categories };
-}
-
 export default function MonthlyBarChart({
   data,
   currency,
@@ -99,12 +45,7 @@ export default function MonthlyBarChart({
   const [display, setDisplay] = useState<"stacked" | "grouped">("stacked");
 
   if (loading) {
-    return (
-      <div className="space-y-2">
-        <div className="h-4 w-24 bg-gray-100 rounded animate-pulse" />
-        <div className="h-56 bg-gray-100 rounded animate-pulse" />
-      </div>
-    );
+    return <SkeletonChart />;
   }
 
   const { pivoted, categories } = pivotData(data);
@@ -181,13 +122,11 @@ export default function MonthlyBarChart({
               />
               <YAxis
                 tick={{ fontSize: 11 }}
-                tickFormatter={(val: number) =>
-                  formatCurrency(val, currency).replace(/\.00$/, "")
-                }
+                tickFormatter={(val: number) => formatAmount(val, currency)}
                 width={70}
               />
               <Tooltip
-                formatter={(value) => formatCurrency(Number(value), currency)}
+                formatter={(value) => formatCurrency(Number(value), currency, 0)}
               />
               <Legend
                 formatter={(value: string) => (
@@ -199,7 +138,7 @@ export default function MonthlyBarChart({
                   key={cat}
                   dataKey={cat}
                   stackId={display === "stacked" ? "a" : undefined}
-                  fill={COLORS[i % COLORS.length]}
+                  fill={CHART_COLORS[i % CHART_COLORS.length]}
                 />
               ))}
             </BarChart>

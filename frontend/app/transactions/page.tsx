@@ -8,26 +8,12 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import NavBar from "@/app/components/NavBar";
-
-interface Transaction {
-  id: string;
-  date: string;
-  description: string;
-  amountHome: number;
-  localCurrency: string | null;
-  homeCurrency: string | null;
-  categoryName: string | null;
-  payer: string | null;
-  groupName: string | null;
-  groupType: string | null;
-}
-
-interface TransactionsResponse {
-  transactions: Transaction[];
-  total: number;
-  page: number;
-  limit: number;
-}
+import TransactionTable, {
+  type TransactionsResponse,
+} from "@/app/transactions/TransactionTable";
+import TransactionFilters from "@/app/transactions/TransactionFilters";
+import ConfirmModal from "@/app/components/ui/ConfirmModal";
+import { useTransactionFilters } from "@/app/hooks/useTransactionFilters";
 
 interface Meta {
   categories: { id: string; name: string }[];
@@ -39,47 +25,12 @@ interface Meta {
 
 const PAGE_LIMIT = 50;
 
-function formatDate(iso: string) {
-  // Display dates in a readable format without importing a library
-  const [year, month, day] = iso.split("-");
-  const months = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-  ];
-  return `${months[parseInt(month, 10) - 1]} ${parseInt(day, 10)}, ${year}`;
-}
-
-function formatAmount(amount: number) {
-  return amount.toLocaleString("en-CA", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
-
 export default function TransactionsPage() {
   const [meta, setMeta] = useState<Meta | null>(null);
-
-  // Filter state
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
-  const [category, setCategory] = useState("");
-  const [group, setGroup] = useState("");
-  const [groupTypeFilter, setGroupTypeFilter] = useState("");
-
-  // Pagination state
-  const [page, setPage] = useState(1);
   const [data, setData] = useState<TransactionsResponse | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const { filters, page, setPage, handleFilterChange } = useTransactionFilters();
 
   // Delete section state
   const [deleteFrom, setDeleteFrom] = useState("");
@@ -96,57 +47,32 @@ export default function TransactionsPage() {
   }, []);
 
   const fetchTransactions = useCallback(
-    (
-      currentPage: number,
-      filterFrom: string,
-      filterTo: string,
-      filterCategory: string,
-      filterGroup: string,
-      filterGroupType: string,
-    ) => {
+    (currentPage: number, f: typeof filters) => {
       setLoading(true);
       setDeleteResult(null);
 
       const params = new URLSearchParams();
-      if (filterFrom) params.set("from", filterFrom);
-      if (filterTo) params.set("to", filterTo);
-      if (filterCategory) params.set("category", filterCategory);
-      if (filterGroup) params.set("groupId", filterGroup);
-      if (filterGroupType) params.set("groupType", filterGroupType);
+      if (f.from) params.set("from", f.from);
+      if (f.to) params.set("to", f.to);
+      if (f.category) params.set("category", f.category);
+      if (f.group) params.set("groupId", f.group);
+      if (f.groupTypeFilter) params.set("groupType", f.groupTypeFilter);
       params.set("page", String(currentPage));
       params.set("limit", String(PAGE_LIMIT));
 
-      fetch(`/api/transactions?${params.toString()}`, {
-        credentials: "include",
-      })
+      fetch(`/api/transactions?${params.toString()}`, { credentials: "include" })
         .then((r) => r.json())
         .then((d: TransactionsResponse) => setData(d))
         .catch(() => setData(null))
         .finally(() => setLoading(false));
     },
-    [],
+    []
   );
 
   // Re-fetch whenever filters or page change
   useEffect(() => {
-    fetchTransactions(page, from, to, category, group, groupTypeFilter);
-  }, [page, from, to, category, group, groupTypeFilter, fetchTransactions]);
-
-  // Reset to page 1 when filters change
-  function handleFilterChange(
-    newFrom: string,
-    newTo: string,
-    newCategory: string,
-    newGroup: string,
-    newGroupType: string,
-  ) {
-    setPage(1);
-    setFrom(newFrom);
-    setTo(newTo);
-    setCategory(newCategory);
-    setGroup(newGroup);
-    setGroupTypeFilter(newGroupType);
-  }
+    fetchTransactions(page, filters);
+  }, [page, filters, fetchTransactions]);
 
   function handleDeleteConfirm() {
     setDeleteLoading(true);
@@ -160,9 +86,8 @@ export default function TransactionsPage() {
       .then((d: { deleted: number }) => {
         setDeleteResult(d.deleted);
         setShowDeleteModal(false);
-        // Refetch from page 1
         setPage(1);
-        fetchTransactions(1, from, to, category, group, groupTypeFilter);
+        fetchTransactions(1, filters);
       })
       .catch(() => {
         setShowDeleteModal(false);
@@ -202,171 +127,23 @@ export default function TransactionsPage() {
         {/* Filters + Table */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="p-4">
-            <div className="bg-gray-50 rounded-lg border border-gray-100 px-4 py-3 flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2 text-sm">
-                <input
-                  type="date"
-                  value={from}
-                  onChange={(e) =>
-                    handleFilterChange(e.target.value, to, category, group, groupTypeFilter)
-                  }
-                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
-                />
-                <span className="text-gray-400">—</span>
-                <input
-                  type="date"
-                  value={to}
-                  onChange={(e) =>
-                    handleFilterChange(from, e.target.value, category, group, groupTypeFilter)
-                  }
-                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
-                />
-              </div>
-
-              <select
-                value={category}
-                onChange={(e) => handleFilterChange(from, to, e.target.value, group, groupTypeFilter)}
-                className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
-              >
-                <option value="">All categories</option>
-                {(meta?.categories ?? []).map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={group}
-                onChange={(e) => handleFilterChange(from, to, category, e.target.value, groupTypeFilter)}
-                className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
-              >
-                <option value="">All groups</option>
-                {(meta?.groups ?? []).map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {g.name}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={groupTypeFilter}
-                onChange={(e) => handleFilterChange(from, to, category, group, e.target.value)}
-                className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
-              >
-                <option value="">All group types</option>
-                {Array.from(new Set((meta?.groups ?? []).map((g) => g.groupType))).map((t) => (
-                  <option key={t} value={t}>
-                    {t.charAt(0).toUpperCase() + t.slice(1)}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <TransactionFilters
+              meta={meta}
+              from={filters.from}
+              to={filters.to}
+              category={filters.category}
+              group={filters.group}
+              groupType={filters.groupTypeFilter}
+              onChange={handleFilterChange}
+            />
           </div>
-          <div className="relative min-h-[480px]">
-            {loading && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/70">
-                <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
-              </div>
-            )}
-            {!loading && (!data || data.transactions.length === 0) ? (
-              <div className="flex items-center justify-center py-16">
-                <p className="text-sm text-gray-400">No transactions found.</p>
-              </div>
-            ) : data ? (
-            <>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-200 bg-gray-50 text-left">
-                      <th className="px-4 py-3 text-xs font-semibold tracking-widest text-gray-400 uppercase">
-                        Date
-                      </th>
-                      <th className="px-4 py-3 text-xs font-semibold tracking-widest text-gray-400 uppercase">
-                        Description
-                      </th>
-                      <th className="px-4 py-3 text-xs font-semibold tracking-widest text-gray-400 uppercase">
-                        Category
-                      </th>
-                      <th className="px-4 py-3 text-xs font-semibold tracking-widest text-gray-400 uppercase text-right">
-                        Amount
-                      </th>
-                      <th className="px-4 py-3 text-xs font-semibold tracking-widest text-gray-400 uppercase">
-                        Payer
-                      </th>
-                      <th className="px-4 py-3 text-xs font-semibold tracking-widest text-gray-400 uppercase">
-                        Group
-                      </th>
-                      <th className="px-4 py-3 text-xs font-semibold tracking-widest text-gray-400 uppercase">
-                        Type
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {data.transactions.map((t) => (
-                      <tr key={t.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
-                          {formatDate(t.date)}
-                        </td>
-                        <td className="px-4 py-3 text-gray-900 max-w-xs truncate">
-                          {t.description}
-                        </td>
-                        <td className="px-4 py-3 text-gray-600">
-                          {t.categoryName ?? (
-                            <span className="text-gray-300">—</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-gray-900 text-right whitespace-nowrap font-medium">
-                          {formatAmount(t.amountHome)}{t.homeCurrency ? ` ${t.homeCurrency}` : ""}
-                        </td>
-                        <td className="px-4 py-3 text-gray-600">
-                          {t.payer ?? <span className="text-gray-300">—</span>}
-                        </td>
-                        <td className="px-4 py-3 text-gray-600">
-                          {t.groupName ?? (
-                            <span className="text-gray-300">—</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-gray-600">
-                          {t.groupType ?? (
-                            <span className="text-gray-300">—</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Pagination */}
-              <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200">
-                <p className="text-sm text-gray-500">
-                  {data.total.toLocaleString()} transaction
-                  {data.total !== 1 ? "s" : ""}
-                </p>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={page <= 1}
-                    className="border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg font-medium text-sm hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    Previous
-                  </button>
-                  <span className="text-sm text-gray-600">
-                    Page {page} of {totalPages}
-                  </span>
-                  <button
-                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={page >= totalPages}
-                    className="border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg font-medium text-sm hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
-            </>
-            ) : null}
-          </div>
+          <TransactionTable
+            data={data}
+            loading={loading}
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+          />
         </div>
 
         {/* Delete section */}
@@ -415,36 +192,17 @@ export default function TransactionsPage() {
         </div>
       </div>
 
-      {/* Delete confirmation modal */}
       {showDeleteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl border border-gray-200 shadow-xl p-6 max-w-md w-full mx-4 space-y-4">
-            <h3 className="text-base font-semibold text-gray-900">
-              Delete transactions
-            </h3>
-            <p className="text-sm text-gray-600">
-              Are you sure? This will delete all transactions from{" "}
-              <strong>{deleteFrom}</strong> to <strong>{deleteTo}</strong>. This
-              cannot be undone.
-            </p>
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => setShowDeleteModal(false)}
-                disabled={deleteLoading}
-                className="border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg font-medium text-sm hover:bg-gray-50 disabled:opacity-40"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDeleteConfirm}
-                disabled={deleteLoading}
-                className="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-lg font-medium text-sm disabled:opacity-40"
-              >
-                {deleteLoading ? "Deleting…" : "Delete"}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmModal
+          title="Delete transactions"
+          description={`Are you sure? This will delete all transactions from ${deleteFrom} to ${deleteTo}. This cannot be undone.`}
+          confirmLabel="Delete"
+          loadingLabel="Deleting…"
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => setShowDeleteModal(false)}
+          loading={deleteLoading}
+          danger
+        />
       )}
     </main>
   );

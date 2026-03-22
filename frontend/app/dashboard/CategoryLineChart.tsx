@@ -8,6 +8,8 @@
 
 import { useEffect, useState } from "react";
 import { format, parseISO } from "date-fns";
+import { formatAmount, formatCurrency } from "@/lib/format";
+import { CHART_COLORS, pivotData } from "@/lib/chart-utils";
 import {
   LineChart,
   Line,
@@ -18,20 +20,8 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import type { MonthlyTotal } from "@/app/dashboard/MonthlyBarChart";
+import { SkeletonChart } from "@/app/components/ui/LoadingSkeleton";
 import type { Granularity } from "@/app/dashboard/CumulativeLineChart";
-
-const COLORS = [
-  "#3b82f6",
-  "#10b981",
-  "#f59e0b",
-  "#ef4444",
-  "#8b5cf6",
-  "#ec4899",
-  "#06b6d4",
-  "#84cc16",
-  "#f97316",
-  "#6366f1",
-];
 
 export { type Granularity };
 
@@ -51,39 +41,6 @@ function formatDateLabel(val: string, granularity: Granularity): string {
   } catch {
     return val;
   }
-}
-
-function formatCurrency(value: number, currency: string) {
-  return new Intl.NumberFormat("en-CA", {
-    style: "currency",
-    currency,
-    maximumFractionDigits: 0,
-  }).format(value);
-}
-
-/**
- * Pivots flat rows into one object per month with a key per category.
- * Returns the pivoted rows and the ordered list of all categories found.
- */
-function pivotData(data: MonthlyTotal[]): {
-  pivoted: Record<string, number | string>[];
-  categories: string[];
-} {
-  const months = Array.from(new Set(data.map((d) => d.month))).sort();
-  const categories = Array.from(
-    new Set(data.filter((d) => d.category).map((d) => d.category as string))
-  );
-
-  const pivoted = months.map((month) => {
-    const row: Record<string, number | string> = { month };
-    for (const cat of categories) {
-      const match = data.find((d) => d.month === month && d.category === cat);
-      row[cat] = match?.total ?? 0;
-    }
-    return row;
-  });
-
-  return { pivoted, categories };
 }
 
 export default function CategoryLineChart({ data, currency, loading, granularity, onGranularityChange }: Props) {
@@ -112,12 +69,7 @@ export default function CategoryLineChart({ data, currency, loading, granularity
   }
 
   if (loading) {
-    return (
-      <div className="space-y-2">
-        <div className="h-4 w-48 bg-gray-100 rounded animate-pulse" />
-        <div className="h-56 bg-gray-100 rounded animate-pulse" />
-      </div>
-    );
+    return <SkeletonChart />;
   }
 
   if (data.length === 0) {
@@ -151,7 +103,7 @@ export default function CategoryLineChart({ data, currency, loading, granularity
       {/* Category filter pills */}
       <div className="flex flex-wrap gap-1.5">
         {categories.map((cat, i) => {
-          const color = COLORS[i % COLORS.length];
+          const color = CHART_COLORS[i % CHART_COLORS.length];
           const active = activeCategories.has(cat);
           return (
             <button
@@ -186,15 +138,13 @@ export default function CategoryLineChart({ data, currency, loading, granularity
             />
             <YAxis
               tick={{ fontSize: 11 }}
-              tickFormatter={(val: number) =>
-                formatCurrency(val, currency).replace(/\.00$/, "")
-              }
+              tickFormatter={(val: number) => formatAmount(val, currency)}
               width={70}
             />
             <Tooltip
               labelFormatter={(label) => formatDateLabel(String(label ?? ""), granularity)}
               formatter={(value, name) => [
-                formatCurrency(Number(value), currency),
+                formatCurrency(Number(value), currency, 0),
                 name,
               ]}
             />
@@ -204,7 +154,7 @@ export default function CategoryLineChart({ data, currency, loading, granularity
                   key={cat}
                   type="monotone"
                   dataKey={cat}
-                  stroke={COLORS[i % COLORS.length]}
+                  stroke={CHART_COLORS[i % CHART_COLORS.length]}
                   strokeWidth={2}
                   dot={false}
                   isAnimationActive={false}

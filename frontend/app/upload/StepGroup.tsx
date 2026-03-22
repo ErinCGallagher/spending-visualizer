@@ -7,7 +7,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { format, parseISO } from "date-fns";
+import { formatDate } from "@/lib/format";
 import type { Group, GroupType, ParsedTransaction } from "./types";
 
 const GROUP_TYPES: GroupType[] = ["trip", "daily", "business"];
@@ -17,14 +17,6 @@ const GROUP_TYPE_LABELS: Record<GroupType, string> = {
   daily: "Daily Living",
   business: "Business",
 };
-
-function formatDate(iso: string) {
-  try {
-    return format(parseISO(iso), "MMM d, yyyy");
-  } catch {
-    return iso;
-  }
-}
 
 function formatAmount(amount: number, currency: string | null) {
   try {

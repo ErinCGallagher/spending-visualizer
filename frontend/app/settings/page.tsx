@@ -8,6 +8,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
+import ConfirmModal from "@/app/components/ui/ConfirmModal";
 
 export default function SettingsPage() {
   const { data: session, isPending } = authClient.useSession();
@@ -103,43 +104,21 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Delete confirmation modal */}
       {showDeleteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl border border-gray-200 shadow-xl p-6 max-w-md w-full mx-4 space-y-4">
-            <h3 className="text-base font-semibold text-gray-900">
-              Delete account
-            </h3>
-            <p className="text-sm text-gray-600">
-              This will permanently delete your account and all your data. This
-              cannot be undone.
-            </p>
-
-            {deleteError && (
-              <p className="text-sm text-red-600">{deleteError}</p>
-            )}
-
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => {
-                  setShowDeleteModal(false);
-                  setDeleteError(null);
-                }}
-                disabled={deleteLoading}
-                className="border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg font-medium text-sm hover:bg-gray-50 disabled:opacity-40"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDeleteConfirm}
-                disabled={deleteLoading}
-                className="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-lg font-medium text-sm disabled:opacity-40"
-              >
-                {deleteLoading ? "Deleting…" : "Delete account"}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmModal
+          title="Delete account"
+          description="This will permanently delete your account and all your data. This cannot be undone."
+          confirmLabel="Delete account"
+          loadingLabel="Deleting…"
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => {
+            setShowDeleteModal(false);
+            setDeleteError(null);
+          }}
+          loading={deleteLoading}
+          danger
+          error={deleteError ?? undefined}
+        />
       )}
     </main>
   );
