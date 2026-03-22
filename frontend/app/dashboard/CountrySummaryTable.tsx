@@ -6,6 +6,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getSpendBand } from "./spendCategoryConfig";
 
 interface TripTotal {
   groupId: string;
@@ -74,6 +75,7 @@ export default function CountrySummaryTable({
             <th className="pb-2 font-medium text-right">Total Spent</th>
             <th className="pb-2 font-medium text-right">Days</th>
             <th className="pb-2 font-medium text-right">Spent/Day</th>
+            <th className="pb-2 font-medium text-right">Category</th>
           </tr>
         </thead>
         <tbody>
@@ -90,37 +92,50 @@ export default function CountrySummaryTable({
                   <td className="py-2 pr-4">
                     <div className="animate-pulse h-4 bg-gray-100 rounded w-8 ml-auto" />
                   </td>
-                  <td className="py-2">
+                  <td className="py-2 pr-4">
                     <div className="animate-pulse h-4 bg-gray-100 rounded w-20 ml-auto" />
+                  </td>
+                  <td className="py-2">
+                    <div className="animate-pulse h-4 bg-gray-100 rounded w-16 ml-auto" />
                   </td>
                 </tr>
               ))}
             </>
           ) : data.length === 0 ? (
             <tr>
-              <td colSpan={4} className="py-8 text-center text-sm text-gray-400">
+              <td colSpan={5} className="py-8 text-center text-sm text-gray-400">
                 No data
               </td>
             </tr>
           ) : (
-            data.map((row) => (
-              <tr
-                key={row.groupId}
-                onClick={() => handleRowClick(row)}
-                className={`cursor-pointer border-b border-gray-100 last:border-0 hover:bg-gray-50 ${
-                  selectedGroupId === row.groupId ? "bg-blue-50" : ""
-                }`}
-              >
-                <td className="py-2 pr-4 font-medium text-gray-900">{row.tripName}</td>
-                <td className="py-2 pr-4 text-right text-gray-700">
-                  {formatCurrency(row.total, currency)}
-                </td>
-                <td className="py-2 pr-4 text-right text-gray-700">{row.days}</td>
-                <td className="py-2 text-right text-gray-700">
-                  {formatCurrency(row.perDay, currency)}
-                </td>
-              </tr>
-            ))
+            data.map((row) => {
+              const band = getSpendBand(row.perDay);
+              return (
+                <tr
+                  key={row.groupId}
+                  onClick={() => handleRowClick(row)}
+                  className={`cursor-pointer border-b border-gray-100 last:border-0 hover:bg-gray-50 ${
+                    selectedGroupId === row.groupId ? "bg-blue-50" : ""
+                  }`}
+                >
+                  <td className="py-2 pr-4 font-medium text-gray-900">{row.tripName}</td>
+                  <td className="py-2 pr-4 text-right text-gray-700">
+                    {formatCurrency(row.total, currency)}
+                  </td>
+                  <td className="py-2 pr-4 text-right text-gray-700">{row.days}</td>
+                  <td className="py-2 pr-4 text-right text-gray-700">
+                    {formatCurrency(row.perDay, currency)}
+                  </td>
+                  <td className="py-2 text-right">
+                    <span
+                      className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${band.badgeClass} ${band.textClass}`}
+                    >
+                      {band.label}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })
           )}
         </tbody>
       </table>
