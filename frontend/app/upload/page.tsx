@@ -6,7 +6,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import StepFilePicker from "./StepFilePicker";
 import StepSummary from "./StepSummary";
 import StepCategories from "./StepCategories";
@@ -31,6 +30,55 @@ const STEP_LABELS: Record<Step, string> = {
   4: "Review suggestions",
   5: "Assign group",
   6: "Confirm",
+};
+
+/** SVG icon for each step, matching the upload wizard mockup. */
+const STEP_ICONS: Record<Step, React.ReactNode> = {
+  1: (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="17 8 12 3 7 8" />
+      <line x1="12" y1="3" x2="12" y2="15" />
+    </svg>
+  ),
+  2: (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+      <line x1="16" y1="13" x2="8" y2="13" />
+      <line x1="16" y1="17" x2="8" y2="17" />
+      <polyline points="10 9 9 9 8 9" />
+    </svg>
+  ),
+  3: (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+      <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+      <line x1="7" y1="7" x2="7.01" y2="7" />
+    </svg>
+  ),
+  4: (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+      <circle cx="12" cy="8" r="3" />
+      <path d="M6.5 20a5.5 5.5 0 0 1 11 0" />
+      <path d="M19 8h2M3 8h2" />
+      <path d="M19 12l1.5 1.5M3.5 13.5 5 12" />
+    </svg>
+  ),
+  5: (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </svg>
+  ),
+  6: (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+      <polyline points="17 21 17 13 7 13 7 21" />
+      <polyline points="7 3 7 8 15 8" />
+    </svg>
+  ),
 };
 
 interface WizardState {
@@ -58,122 +106,118 @@ export default function UploadPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-50">
-      <div className="max-w-2xl mx-auto px-4 py-10">
-        <Link
-          href="/"
-          className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-            <path fillRule="evenodd" d="M11.78 5.22a.75.75 0 0 1 0 1.06L8.06 10l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Z" clipRule="evenodd" />
-          </svg>
-          Back to dashboard
-        </Link>
-        <h1 className="text-3xl font-bold text-gray-900 mb-6">Import transactions</h1>
+    <div className="min-h-screen bg-gray-50">
+        {/* Dark green header with title and step indicator */}
+        <div className="bg-[#1a3028] px-6 py-10">
+          <div className="max-w-5xl mx-auto">
+            <h1 className="text-4xl font-bold text-white mb-1">Import Data</h1>
+            <p className="text-white/60 mb-10">Upload and categorize your spending data.</p>
 
-        {/* Step indicator */}
-        <nav className="flex items-center mb-8">
-          {([1, 2, 3, 4, 5, 6] as Step[]).map((s, index) => (
-            <div key={s} className="flex items-center">
-              <div className="flex flex-col items-center">
-                <div
-                  className={`flex items-center justify-center w-8 h-8 rounded-full text-xs font-medium ${
-                    s === step
-                      ? "bg-emerald-800 text-white"
-                      : s < step
-                      ? "bg-emerald-100 text-emerald-700"
-                      : "bg-gray-100 text-gray-400"
-                  }`}
-                >
-                  {s}
+            {/* Step indicator */}
+            <nav className="flex items-center">
+              {([1, 2, 3, 4, 5, 6] as Step[]).map((s, index) => (
+                <div key={s} className="flex items-center">
+                  <div className="flex flex-col items-center gap-2 min-w-[80px]">
+                    <div
+                      className={`flex items-center justify-center w-12 h-12 rounded-full transition-colors ${
+                        s === step
+                          ? "bg-white text-[#1a3028]"
+                          : "bg-white/10 text-white/50"
+                      }`}
+                    >
+                      {STEP_ICONS[s]}
+                    </div>
+                    <span
+                      className={`text-[10px] tracking-widest uppercase text-center leading-tight ${
+                        s === step ? "font-bold text-white" : "text-white/40"
+                      }`}
+                    >
+                      {STEP_LABELS[s]}
+                    </span>
+                  </div>
+                  {index < 5 && (
+                    <div
+                      className={`h-px w-10 mb-5 mx-1 ${
+                        s < step ? "bg-white/40" : "bg-white/15"
+                      }`}
+                    />
+                  )}
                 </div>
-                <span
-                  className={`mt-1 text-xs ${
-                    s === step ? "font-bold text-emerald-800" : "text-gray-400"
-                  }`}
-                >
-                  {STEP_LABELS[s]}
-                </span>
-              </div>
-              {index < 5 && (
-                <div
-                  className={`h-0.5 w-8 mb-4 ${
-                    s < step ? "bg-emerald-300" : "bg-gray-200"
-                  }`}
-                />
-              )}
-            </div>
-          ))}
-        </nav>
-
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          {step === 1 && (
-            <StepFilePicker
-              onSuccess={(result, file) => {
-                setState((prev) => ({
-                  ...prev,
-                  uploadResult: result,
-                  filename: file.name,
-                  transactions: result.transactions,
-                }));
-                goTo(2);
-              }}
-            />
-          )}
-
-          {step === 2 && state.uploadResult && (
-            <StepSummary
-              result={state.uploadResult}
-              onBack={() => goTo(1)}
-              onContinue={() => goTo(3)}
-            />
-          )}
-
-          {step === 3 && state.uploadResult && (
-            <StepCategories
-              parsedCategories={state.uploadResult.categories}
-              onBack={() => goTo(2)}
-              onContinue={(taxonomy, assignments) => {
-                setState((prev) => ({ ...prev, taxonomy, assignments }));
-                goTo(4);
-              }}
-            />
-          )}
-
-          {step === 4 && (
-            <StepReview
-              transactions={state.transactions}
-              taxonomy={state.taxonomy}
-              onBack={() => goTo(3)}
-              onContinue={(updated) => {
-                setState((prev) => ({ ...prev, transactions: updated }));
-                goTo(5);
-              }}
-            />
-          )}
-
-          {step === 5 && (
-            <StepGroup
-              transactions={state.transactions}
-              onBack={() => goTo(4)}
-              onContinue={(updated, primaryGroup) => {
-                setState((prev) => ({ ...prev, transactions: updated, primaryGroup }));
-                goTo(6);
-              }}
-            />
-          )}
-
-          {step === 6 && state.uploadResult && state.primaryGroup && (
-            <StepConfirm
-              uploadResult={state.uploadResult}
-              transactions={state.transactions}
-              filename={state.filename}
-              primaryGroup={state.primaryGroup}
-              onBack={() => goTo(5)}
-            />
-          )}
+              ))}
+            </nav>
+          </div>
         </div>
-      </div>
-    </main>
+
+        {/* Step content */}
+        <div className="max-w-5xl mx-auto px-6 py-8">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            {step === 1 && (
+              <StepFilePicker
+                onSuccess={(result, file) => {
+                  setState((prev) => ({
+                    ...prev,
+                    uploadResult: result,
+                    filename: file.name,
+                    transactions: result.transactions,
+                  }));
+                  goTo(2);
+                }}
+              />
+            )}
+
+            {step === 2 && state.uploadResult && (
+              <StepSummary
+                result={state.uploadResult}
+                onBack={() => goTo(1)}
+                onContinue={() => goTo(3)}
+              />
+            )}
+
+            {step === 3 && state.uploadResult && (
+              <StepCategories
+                parsedCategories={state.uploadResult.categories}
+                onBack={() => goTo(2)}
+                onContinue={(taxonomy, assignments) => {
+                  setState((prev) => ({ ...prev, taxonomy, assignments }));
+                  goTo(4);
+                }}
+              />
+            )}
+
+            {step === 4 && (
+              <StepReview
+                transactions={state.transactions}
+                taxonomy={state.taxonomy}
+                onBack={() => goTo(3)}
+                onContinue={(updated) => {
+                  setState((prev) => ({ ...prev, transactions: updated }));
+                  goTo(5);
+                }}
+              />
+            )}
+
+            {step === 5 && (
+              <StepGroup
+                transactions={state.transactions}
+                onBack={() => goTo(4)}
+                onContinue={(updated, primaryGroup) => {
+                  setState((prev) => ({ ...prev, transactions: updated, primaryGroup }));
+                  goTo(6);
+                }}
+              />
+            )}
+
+            {step === 6 && state.uploadResult && state.primaryGroup && (
+              <StepConfirm
+                uploadResult={state.uploadResult}
+                transactions={state.transactions}
+                filename={state.filename}
+                primaryGroup={state.primaryGroup}
+                onBack={() => goTo(5)}
+              />
+            )}
+          </div>
+        </div>
+    </div>
   );
 }

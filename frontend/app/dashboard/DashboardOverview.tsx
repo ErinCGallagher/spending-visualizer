@@ -52,36 +52,37 @@ export default function DashboardOverview({
   onCategoryTimelineGranularityChange,
 }: Props) {
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-      {/* Category breakdown */}
-      <div className="bg-gray-50 rounded-lg border border-gray-100 p-5">
-        <h2 className="text-sm font-semibold text-gray-700 mb-4">
-          Spending by category
-        </h2>
-        <CategoryPieChart
-          data={categoryData}
-          currency={currency}
-          loading={categoryLoading}
-        />
-      </div>
+    <div className="space-y-8">
+      {/* Top row: category breakdown + monthly spending */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div>
+          <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-6">
+            Spending by category
+          </h2>
+          <CategoryPieChart
+            data={categoryData}
+            currency={currency}
+            loading={categoryLoading}
+          />
+        </div>
 
-      {/* Monthly spending */}
-      <div className="bg-gray-50 rounded-lg border border-gray-100 p-5">
-        <h2 className="text-sm font-semibold text-gray-700 mb-4">
-          Monthly spending
-        </h2>
-        <MonthlyBarChart
-          data={monthlyData}
-          currency={currency}
-          loading={monthlyLoading}
-          groupBy={monthlyGroupBy}
-          onGroupByChange={onMonthlyGroupByChange}
-        />
+        <div>
+          <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-6">
+            Monthly spending
+          </h2>
+          <MonthlyBarChart
+            data={monthlyData}
+            currency={currency}
+            loading={monthlyLoading}
+            groupBy={monthlyGroupBy}
+            onGroupByChange={onMonthlyGroupByChange}
+          />
+        </div>
       </div>
 
       {/* Cumulative spending */}
-      <div className="lg:col-span-2 bg-gray-50 rounded-lg border border-gray-100 p-5">
-        <h2 className="text-sm font-semibold text-gray-700 mb-4">
+      <div className="pt-8 border-t border-slate-100">
+        <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-6">
           Cumulative spending
         </h2>
         <CumulativeLineChart
@@ -94,8 +95,8 @@ export default function DashboardOverview({
       </div>
 
       {/* Spending by category over time */}
-      <div className="lg:col-span-2 bg-gray-50 rounded-lg border border-gray-100 p-5">
-        <h2 className="text-sm font-semibold text-gray-700 mb-4">
+      <div className="pt-8 border-t border-slate-100">
+        <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-6">
           Category spending over time
         </h2>
         <CategoryLineChart

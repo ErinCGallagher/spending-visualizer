@@ -20,17 +20,17 @@ const TABS: { key: View; label: string }[] = [
 
 export default function DashboardTabBar({ activeView, onSwitch }: Props) {
   return (
-    <div className="flex border-b border-gray-200">
+    <div className="flex border-b border-slate-100">
       {TABS.map(({ key, label }) => {
         const isActive = activeView === key;
         return (
           <button
             key={key}
             onClick={() => onSwitch(key)}
-            className={`flex-1 py-3.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
+            className={`flex-1 py-4 text-base font-semibold transition-all border-b-2 ${
               isActive
-                ? "text-gray-900 font-semibold border-[#064E3B]"
-                : "text-[#064E3B] border-transparent hover:text-emerald-800"
+                ? "border-brand-primary text-brand-primary bg-brand-primary/5"
+                : "border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50"
             }`}
           >
             {label}
