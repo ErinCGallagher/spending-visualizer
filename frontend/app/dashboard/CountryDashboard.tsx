@@ -61,8 +61,9 @@ export default function CountryDashboard({ onSwitchView, currency }: Props) {
   }, []);
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
       <DashboardTabBar activeView="trip" onSwitch={onSwitchView} />
+      <div className="p-6 space-y-4">
       <div className="bg-gray-50 rounded-lg border border-gray-100 p-4">
         <Filters onChange={handleFiltersChange} />
       </div>
@@ -98,6 +99,7 @@ export default function CountryDashboard({ onSwitchView, currency }: Props) {
             />
           </div>
         </div>
+      </div>
       </div>
     </div>
   );
