@@ -5,6 +5,7 @@
 
 "use client";
 
+import { useEffect, useState } from "react";
 import {
   LineChart,
   Line,
@@ -51,7 +52,10 @@ export default function CumulativeLineChart({
   granularity,
   onGranularityChange,
 }: Props) {
-  if (loading) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
+  if (loading || !mounted) {
     return <SkeletonChart />;
   }
 
@@ -80,7 +84,7 @@ export default function CumulativeLineChart({
         </div>
       ) : (
         <div className="h-56">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
             <LineChart data={data}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis

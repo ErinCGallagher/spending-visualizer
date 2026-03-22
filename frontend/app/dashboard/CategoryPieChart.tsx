@@ -5,6 +5,7 @@
 
 "use client";
 
+import { useEffect, useState } from "react";
 import {
   PieChart,
   Pie,
@@ -28,7 +29,10 @@ interface Props {
 }
 
 export default function CategoryPieChart({ data, currency, loading }: Props) {
-  if (loading) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
+  if (loading || !mounted) {
     return (
       <div className="h-64 flex items-center justify-center">
         <div className="animate-pulse w-40 h-40 rounded-full bg-gray-100" />
@@ -46,7 +50,7 @@ export default function CategoryPieChart({ data, currency, loading }: Props) {
 
   return (
     <div className="h-64">
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height="100%" minWidth={0}>
         <PieChart>
           <Pie
             data={data}
