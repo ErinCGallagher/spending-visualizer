@@ -6,6 +6,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import StepFilePicker from "./StepFilePicker";
 import StepSummary from "./StepSummary";
 import StepCategories from "./StepCategories";
@@ -59,6 +60,15 @@ export default function UploadPage() {
   return (
     <main className="min-h-screen bg-gray-50">
       <div className="max-w-2xl mx-auto px-4 py-10">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+            <path fillRule="evenodd" d="M11.78 5.22a.75.75 0 0 1 0 1.06L8.06 10l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Z" clipRule="evenodd" />
+          </svg>
+          Back to dashboard
+        </Link>
         <h1 className="text-3xl font-bold text-gray-900 mb-6">Import transactions</h1>
 
         {/* Step indicator */}
