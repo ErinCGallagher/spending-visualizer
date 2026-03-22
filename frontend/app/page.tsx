@@ -34,6 +34,7 @@ function getGreeting(): string {
 
 interface Meta {
   dateRange: { from: string; to: string } | null;
+  homeCurrency: string | null;
 }
 
 function buildParams(
@@ -80,8 +81,7 @@ export default function DashboardPage() {
   const [granularity, setGranularity] = useState<Granularity>("month");
   const [categoryTimelineGranularity, setCategoryTimelineGranularity] = useState<Granularity>("month");
 
-  // Determine the home currency from any loaded chart data
-  const [currency, setCurrency] = useState("CAD");
+  const currency = meta?.homeCurrency ?? "CAD";
 
   const filtersRef = useRef(filters);
   filtersRef.current = filters;
@@ -261,7 +261,7 @@ export default function DashboardPage() {
         )}
 
         {view === "trip" && (
-          <CountryDashboard onSwitchView={setView} />
+          <CountryDashboard onSwitchView={setView} currency={currency} />
         )}
       </div>
     </main>
