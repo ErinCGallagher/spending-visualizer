@@ -23,9 +23,10 @@ interface FilterState {
 
 interface Props {
   onSwitchView: (view: "overview" | "trip") => void;
+  currency: string;
 }
 
-export default function CountryDashboard({ onSwitchView }: Props) {
+export default function CountryDashboard({ onSwitchView, currency }: Props) {
   const [filterState, setFilterState] = useState<FilterState>({
     from: "",
     to: "",
@@ -34,7 +35,6 @@ export default function CountryDashboard({ onSwitchView }: Props) {
   const [selectedGroup, setSelectedGroup] = useState<{ id: string; name: string } | null>(null);
   const [categoryData, setCategoryData] = useState<CategoryTotal[]>([]);
   const [categoryLoading, setCategoryLoading] = useState(false);
-  const currency = "CAD";
 
   useEffect(() => {
     setCategoryLoading(true);

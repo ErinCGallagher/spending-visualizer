@@ -108,7 +108,7 @@ router.get("/meta", async (_req, res) => {
   const userId: string = res.locals.userId;
 
   try {
-    const [catResult, travellerResult, pmResult, countryResult, dateResult, groupResult] = await Promise.all([
+    const [catResult, travellerResult, pmResult, countryResult, dateResult, groupResult, currencyResult] = await Promise.all([
       pool.query<{ id: string; name: string }>(
         `SELECT DISTINCT c.id, c.name
          FROM transactions t
@@ -152,6 +152,10 @@ router.get("/meta", async (_req, res) => {
          ORDER BY group_type, name`,
         [userId]
       ),
+      pool.query<{ home_currency: string }>(
+        `SELECT home_currency FROM uploads WHERE user_id = $1 ORDER BY uploaded_at DESC LIMIT 1`,
+        [userId]
+      ),
     ]);
 
     const dateRow = dateResult.rows[0];
@@ -167,6 +171,7 @@ router.get("/meta", async (_req, res) => {
       countries: countryResult.rows.map((r) => r.country),
       dateRange,
       groups: groupResult.rows,
+      homeCurrency: currencyResult.rows[0]?.home_currency ?? null,
     });
   } catch (err) {
     console.error("GET /api/transactions/meta error:", err);
