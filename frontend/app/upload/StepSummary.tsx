@@ -5,21 +5,13 @@
 
 "use client";
 
-import { format, parseISO } from "date-fns";
+import { formatDate } from "@/lib/format";
 import type { ParsedUploadResult } from "./types";
 
 interface Props {
   result: ParsedUploadResult;
   onBack: () => void;
   onContinue: () => void;
-}
-
-function formatDate(iso: string) {
-  try {
-    return format(parseISO(iso), "MMM d, yyyy");
-  } catch {
-    return iso;
-  }
 }
 
 export default function StepSummary({ result, onBack, onContinue }: Props) {

@@ -15,6 +15,8 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { format, parseISO } from "date-fns";
+import { formatAmount, formatCurrency } from "@/lib/format";
+import { SkeletonChart } from "@/app/components/ui/LoadingSkeleton";
 
 export interface CumulativePoint {
   date: string;
@@ -29,14 +31,6 @@ interface Props {
   loading: boolean;
   granularity: Granularity;
   onGranularityChange: (g: Granularity) => void;
-}
-
-function formatCurrency(value: number, currency: string) {
-  return new Intl.NumberFormat("en-CA", {
-    style: "currency",
-    currency,
-    maximumFractionDigits: 0,
-  }).format(value);
 }
 
 function formatDateLabel(iso: string, granularity: Granularity) {
@@ -58,12 +52,7 @@ export default function CumulativeLineChart({
   onGranularityChange,
 }: Props) {
   if (loading) {
-    return (
-      <div className="space-y-2">
-        <div className="h-4 w-24 bg-gray-100 rounded animate-pulse" />
-        <div className="h-56 bg-gray-100 rounded animate-pulse" />
-      </div>
-    );
+    return <SkeletonChart />;
   }
 
   return (
@@ -105,9 +94,7 @@ export default function CumulativeLineChart({
               />
               <YAxis
                 tick={{ fontSize: 11 }}
-                tickFormatter={(val: number) =>
-                  formatCurrency(val, currency).replace(/\.00$/, "")
-                }
+                tickFormatter={(val: number) => formatAmount(val, currency)}
                 width={70}
               />
               <Tooltip
@@ -115,7 +102,7 @@ export default function CumulativeLineChart({
                   formatDateLabel(String(label ?? ""), granularity)
                 }
                 formatter={(value) => [
-                  formatCurrency(Number(value), currency),
+                  formatCurrency(Number(value), currency, 0),
                   "Running total",
                 ]}
               />

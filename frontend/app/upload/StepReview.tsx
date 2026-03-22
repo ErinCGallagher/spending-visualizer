@@ -7,7 +7,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { format, parseISO } from "date-fns";
+import { formatDate } from "@/lib/format";
 import type { AISuggestion, Category, ParsedTransaction } from "./types";
 
 interface Props {
@@ -15,14 +15,6 @@ interface Props {
   taxonomy: Category[];
   onBack: () => void;
   onContinue: (transactions: ParsedTransaction[]) => void;
-}
-
-function formatDate(iso: string) {
-  try {
-    return format(parseISO(iso), "MMM d, yyyy");
-  } catch {
-    return iso;
-  }
 }
 
 function formatAmount(amount: number, currency: string) {

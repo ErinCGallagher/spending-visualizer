@@ -5,7 +5,9 @@
 
 "use client";
 
+import { formatCurrency } from "@/lib/format";
 import { type CategoryTotal } from "@/app/dashboard/CategoryPieChart";
+import { SkeletonRows } from "@/app/components/ui/LoadingSkeleton";
 
 interface Props {
   tripName: string | null;
@@ -13,13 +15,6 @@ interface Props {
   data: CategoryTotal[];
   loading: boolean;
   currency: string;
-}
-
-function formatCurrency(value: number, currency: string, decimals = 2) {
-  return `${new Intl.NumberFormat("en-CA", {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  }).format(value)} ${currency}`;
 }
 
 export default function CountryCategoryTable({
@@ -43,18 +38,7 @@ export default function CountryCategoryTable({
         </thead>
         <tbody>
           {loading ? (
-            <>
-              {[0, 1, 2].map((i) => (
-                <tr key={i}>
-                  <td className="py-2 pr-4">
-                    <div className="animate-pulse h-4 bg-gray-100 rounded w-28" />
-                  </td>
-                  <td className="py-2">
-                    <div className="animate-pulse h-4 bg-gray-100 rounded w-20 ml-auto" />
-                  </td>
-                </tr>
-              ))}
-            </>
+            <SkeletonRows count={3} />
           ) : data.length === 0 ? (
             <tr>
               <td colSpan={2} className="py-8 text-center text-sm text-gray-400">
@@ -71,7 +55,7 @@ export default function CountryCategoryTable({
                   {row.category}
                 </td>
                 <td className="py-2 text-right text-gray-700">
-                  {formatCurrency(row.total, currency)}
+                  {formatCurrency(row.total, currency, 2)}
                 </td>
               </tr>
             ))
