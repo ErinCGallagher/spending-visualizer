@@ -106,22 +106,22 @@ export default function UploadPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
         {/* Dark green header with title and step indicator */}
-        <div className="bg-[#1a3028] px-6 py-10">
+        <div className="bg-[#064E3B] px-6 py-10">
           <div className="max-w-5xl mx-auto">
             <h1 className="text-4xl font-bold text-white mb-1">Import Data</h1>
             <p className="text-white/60 mb-10">Upload and categorize your spending data.</p>
 
             {/* Step indicator */}
-            <nav className="flex items-center">
+            <nav className="flex items-center justify-center">
               {([1, 2, 3, 4, 5, 6] as Step[]).map((s, index) => (
                 <div key={s} className="flex items-center">
                   <div className="flex flex-col items-center gap-2 min-w-[80px]">
                     <div
                       className={`flex items-center justify-center w-12 h-12 rounded-full transition-colors ${
                         s === step
-                          ? "bg-white text-[#1a3028]"
+                          ? "bg-white text-[#064E3B]"
                           : "bg-white/10 text-white/50"
                       }`}
                     >
@@ -149,7 +149,7 @@ export default function UploadPage() {
         </div>
 
         {/* Step content */}
-        <div className="max-w-5xl mx-auto px-6 py-8">
+        <div className="max-w-4xl mx-auto px-6 py-8">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             {step === 1 && (
               <StepFilePicker
