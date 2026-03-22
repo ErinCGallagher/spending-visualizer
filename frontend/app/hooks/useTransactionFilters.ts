@@ -5,7 +5,7 @@
 
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 export interface TransactionFilters {
   from: string;
@@ -54,8 +54,13 @@ export function useTransactionFilters(): UseTransactionFiltersResult {
     []
   );
 
+  const filters = useMemo(
+    () => ({ from, to, category, group, groupTypeFilter }),
+    [from, to, category, group, groupTypeFilter]
+  );
+
   return {
-    filters: { from, to, category, group, groupTypeFilter },
+    filters,
     page,
     setPage,
     handleFilterChange,

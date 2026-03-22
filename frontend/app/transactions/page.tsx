@@ -6,8 +6,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
-import NavBar from "@/app/components/NavBar";
 import TransactionTable, {
   type TransactionsResponse,
 } from "@/app/transactions/TransactionTable";
@@ -98,32 +96,17 @@ export default function TransactionsPage() {
   const totalPages = data ? Math.max(1, Math.ceil(data.total / PAGE_LIMIT)) : 1;
 
   return (
-    <main className="min-h-screen">
-      <NavBar
-        links={[
-          { label: "Dashboards", href: "/" },
-          { label: "Transactions", href: "/transactions" },
-        ]}
-      >
-        {/* Hero content */}
-        <div className="py-8 flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-white">Transactions</h1>
-            <p className="mt-1 text-emerald-200 text-sm">
-              All your recorded transactions.
-            </p>
-          </div>
-          <Link
-            href="/upload"
-            className="bg-white text-emerald-800 hover:bg-emerald-50 px-5 py-2.5 rounded-lg font-medium text-sm"
-          >
-            Import transactions
-          </Link>
-        </div>
-      </NavBar>
+    <main className="min-h-screen animate-fade-in">
+      {/* Hero */}
+      <div className="max-w-6xl mx-auto px-6 py-8">
+        <h1 className="text-3xl font-bold text-white">Transactions</h1>
+        <p className="mt-1 text-emerald-200 text-sm">
+          All your recorded transactions.
+        </p>
+      </div>
 
-      {/* Content pulled up to overlap the green header */}
-      <div className="max-w-6xl mx-auto px-6 -mt-24 pb-8 space-y-4">
+      {/* Content */}
+      <div className="max-w-6xl mx-auto px-6 pb-8 space-y-4">
         {/* Filters + Table */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="p-4">

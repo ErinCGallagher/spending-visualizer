@@ -10,17 +10,29 @@ const SESSION_COOKIE = "better-auth.session_token";
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  const hasSession = req.cookies.has(SESSION_COOKIE);
 
-  // Allow the login page and Next.js internals through unconditionally
-  if (
-    pathname.startsWith("/login") ||
-    pathname.startsWith("/_next") ||
-    pathname.startsWith("/favicon")
-  ) {
+  // Next.js internals always pass through
+  if (pathname.startsWith("/_next") || pathname.startsWith("/favicon")) {
     return NextResponse.next();
   }
 
-  const hasSession = req.cookies.has(SESSION_COOKIE);
+  // Authenticated users visiting /login go straight to /dashboard
+  if (pathname.startsWith("/login")) {
+    if (hasSession) {
+      const dashboardUrl = req.nextUrl.clone();
+      dashboardUrl.pathname = "/dashboard";
+      return NextResponse.redirect(dashboardUrl);
+    }
+    return NextResponse.next();
+  }
+
+  // Landing page is public — no redirect regardless of auth state
+  if (pathname === "/") {
+    return NextResponse.next();
+  }
+
+  // All other routes require authentication
   if (!hasSession) {
     const loginUrl = req.nextUrl.clone();
     loginUrl.pathname = "/login";
