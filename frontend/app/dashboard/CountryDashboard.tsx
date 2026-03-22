@@ -61,45 +61,45 @@ export default function CountryDashboard({ onSwitchView, currency }: Props) {
   }, []);
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+    <div className="bg-white rounded-3xl border border-white/10 shadow-2xl overflow-hidden">
       <DashboardTabBar activeView="trip" onSwitch={onSwitchView} />
-      <div className="p-6 space-y-4">
-      <div className="bg-gray-50 rounded-lg border border-gray-100 p-4">
-        <Filters onChange={handleFiltersChange} />
-      </div>
-
-      <div className="grid grid-cols-1 gap-4">
-        <div className="bg-gray-50 rounded-lg border border-gray-100 p-5">
-          <CountrySummaryTable
-            filters={filterState}
-            onSelect={setSelectedGroup}
-            selectedGroupId={selectedGroup?.id ?? null}
-            currency={currency}
-          />
+      <div className="p-8 space-y-6">
+        <div className="bg-slate-50/50 rounded-2xl border border-slate-100 p-6">
+          <Filters onChange={handleFiltersChange} />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="bg-gray-50 rounded-lg border border-gray-100 p-5">
-            <CountryCategoryTable
-              tripName={selectedGroup?.name ?? null}
+        <div className="space-y-6">
+          <div className="bg-slate-50/50 rounded-2xl border border-slate-100 overflow-hidden">
+            <CountrySummaryTable
               filters={filterState}
-              data={categoryData}
-              loading={categoryLoading}
+              onSelect={setSelectedGroup}
+              selectedGroupId={selectedGroup?.id ?? null}
               currency={currency}
             />
           </div>
-          <div className="bg-gray-50 rounded-lg border border-gray-100 p-5">
-            <h2 className="text-sm font-semibold text-gray-700 mb-4">
-              Category breakdown
-            </h2>
-            <CategoryPieChart
-              data={categoryData}
-              currency={currency}
-              loading={categoryLoading}
-            />
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div>
+              <CountryCategoryTable
+                tripName={selectedGroup?.name ?? null}
+                filters={filterState}
+                data={categoryData}
+                loading={categoryLoading}
+                currency={currency}
+              />
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-6">
+                Category breakdown
+              </h2>
+              <CategoryPieChart
+                data={categoryData}
+                currency={currency}
+                loading={categoryLoading}
+              />
+            </div>
           </div>
         </div>
-      </div>
       </div>
     </div>
   );

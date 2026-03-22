@@ -12,8 +12,12 @@ export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const hasSession = req.cookies.has(SESSION_COOKIE);
 
-  // Next.js internals always pass through
-  if (pathname.startsWith("/_next") || pathname.startsWith("/favicon")) {
+  // Next.js internals and auth API always pass through
+  if (
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/favicon") ||
+    pathname.startsWith("/api/auth")
+  ) {
     return NextResponse.next();
   }
 

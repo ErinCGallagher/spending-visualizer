@@ -97,10 +97,10 @@ export default function DashboardPage() {
       {/* Content */}
       <div className="max-w-6xl mx-auto px-6 pb-8">
         {view === "overview" && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="bg-white rounded-3xl border border-white/10 shadow-2xl overflow-hidden">
             <DashboardTabBar activeView={view} onSwitch={setView} />
-            <div className="p-6 space-y-4">
-              <div className="bg-gray-50 rounded-lg border border-gray-100 p-4">
+            <div className="p-8 space-y-6">
+              <div className="bg-slate-50/50 rounded-2xl border border-slate-100 p-6">
                 <Filters onChange={handleFiltersChange} showTravellers={false} />
               </div>
               <DashboardOverview

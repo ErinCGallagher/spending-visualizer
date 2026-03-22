@@ -55,59 +55,63 @@ export default function CountrySummaryTable({
 
   return (
     <div>
-      <h2 className="text-sm font-semibold text-gray-700 mb-4">Spending by trip</h2>
+      <div className="px-6 py-4 border-b border-slate-100 bg-white/50">
+        <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Spending by trip</h2>
+      </div>
 
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="text-left text-xs text-gray-500 border-b border-gray-200">
-            <th className="pb-2 font-medium">Trip</th>
-            <th className="pb-2 font-medium text-right">Total Spent</th>
-            <th className="pb-2 font-medium text-right">Days</th>
-            <th className="pb-2 font-medium text-right">Spent/Day</th>
-            <th className="pb-2 font-medium text-right">Category</th>
-          </tr>
-        </thead>
-        <tbody>
-          {loading ? (
-            <SkeletonRows count={3} columns={5} />
-          ) : data.length === 0 ? (
-            <tr>
-              <td colSpan={5} className="py-8 text-center text-sm text-gray-400">
-                No data
-              </td>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-white/30 text-left text-xs font-bold text-slate-400 uppercase tracking-widest">
+              <th className="px-6 py-4">Trip</th>
+              <th className="px-6 py-4 text-right">Total Spent</th>
+              <th className="px-6 py-4 text-right">Days</th>
+              <th className="px-6 py-4 text-right">Spent/Day</th>
+              <th className="px-6 py-4 text-right">Category</th>
             </tr>
-          ) : (
-            data.map((row) => {
-              const band = getSpendBand(row.perDay);
-              return (
-                <tr
-                  key={row.groupId}
-                  onClick={() => handleRowClick(row)}
-                  className={`cursor-pointer border-b border-gray-100 last:border-0 hover:bg-gray-50 ${
-                    selectedGroupId === row.groupId ? "bg-blue-50" : ""
-                  }`}
-                >
-                  <td className="py-2 pr-4 font-medium text-gray-900">{row.tripName}</td>
-                  <td className="py-2 pr-4 text-right text-gray-700">
-                    {formatCurrency(row.total, currency, 2)}
-                  </td>
-                  <td className="py-2 pr-4 text-right text-gray-700">{row.days}</td>
-                  <td className="py-2 pr-4 text-right text-gray-700">
-                    {formatCurrency(row.perDay, currency, 2)}
-                  </td>
-                  <td className="py-2 text-right">
-                    <span
-                      className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${band.badgeClass} ${band.textClass}`}
-                    >
-                      {band.label}
-                    </span>
-                  </td>
-                </tr>
-              );
-            })
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {loading ? (
+              <SkeletonRows count={3} columns={5} />
+            ) : data.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="py-8 text-center text-sm text-slate-400">
+                  No data
+                </td>
+              </tr>
+            ) : (
+              data.map((row) => {
+                const band = getSpendBand(row.perDay);
+                return (
+                  <tr
+                    key={row.groupId}
+                    onClick={() => handleRowClick(row)}
+                    className={`cursor-pointer hover:bg-slate-50/50 transition-colors ${
+                      selectedGroupId === row.groupId ? "bg-blue-50" : ""
+                    }`}
+                  >
+                    <td className="px-6 py-4 font-semibold text-slate-900">{row.tripName}</td>
+                    <td className="px-6 py-4 text-right text-slate-600">
+                      {formatCurrency(row.total, currency, 2)}
+                    </td>
+                    <td className="px-6 py-4 text-right text-slate-600">{row.days}</td>
+                    <td className="px-6 py-4 text-right text-slate-600">
+                      {formatCurrency(row.perDay, currency, 2)}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <span
+                        className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${band.badgeClass} ${band.textClass}`}
+                      >
+                        {band.label}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
