@@ -34,6 +34,7 @@ interface Meta {
   travellers: string[];
   paymentMethods: string[];
   dateRange: { from: string; to: string } | null;
+  groups: { id: string; name: string; groupType: string }[];
 }
 
 const PAGE_LIMIT = 50;
@@ -72,6 +73,8 @@ export default function TransactionsPage() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [category, setCategory] = useState("");
+  const [group, setGroup] = useState("");
+  const [groupTypeFilter, setGroupTypeFilter] = useState("");
 
   // Pagination state
   const [page, setPage] = useState(1);
@@ -98,6 +101,8 @@ export default function TransactionsPage() {
       filterFrom: string,
       filterTo: string,
       filterCategory: string,
+      filterGroup: string,
+      filterGroupType: string,
     ) => {
       setLoading(true);
       setDeleteResult(null);
@@ -106,6 +111,8 @@ export default function TransactionsPage() {
       if (filterFrom) params.set("from", filterFrom);
       if (filterTo) params.set("to", filterTo);
       if (filterCategory) params.set("category", filterCategory);
+      if (filterGroup) params.set("groupId", filterGroup);
+      if (filterGroupType) params.set("groupType", filterGroupType);
       params.set("page", String(currentPage));
       params.set("limit", String(PAGE_LIMIT));
 
@@ -122,19 +129,23 @@ export default function TransactionsPage() {
 
   // Re-fetch whenever filters or page change
   useEffect(() => {
-    fetchTransactions(page, from, to, category);
-  }, [page, from, to, category, fetchTransactions]);
+    fetchTransactions(page, from, to, category, group, groupTypeFilter);
+  }, [page, from, to, category, group, groupTypeFilter, fetchTransactions]);
 
   // Reset to page 1 when filters change
   function handleFilterChange(
     newFrom: string,
     newTo: string,
     newCategory: string,
+    newGroup: string,
+    newGroupType: string,
   ) {
     setPage(1);
     setFrom(newFrom);
     setTo(newTo);
     setCategory(newCategory);
+    setGroup(newGroup);
+    setGroupTypeFilter(newGroupType);
   }
 
   function handleDeleteConfirm() {
@@ -151,7 +162,7 @@ export default function TransactionsPage() {
         setShowDeleteModal(false);
         // Refetch from page 1
         setPage(1);
-        fetchTransactions(1, from, to, category);
+        fetchTransactions(1, from, to, category, group, groupTypeFilter);
       })
       .catch(() => {
         setShowDeleteModal(false);
@@ -197,7 +208,7 @@ export default function TransactionsPage() {
                   type="date"
                   value={from}
                   onChange={(e) =>
-                    handleFilterChange(e.target.value, to, category)
+                    handleFilterChange(e.target.value, to, category, group, groupTypeFilter)
                   }
                   className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
                 />
@@ -206,7 +217,7 @@ export default function TransactionsPage() {
                   type="date"
                   value={to}
                   onChange={(e) =>
-                    handleFilterChange(from, e.target.value, category)
+                    handleFilterChange(from, e.target.value, category, group, groupTypeFilter)
                   }
                   className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
                 />
@@ -214,7 +225,7 @@ export default function TransactionsPage() {
 
               <select
                 value={category}
-                onChange={(e) => handleFilterChange(from, to, e.target.value)}
+                onChange={(e) => handleFilterChange(from, to, e.target.value, group, groupTypeFilter)}
                 className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
               >
                 <option value="">All categories</option>
@@ -224,17 +235,45 @@ export default function TransactionsPage() {
                   </option>
                 ))}
               </select>
+
+              <select
+                value={group}
+                onChange={(e) => handleFilterChange(from, to, category, e.target.value, groupTypeFilter)}
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
+              >
+                <option value="">All groups</option>
+                {(meta?.groups ?? []).map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.name}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={groupTypeFilter}
+                onChange={(e) => handleFilterChange(from, to, category, group, e.target.value)}
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
+              >
+                <option value="">All group types</option>
+                {Array.from(new Set((meta?.groups ?? []).map((g) => g.groupType))).map((t) => (
+                  <option key={t} value={t}>
+                    {t.charAt(0).toUpperCase() + t.slice(1)}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
-          {loading ? (
-            <div className="flex items-center justify-center py-16">
-              <p className="text-sm text-gray-400">Loading…</p>
-            </div>
-          ) : !data || data.transactions.length === 0 ? (
-            <div className="flex items-center justify-center py-16">
-              <p className="text-sm text-gray-400">No transactions found.</p>
-            </div>
-          ) : (
+          <div className="relative min-h-[480px]">
+            {loading && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/70">
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
+              </div>
+            )}
+            {!loading && (!data || data.transactions.length === 0) ? (
+              <div className="flex items-center justify-center py-16">
+                <p className="text-sm text-gray-400">No transactions found.</p>
+              </div>
+            ) : data ? (
             <>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -256,7 +295,7 @@ export default function TransactionsPage() {
                         Payer
                       </th>
                       <th className="px-4 py-3 text-xs font-semibold tracking-widest text-gray-400 uppercase">
-                        Trip
+                        Group
                       </th>
                       <th className="px-4 py-3 text-xs font-semibold tracking-widest text-gray-400 uppercase">
                         Type
@@ -278,7 +317,7 @@ export default function TransactionsPage() {
                           )}
                         </td>
                         <td className="px-4 py-3 text-gray-900 text-right whitespace-nowrap font-medium">
-                          {formatAmount(t.amountHome)}
+                          {formatAmount(t.amountHome)}{t.homeCurrency ? ` ${t.homeCurrency}` : ""}
                         </td>
                         <td className="px-4 py-3 text-gray-600">
                           {t.payer ?? <span className="text-gray-300">—</span>}
@@ -326,7 +365,8 @@ export default function TransactionsPage() {
                 </div>
               </div>
             </>
-          )}
+            ) : null}
+          </div>
         </div>
 
         {/* Delete section */}
