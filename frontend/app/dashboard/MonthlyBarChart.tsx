@@ -5,7 +5,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { formatAmount, formatCurrency } from "@/lib/format";
 import { CHART_COLORS, pivotData } from "@/lib/chart-utils";
@@ -43,8 +43,10 @@ export default function MonthlyBarChart({
   groupBy,
 }: Props) {
   const [display, setDisplay] = useState<"stacked" | "grouped">("stacked");
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
-  if (loading) {
+  if (loading || !mounted) {
     return <SkeletonChart />;
   }
 
@@ -110,7 +112,7 @@ export default function MonthlyBarChart({
         </div>
       ) : (
         <div className="h-56">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
             <BarChart data={pivoted}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis

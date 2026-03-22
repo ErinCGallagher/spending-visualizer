@@ -5,7 +5,7 @@
 
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import TransactionTable, {
   type TransactionsResponse,
 } from "@/app/transactions/TransactionTable";
@@ -29,6 +29,8 @@ export default function TransactionsPage() {
   const [loading, setLoading] = useState(true);
 
   const { filters, page, setPage, handleFilterChange } = useTransactionFilters();
+
+  const [search, setSearch] = useState("");
 
   // Delete section state
   const [deleteFrom, setDeleteFrom] = useState("");
@@ -55,6 +57,7 @@ export default function TransactionsPage() {
       if (f.category) params.set("category", f.category);
       if (f.group) params.set("groupId", f.group);
       if (f.groupTypeFilter) params.set("groupType", f.groupTypeFilter);
+      if (f.payer) params.set("traveller", f.payer);
       params.set("page", String(currentPage));
       params.set("limit", String(PAGE_LIMIT));
 
@@ -95,6 +98,21 @@ export default function TransactionsPage() {
 
   const totalPages = data ? Math.max(1, Math.ceil(data.total / PAGE_LIMIT)) : 1;
 
+  // TODO: move search to backend query param for full-dataset support
+  const displayData = useMemo(() => {
+    if (!data || !search.trim()) return data;
+    const q = search.toLowerCase();
+    return {
+      ...data,
+      transactions: data.transactions.filter(
+        (t) =>
+          t.description.toLowerCase().includes(q) ||
+          (t.categoryName ?? "").toLowerCase().includes(q) ||
+          (t.payer ?? "").toLowerCase().includes(q)
+      ),
+    };
+  }, [data, search]);
+
   return (
     <main className="min-h-screen animate-fade-in">
       {/* Hero */}
@@ -112,16 +130,19 @@ export default function TransactionsPage() {
           <div className="p-4">
             <TransactionFilters
               meta={meta}
+              search={search}
+              onSearchChange={setSearch}
               from={filters.from}
               to={filters.to}
               category={filters.category}
               group={filters.group}
               groupType={filters.groupTypeFilter}
+              payer={filters.payer}
               onChange={handleFilterChange}
             />
           </div>
           <TransactionTable
-            data={data}
+            data={displayData}
             loading={loading}
             page={page}
             totalPages={totalPages}

@@ -79,7 +79,7 @@ export default function CountryDashboard({ onSwitchView, currency }: Props) {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div>
+            <div className="bg-slate-50/50 rounded-2xl border border-slate-100 p-6">
               <CountryCategoryTable
                 tripName={selectedGroup?.name ?? null}
                 filters={filterState}
@@ -88,7 +88,7 @@ export default function CountryDashboard({ onSwitchView, currency }: Props) {
                 currency={currency}
               />
             </div>
-            <div>
+            <div className="bg-slate-50/50 rounded-2xl border border-slate-100 p-6">
               <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-6">
                 Category breakdown
               </h2>

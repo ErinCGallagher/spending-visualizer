@@ -68,7 +68,10 @@ export default function CategoryLineChart({ data, currency, loading, granularity
     });
   }
 
-  if (loading) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
+  if (loading || !mounted) {
     return <SkeletonChart />;
   }
 
@@ -127,7 +130,7 @@ export default function CategoryLineChart({ data, currency, loading, granularity
       </div>
 
       <div className="h-64">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
           <LineChart data={pivoted}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             <XAxis

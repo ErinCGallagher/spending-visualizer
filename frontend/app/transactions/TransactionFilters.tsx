@@ -1,8 +1,12 @@
 /**
- * Filter bar for the transactions page — date range, category, group, and group type.
+ * Filter bar for the transactions page — search input, collapsible filter panel
+ * with date range, category, payer, group, and group type dropdowns.
  */
 
 "use client";
+
+import { useState } from "react";
+import { Search, Filter, X } from "lucide-react";
 
 interface Meta {
   categories: { id: string; name: string }[];
@@ -14,85 +18,204 @@ interface Meta {
 
 interface Props {
   meta: Meta | null;
+  search: string;
+  onSearchChange: (search: string) => void;
   from: string;
   to: string;
   category: string;
   group: string;
   groupType: string;
+  payer: string;
   onChange: (
     from: string,
     to: string,
     category: string,
     group: string,
-    groupType: string
+    groupType: string,
+    payer: string
   ) => void;
 }
 
 export default function TransactionFilters({
   meta,
+  search,
+  onSearchChange,
   from,
   to,
   category,
   group,
   groupType,
+  payer,
   onChange,
 }: Props) {
+  const [showFilters, setShowFilters] = useState(false);
+
+  const hasActiveFilters =
+    from !== "" ||
+    to !== "" ||
+    category !== "" ||
+    group !== "" ||
+    groupType !== "" ||
+    payer !== "" ||
+    search !== "";
+
+  function resetFilters() {
+    onSearchChange("");
+    onChange("", "", "", "", "", "");
+  }
+
+  const groupTypes = Array.from(
+    new Set((meta?.groups ?? []).map((g) => g.groupType))
+  );
+
   return (
-    <div className="bg-gray-50 rounded-lg border border-gray-100 px-4 py-3 flex flex-wrap items-center gap-3">
-      <div className="flex items-center gap-2 text-sm">
-        <input
-          type="date"
-          value={from}
-          onChange={(e) => onChange(e.target.value, to, category, group, groupType)}
-          className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
-        />
-        <span className="text-gray-400">—</span>
-        <input
-          type="date"
-          value={to}
-          onChange={(e) => onChange(from, e.target.value, category, group, groupType)}
-          className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
-        />
+    <div className="space-y-4">
+      {/* Search + Filters toggle row */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-48">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search transactions..."
+            value={search}
+            onChange={(e) => onSearchChange(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20 text-slate-900"
+          />
+        </div>
+        <button
+          onClick={() => setShowFilters(!showFilters)}
+          className={`flex items-center gap-2 px-4 py-2 border rounded-xl text-sm font-medium transition-all ${
+            showFilters || hasActiveFilters
+              ? "bg-brand-primary/5 border-brand-primary text-brand-primary"
+              : "border-slate-200 text-slate-700 hover:bg-slate-50"
+          }`}
+        >
+          <Filter className="w-4 h-4" />
+          Filters
+          {hasActiveFilters && (
+            <span className="w-2 h-2 rounded-full bg-brand-primary" />
+          )}
+        </button>
       </div>
 
-      <select
-        value={category}
-        onChange={(e) => onChange(from, to, e.target.value, group, groupType)}
-        className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
-      >
-        <option value="">All categories</option>
-        {(meta?.categories ?? []).map((c) => (
-          <option key={c.id} value={c.id}>
-            {c.name}
-          </option>
-        ))}
-      </select>
-
-      <select
-        value={group}
-        onChange={(e) => onChange(from, to, category, e.target.value, groupType)}
-        className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
-      >
-        <option value="">All groups</option>
-        {(meta?.groups ?? []).map((g) => (
-          <option key={g.id} value={g.id}>
-            {g.name}
-          </option>
-        ))}
-      </select>
-
-      <select
-        value={groupType}
-        onChange={(e) => onChange(from, to, category, group, e.target.value)}
-        className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
-      >
-        <option value="">All group types</option>
-        {Array.from(new Set((meta?.groups ?? []).map((g) => g.groupType))).map((t) => (
-          <option key={t} value={t}>
-            {t.charAt(0).toUpperCase() + t.slice(1)}
-          </option>
-        ))}
-      </select>
+      {/* Collapsible filter panel */}
+      {showFilters && (
+        <div className="pt-4 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+              From
+            </label>
+            <input
+              type="date"
+              value={from}
+              onChange={(e) =>
+                onChange(e.target.value, to, category, group, groupType, payer)
+              }
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+              To
+            </label>
+            <input
+              type="date"
+              value={to}
+              onChange={(e) =>
+                onChange(from, e.target.value, category, group, groupType, payer)
+              }
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+              Category
+            </label>
+            <select
+              value={category}
+              onChange={(e) =>
+                onChange(from, to, e.target.value, group, groupType, payer)
+              }
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
+            >
+              <option value="">All categories</option>
+              {(meta?.categories ?? []).map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+              Payer
+            </label>
+            <select
+              value={payer}
+              onChange={(e) =>
+                onChange(from, to, category, group, groupType, e.target.value)
+              }
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
+            >
+              <option value="">All payers</option>
+              {(meta?.travellers ?? []).map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+              Group
+            </label>
+            <select
+              value={group}
+              onChange={(e) =>
+                onChange(from, to, category, e.target.value, groupType, payer)
+              }
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
+            >
+              <option value="">All groups</option>
+              {(meta?.groups ?? []).map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+              Type
+            </label>
+            <div className="flex items-center gap-2">
+              <select
+                value={groupType}
+                onChange={(e) =>
+                  onChange(from, to, category, group, e.target.value, payer)
+                }
+                className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
+              >
+                <option value="">All types</option>
+                {groupTypes.map((t) => (
+                  <option key={t} value={t}>
+                    {t.charAt(0).toUpperCase() + t.slice(1)}
+                  </option>
+                ))}
+              </select>
+              {hasActiveFilters && (
+                <button
+                  onClick={resetFilters}
+                  className="p-2 text-slate-400 hover:text-red-500 transition-colors"
+                  title="Reset filters"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
