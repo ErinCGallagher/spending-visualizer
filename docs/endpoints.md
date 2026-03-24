@@ -4,6 +4,31 @@ All endpoints are prefixed with `/api`. Authenticated endpoints require a sessio
 
 ---
 
+## Overview
+
+| Method   | Path                              | Auth | Description                                      |
+|----------|-----------------------------------|------|--------------------------------------------------|
+| `GET`    | `/api/health`                     | No   | Health check                                     |
+| `*`      | `/api/auth/*`                     | —    | BetterAuth (sign-up, sign-in, sign-out, session) |
+| `DELETE` | `/api/account`                    | Yes  | Delete authenticated user's account              |
+| `POST`   | `/api/uploads`                    | Yes  | Parse a CSV and return a preview (no persistence)|
+| `POST`   | `/api/uploads/categorise`         | Yes  | AI-suggest categories for transactions           |
+| `POST`   | `/api/uploads/confirm`            | Yes  | Persist a confirmed upload to the database       |
+| `GET`    | `/api/categories`                 | Yes  | Get full category taxonomy as a nested tree      |
+| `POST`   | `/api/categories/organise`        | Yes  | Upsert categories and set parent relationships   |
+| `GET`    | `/api/transactions`               | Yes  | Paginated, filtered transaction list             |
+| `GET`    | `/api/transactions/meta`          | Yes  | Distinct filter values and date range            |
+| `DELETE` | `/api/transactions`               | Yes  | Delete transactions within a date range          |
+| `GET`    | `/api/charts/category-totals`     | Yes  | Spending by top-level category                   |
+| `GET`    | `/api/charts/country-totals`      | Yes  | Spending per country with days and per-day rate  |
+| `GET`    | `/api/charts/trip-totals`         | Yes  | Spending per trip group with days and per-day rate|
+| `GET`    | `/api/charts/monthly-totals`      | Yes  | Spending over time, optionally by category       |
+| `GET`    | `/api/charts/cumulative`          | Yes  | Running total of spending over time              |
+| `GET`    | `/api/groups`                     | Yes  | List all groups for the authenticated user       |
+| `POST`   | `/api/groups`                     | Yes  | Create a new group                               |
+
+---
+
 ## Health
 
 ### `GET /api/health`
@@ -113,6 +138,7 @@ Persists a confirmed upload — transactions, travellers, splits, and categories
   "homeCurrency": "string",
   "sourceFormat": "string",
   "filename": "string",
+  "primaryGroupId": "UUID | null",
   "transactions": [
     {
       "date": "ISO string",
@@ -129,7 +155,8 @@ Persists a confirmed upload — transactions, travellers, splits, and categories
       "payer": "string | null",
       "sourceFormat": "string",
       "raw": { "key": "value" },
-      "splits": [{ "travellerName": "string", "amountHome": "number" }]
+      "splits": [{ "travellerName": "string", "amountHome": "number" }],
+      "groupId": "UUID | null"
     }
   ],
   "travellers": ["string"]
@@ -199,6 +226,8 @@ Paginated list of transactions with optional filters.
 | `category`      | UUID   | Filter by category ID          |
 | `paymentMethod` | string | Filter by payment method       |
 | `traveller`     | string | Filter by traveller name       |
+| `groupId`       | UUID   | Filter by group ID             |
+| `groupType`     | string | Filter by group type           |
 | `page`          | number | Default: 1                     |
 | `limit`         | number | Results per page               |
 
@@ -219,7 +248,10 @@ Paginated list of transactions with optional filters.
       "categorySource": "csv | ai | user | null",
       "paymentMethod": "string | null",
       "country": "string | null",
-      "payer": "string | null"
+      "payer": "string | null",
+      "homeCurrency": "string",
+      "groupName": "string | null",
+      "groupType": "string | null"
     }
   ],
   "total": "number",
@@ -242,7 +274,9 @@ Returns distinct values for populating filter dropdowns, plus the overall date r
   "travellers": ["string"],
   "paymentMethods": ["string"],
   "countries": ["string"],
-  "dateRange": { "from": "ISO date string", "to": "ISO date string" }
+  "dateRange": { "from": "ISO date string", "to": "ISO date string" },
+  "groups": [{ "id": "UUID", "name": "string", "groupType": "string" }],
+  "homeCurrency": "string"
 }
 ```
 
@@ -281,11 +315,52 @@ Aggregates spending by top-level category (uses parent category name if one exis
 | `to`        | string | ISO date                                |
 | `traveller` | string | Filters to that traveller's split amount |
 | `country`   | string | Repeatable                              |
+| `groupId`   | UUID   | Filter to a specific group              |
 
 **Response:**
 
 ```json
 [{ "category": "string", "total": "number" }]
+```
+
+---
+
+### `GET /api/charts/country-totals`
+
+Per-country aggregate: total spent, distinct days present, and spend per day.
+
+**Query parameters:**
+
+| Param       | Type   | Notes                                   |
+|-------------|--------|-----------------------------------------|
+| `from`      | string | ISO date                                |
+| `to`        | string | ISO date                                |
+| `traveller` | string | Filters to that traveller's split amount |
+
+**Response:**
+
+```json
+[{ "country": "string", "total": "number", "days": "number", "perDay": "number" }]
+```
+
+---
+
+### `GET /api/charts/trip-totals`
+
+Per-trip aggregate for groups of type `'trip'`: total spent, distinct days, and spend per day.
+
+**Query parameters:**
+
+| Param       | Type   | Notes                                   |
+|-------------|--------|-----------------------------------------|
+| `from`      | string | ISO date                                |
+| `to`        | string | ISO date                                |
+| `traveller` | string | Filters to that traveller's split amount |
+
+**Response:**
+
+```json
+[{ "groupId": "UUID", "tripName": "string", "total": "number", "days": "number", "perDay": "number" }]
 ```
 
 ---
@@ -296,13 +371,15 @@ Monthly spending aggregations, optionally broken down by category.
 
 **Query parameters:**
 
-| Param       | Type   | Notes                               |
-|-------------|--------|-------------------------------------|
-| `from`      | string | ISO date                            |
-| `to`        | string | ISO date                            |
-| `traveller` | string | Filters to that traveller's split   |
-| `groupBy`   | string | `"category"` or `"total"` (default) |
-| `country`   | string | Repeatable                          |
+| Param         | Type   | Notes                                        |
+|---------------|--------|----------------------------------------------|
+| `from`        | string | ISO date                                     |
+| `to`          | string | ISO date                                     |
+| `traveller`   | string | Filters to that traveller's split            |
+| `groupBy`     | string | `"category"` or `"total"` (default)          |
+| `granularity` | string | `"day"`, `"week"`, or `"month"` (default)    |
+| `country`     | string | Repeatable                                   |
+| `groupId`     | UUID   | Filter to a specific group                   |
 
 **Response:**
 
@@ -331,9 +408,48 @@ Running total of spending over time using a SQL window function.
 | `traveller`   | string | Filters to that traveller's split            |
 | `granularity` | string | `"day"` (default), `"week"`, or `"month"`   |
 | `country`     | string | Repeatable                                   |
+| `groupId`     | UUID   | Filter to a specific group                   |
 
 **Response:**
 
 ```json
 [{ "date": "YYYY-MM-DD", "runningTotal": "number" }]
+```
+
+---
+
+## Groups — `/api/groups`
+
+All endpoints require authentication.
+
+### `GET /api/groups`
+
+Returns all groups for the authenticated user.
+
+**Response:**
+
+```json
+{
+  "groups": [
+    { "id": "UUID", "name": "string", "groupType": "trip | daily | business", "createdAt": "ISO string" }
+  ]
+}
+```
+
+---
+
+### `POST /api/groups`
+
+Creates a new group.
+
+**Request body:**
+
+```json
+{ "name": "string", "groupType": "trip | daily | business" }
+```
+
+**Response** (201):
+
+```json
+{ "id": "UUID", "name": "string", "groupType": "string", "createdAt": "ISO string" }
 ```
