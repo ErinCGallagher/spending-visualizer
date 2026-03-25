@@ -6,7 +6,7 @@
 
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Filters, { type FilterValues } from "@/app/dashboard/Filters";
 import DashboardTabBar from "@/app/dashboard/DashboardTabBar";
 import CountrySummaryTable from "@/app/dashboard/CountrySummaryTable";
@@ -14,6 +14,7 @@ import CountryCategoryTable from "@/app/dashboard/CountryCategoryTable";
 import CategoryPieChart, {
   type CategoryTotal,
 } from "@/app/dashboard/CategoryPieChart";
+import { CountryDashboardSkeleton } from "@/app/components/ui/LoadingSkeleton";
 
 interface FilterState {
   from: string;
@@ -35,6 +36,24 @@ export default function CountryDashboard({ onSwitchView, currency }: Props) {
   const [selectedGroup, setSelectedGroup] = useState<{ id: string; name: string } | null>(null);
   const [categoryData, setCategoryData] = useState<CategoryTotal[]>([]);
   const [categoryLoading, setCategoryLoading] = useState(false);
+
+  const [overlayState, setOverlayState] = useState<"visible" | "fading" | "hidden">("hidden");
+  const overlayStateRef = useRef<"visible" | "fading" | "hidden">("hidden");
+
+  function setOverlay(next: "visible" | "fading" | "hidden") {
+    overlayStateRef.current = next;
+    setOverlayState(next);
+  }
+
+  useEffect(() => {
+    if (categoryLoading) {
+      setOverlay("visible");
+    } else if (overlayStateRef.current !== "hidden") {
+      setOverlay("fading");
+      const timer = setTimeout(() => setOverlay("hidden"), 300);
+      return () => clearTimeout(timer);
+    }
+  }, [categoryLoading]);
 
   useEffect(() => {
     setCategoryLoading(true);
@@ -68,7 +87,7 @@ export default function CountryDashboard({ onSwitchView, currency }: Props) {
           <Filters onChange={handleFiltersChange} />
         </div>
 
-        <div className="space-y-6">
+        <div className="relative space-y-6">
           <div className="bg-slate-50/50 rounded-2xl border border-slate-100 overflow-hidden">
             <CountrySummaryTable
               filters={filterState}
@@ -99,6 +118,16 @@ export default function CountryDashboard({ onSwitchView, currency }: Props) {
               />
             </div>
           </div>
+
+          {overlayState !== "hidden" && (
+            <div
+              className={`absolute inset-0 bg-white transition-opacity duration-300 pointer-events-none ${
+                overlayState === "visible" ? "opacity-100" : "opacity-0"
+              }`}
+            >
+              <CountryDashboardSkeleton />
+            </div>
+          )}
         </div>
       </div>
     </div>

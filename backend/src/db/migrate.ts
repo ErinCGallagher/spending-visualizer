@@ -164,6 +164,16 @@ async function migrate() {
         ON groups(user_id)
     `);
     await client.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint WHERE conname = 'groups_user_id_name_unique'
+        ) THEN
+          ALTER TABLE groups ADD CONSTRAINT groups_user_id_name_unique UNIQUE (user_id, name);
+        END IF;
+      END $$
+    `);
+    await client.query(`
       CREATE INDEX IF NOT EXISTS idx_transactions_group
         ON transactions(group_id)
     `);

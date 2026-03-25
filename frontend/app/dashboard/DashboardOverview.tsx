@@ -4,6 +4,7 @@
 
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import CategoryPieChart, {
   type CategoryTotal,
 } from "@/app/dashboard/CategoryPieChart";
@@ -15,6 +16,7 @@ import CumulativeLineChart, {
   type Granularity,
 } from "@/app/dashboard/CumulativeLineChart";
 import CategoryLineChart from "@/app/dashboard/CategoryLineChart";
+import { DashboardOverviewSkeleton } from "@/app/components/ui/LoadingSkeleton";
 
 interface Props {
   categoryData: CategoryTotal[];
@@ -51,8 +53,32 @@ export default function DashboardOverview({
   categoryTimelineGranularity,
   onCategoryTimelineGranularityChange,
 }: Props) {
+  const isLoading =
+    categoryLoading || monthlyLoading || cumulativeLoading || categoryTimelineLoading;
+
+  // "visible" → opaque, "fading" → transparent (transition playing), "hidden" → unmounted.
+  // Starts "hidden" — only shows when a fetch is actually in progress.
+  const [overlayState, setOverlayState] = useState<"visible" | "fading" | "hidden">("hidden");
+  // Ref mirrors state to avoid stale closures in the effect.
+  const overlayStateRef = useRef<"visible" | "fading" | "hidden">("hidden");
+
+  function setOverlay(next: "visible" | "fading" | "hidden") {
+    overlayStateRef.current = next;
+    setOverlayState(next);
+  }
+
+  useEffect(() => {
+    if (isLoading) {
+      setOverlay("visible");
+    } else if (overlayStateRef.current !== "hidden") {
+      setOverlay("fading");
+      const timer = setTimeout(() => setOverlay("hidden"), 300);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading]);
+
   return (
-    <div className="space-y-8">
+    <div className="relative space-y-8">
       {/* Top row: category breakdown + monthly spending */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div>
@@ -107,6 +133,16 @@ export default function DashboardOverview({
           onGranularityChange={onCategoryTimelineGranularityChange}
         />
       </div>
+
+      {overlayState !== "hidden" && (
+        <div
+          className={`absolute inset-0 bg-white transition-opacity duration-300 pointer-events-none ${
+            overlayState === "visible" ? "opacity-100" : "opacity-0"
+          }`}
+        >
+          <DashboardOverviewSkeleton />
+        </div>
+      )}
     </div>
   );
 }

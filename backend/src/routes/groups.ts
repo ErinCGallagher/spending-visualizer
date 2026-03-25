@@ -46,6 +46,7 @@ router.post("/", async (req, res) => {
     const { rows } = await pool.query(
       `INSERT INTO groups (id, user_id, name, group_type)
        VALUES (gen_random_uuid(), $1, $2, $3)
+       ON CONFLICT (user_id, name) DO UPDATE SET group_type = EXCLUDED.group_type
        RETURNING id, name, group_type AS "groupType", created_at AS "createdAt"`,
       [userId, name.trim(), groupType]
     );
