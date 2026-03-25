@@ -96,37 +96,37 @@ export default function DashboardPage() {
 
       {/* Content */}
       <div className="max-w-6xl mx-auto px-6 pb-8">
-        {view === "overview" && (
-          <div className="bg-white rounded-3xl border border-white/10 shadow-2xl overflow-hidden">
-            <DashboardTabBar activeView={view} onSwitch={setView} />
-            <div className="p-8 space-y-6">
-              <div className="bg-slate-50/50 rounded-2xl border border-slate-100 p-6">
-                <Filters onChange={handleFiltersChange} showTravellers={false} />
-              </div>
-              <DashboardOverview
-                categoryData={categoryData}
-                monthlyData={monthlyData}
-                cumulativeData={cumulativeData}
-                categoryTimelineData={categoryTimelineData}
-                categoryLoading={categoryLoading}
-                monthlyLoading={monthlyLoading}
-                cumulativeLoading={cumulativeLoading}
-                categoryTimelineLoading={categoryTimelineLoading}
-                currency={currency}
-                monthlyGroupBy={monthlyGroupBy}
-                onMonthlyGroupByChange={setMonthlyGroupBy}
-                granularity={granularity}
-                onGranularityChange={setGranularity}
-                categoryTimelineGranularity={categoryTimelineGranularity}
-                onCategoryTimelineGranularityChange={setCategoryTimelineGranularity}
-              />
+        {/* Overview card stays mounted so overlay/chart state is preserved on tab switch */}
+        <div className={`bg-white rounded-3xl border border-white/10 shadow-2xl overflow-hidden ${view !== "overview" ? "hidden" : ""}`}>
+          <DashboardTabBar activeView={view} onSwitch={setView} />
+          <div className="p-8 space-y-6">
+            <div className="bg-slate-50/50 rounded-2xl border border-slate-100 p-6">
+              <Filters onChange={handleFiltersChange} showTravellers={false} />
             </div>
+            <DashboardOverview
+              categoryData={categoryData}
+              monthlyData={monthlyData}
+              cumulativeData={cumulativeData}
+              categoryTimelineData={categoryTimelineData}
+              categoryLoading={categoryLoading}
+              monthlyLoading={monthlyLoading}
+              cumulativeLoading={cumulativeLoading}
+              categoryTimelineLoading={categoryTimelineLoading}
+              currency={currency}
+              monthlyGroupBy={monthlyGroupBy}
+              onMonthlyGroupByChange={setMonthlyGroupBy}
+              granularity={granularity}
+              onGranularityChange={setGranularity}
+              categoryTimelineGranularity={categoryTimelineGranularity}
+              onCategoryTimelineGranularityChange={setCategoryTimelineGranularity}
+            />
           </div>
-        )}
+        </div>
 
-        {view === "trip" && (
+        {/* Trip card stays mounted so overlay/data state is preserved on tab switch */}
+        <div className={view !== "trip" ? "hidden" : ""}>
           <CountryDashboard onSwitchView={setView} currency={currency} />
-        )}
+        </div>
       </div>
     </main>
   );

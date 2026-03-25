@@ -4,6 +4,7 @@ import { Router } from "express";
 import { requireAuth } from "../middleware/requireAuth";
 import { pool } from "../db";
 import { parseTransactionQuery } from "../lib/queryParams";
+import { buildTransactionFilterSQL, buildGroupsMetaSQL } from "../lib/transactionQuery";
 
 const router = Router();
 
@@ -24,28 +25,11 @@ router.get("/", async (req, res) => {
 
   const { from, to, category, paymentMethod, traveller, groupId, groupType, page, limit } = params;
 
-  // Build query dynamically to avoid joining transaction_splits unless needed
-  const conditions: string[] = ["t.user_id = $1"];
-  const values: unknown[] = [userId];
+  const { joins, conditions, values } = buildTransactionFilterSQL(userId, {
+    from, to, category, paymentMethod, traveller, groupId, groupType,
+  });
 
-  const addParam = (value: unknown): string => {
-    values.push(value);
-    return `$${values.length}`;
-  };
-
-  if (from) conditions.push(`t.date >= ${addParam(from)}`);
-  if (to) conditions.push(`t.date <= ${addParam(to)}`);
-  if (category) conditions.push(`t.category_id = ${addParam(category)}`);
-  if (paymentMethod) conditions.push(`t.payment_method = ${addParam(paymentMethod)}`);
-
-  if (groupId) conditions.push(`t.group_id = ${addParam(groupId)}`);
-  if (groupType) conditions.push(`g.group_type = ${addParam(groupType)}`);
-
-  let travellerJoin = "";
-  if (traveller) {
-    travellerJoin = `JOIN transaction_splits ts ON ts.transaction_id = t.id AND ts.traveller_name = ${addParam(traveller)}`;
-  }
-
+  const travellerJoin = joins.join("\n");
   const where = conditions.join(" AND ");
   const offset = (page - 1) * limit;
 
@@ -117,12 +101,11 @@ router.get("/meta", async (_req, res) => {
          ORDER BY c.name`,
         [userId]
       ),
-      pool.query<{ traveller_name: string }>(
-        `SELECT DISTINCT ts.traveller_name
-         FROM transaction_splits ts
-         JOIN transactions t ON t.id = ts.transaction_id
-         WHERE t.user_id = $1
-         ORDER BY ts.traveller_name`,
+      pool.query<{ payer: string }>(
+        `SELECT DISTINCT payer
+         FROM transactions
+         WHERE user_id = $1 AND payer IS NOT NULL
+         ORDER BY payer`,
         [userId]
       ),
       pool.query<{ payment_method: string }>(
@@ -145,13 +128,7 @@ router.get("/meta", async (_req, res) => {
          WHERE user_id = $1`,
         [userId]
       ),
-      pool.query<{ id: string; name: string; groupType: string }>(
-        `SELECT id, name, group_type AS "groupType"
-         FROM groups
-         WHERE user_id = $1
-         ORDER BY group_type, name`,
-        [userId]
-      ),
+      pool.query<{ id: string; name: string; groupType: string }>(buildGroupsMetaSQL(), [userId]),
       pool.query<{ home_currency: string }>(
         `SELECT home_currency FROM uploads WHERE user_id = $1 ORDER BY uploaded_at DESC LIMIT 1`,
         [userId]
@@ -166,7 +143,7 @@ router.get("/meta", async (_req, res) => {
 
     res.json({
       categories: catResult.rows.map((r) => ({ id: r.id, name: r.name })),
-      travellers: travellerResult.rows.map((r) => r.traveller_name),
+      travellers: travellerResult.rows.map((r) => r.payer),
       paymentMethods: pmResult.rows.map((r) => r.payment_method),
       countries: countryResult.rows.map((r) => r.country),
       dateRange,

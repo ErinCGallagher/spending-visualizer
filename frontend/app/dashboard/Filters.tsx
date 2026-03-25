@@ -115,6 +115,7 @@ export default function Filters({ onChange, showTravellers = true }: Props) {
   const [activePreset, setActivePreset] = useState<Preset | null>("all");
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isMounted = useRef(false);
 
   useEffect(() => {
     fetch("/api/transactions/meta", { credentials: "include" })
@@ -125,8 +126,13 @@ export default function Filters({ onChange, showTravellers = true }: Props) {
       });
   }, []);
 
-  // Emit debounced filter changes upward
+  // Emit debounced filter changes upward, skipping the initial mount so the
+  // parent's existing filter state isn't overwritten with a new object reference.
   useEffect(() => {
+    if (!isMounted.current) {
+      isMounted.current = true;
+      return;
+    }
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       onChange({ from, to, travellers, countries });
