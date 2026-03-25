@@ -54,7 +54,7 @@ export default function MonthlyBarChart({
     <div className="space-y-3">
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500">Group by</span>
+          <span className="text-xs text-gray-500 font-bold">Group by:</span>
           <button
             onClick={() => onGroupByChange("category")}
             className={`px-2 py-1 text-xs rounded ${
@@ -79,7 +79,7 @@ export default function MonthlyBarChart({
 
         {groupBy === "category" && (
           <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-500">Display</span>
+            <span className="text-xs text-gray-500 font-bold">Display:</span>
             <button
               onClick={() => setDisplay("stacked")}
               className={`px-2 py-1 text-xs rounded ${
