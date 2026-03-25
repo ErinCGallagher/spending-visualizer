@@ -58,7 +58,7 @@ export default function CumulativeLineChart({
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
-        <span className="text-xs text-gray-500">Granularity</span>
+        <span className="text-xs text-gray-500 font-bold">Granularity:</span>
         {(["day", "week", "month"] as Granularity[]).map((g) => (
           <button
             key={g}

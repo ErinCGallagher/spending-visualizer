@@ -84,7 +84,7 @@ export default function CategoryLineChart({ data, currency, loading, granularity
     <div className="space-y-3">
       {/* Granularity controls */}
       <div className="flex items-center gap-2">
-        <span className="text-xs text-gray-500">Granularity</span>
+        <span className="text-xs text-gray-500 font-bold">Granularity:</span>
         {(["day", "week", "month"] as Granularity[]).map((g) => (
           <button
             key={g}
