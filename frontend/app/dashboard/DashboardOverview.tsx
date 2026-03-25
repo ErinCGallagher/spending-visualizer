@@ -78,10 +78,10 @@ export default function DashboardOverview({
   }, [isLoading]);
 
   return (
-    <div className="relative space-y-8">
+    <div className="relative space-y-6">
       {/* Top row: category breakdown + monthly spending */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div>
+        <div className="bg-slate-50/50 rounded-2xl border border-slate-100 p-6">
           <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-6">
             Spending by category
           </h2>
@@ -92,7 +92,7 @@ export default function DashboardOverview({
           />
         </div>
 
-        <div>
+        <div className="bg-slate-50/50 rounded-2xl border border-slate-100 p-6">
           <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-6">
             Monthly spending
           </h2>
@@ -107,7 +107,7 @@ export default function DashboardOverview({
       </div>
 
       {/* Cumulative spending */}
-      <div className="pt-8 border-t border-slate-100">
+      <div className="bg-slate-50/50 rounded-2xl border border-slate-100 p-6">
         <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-6">
           Cumulative spending
         </h2>
@@ -121,7 +121,7 @@ export default function DashboardOverview({
       </div>
 
       {/* Spending by category over time */}
-      <div className="pt-8 border-t border-slate-100">
+      <div className="bg-slate-50/50 rounded-2xl border border-slate-100 p-6">
         <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-6">
           Category spending over time
         </h2>

@@ -69,32 +69,38 @@ function MultiSelect({
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-1 px-3 py-1.5 border border-gray-300 rounded-md text-sm hover:bg-gray-50"
+        className="w-full flex items-center justify-between px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-primary/20 hover:bg-slate-100 transition-colors"
       >
-        {label}
-        {selected.length > 0 && (
-          <span className="ml-1 inline-flex items-center justify-center w-4 h-4 bg-blue-600 text-white text-xs rounded-full">
-            {selected.length}
-          </span>
-        )}
-        <span className="text-gray-400 ml-1">▾</span>
+        <span>
+          {selected.length > 0 ? (
+            <>
+              {label}
+              <span className="ml-1.5 inline-flex items-center justify-center w-4 h-4 bg-brand-primary text-white text-[10px] font-bold rounded-full">
+                {selected.length}
+              </span>
+            </>
+          ) : (
+            `All ${label.toLowerCase()}s`
+          )}
+        </span>
+        <span className="text-slate-400 ml-1">▾</span>
       </button>
 
       {open && (
-        <div className="absolute top-full left-0 mt-1 z-10 bg-white border border-gray-200 rounded-md shadow-lg min-w-40 py-1">
+        <div className="absolute top-full left-0 mt-1 z-10 bg-white border border-slate-200 rounded-lg shadow-lg min-w-full py-1">
           {options.length === 0 ? (
-            <p className="px-3 py-2 text-sm text-gray-400">No options</p>
+            <p className="px-3 py-2 text-sm text-slate-400">No options</p>
           ) : (
             options.map((opt) => (
               <label
                 key={opt}
-                className="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 cursor-pointer text-sm"
+                className="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-50 cursor-pointer text-sm text-slate-700"
               >
                 <input
                   type="checkbox"
                   checked={selected.includes(opt)}
                   onChange={() => toggle(opt)}
-                  className="rounded border-gray-300 text-blue-600"
+                  className="rounded border-slate-300 text-brand-primary"
                 />
                 {opt}
               </label>
@@ -158,20 +164,23 @@ export default function Filters({ onChange, showTravellers = true }: Props) {
   }
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-3">
-        {/* Date presets */}
-        <div className="flex items-center gap-1 bg-white p-1 rounded-lg shadow-sm border border-slate-200">
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      {/* Date presets */}
+      <div className="space-y-1.5">
+        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+          Quick range
+        </label>
+        <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-slate-200">
           {(
             [
               { key: "all", label: "All time" },
-              { key: "30d", label: "Last 30 days" },
+              { key: "30d", label: "Last 30d" },
             ] as { key: Preset; label: string }[]
           ).map(({ key, label }) => (
             <button
               key={key}
               onClick={() => applyPreset(key)}
-              className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-all ${
+              className={`flex-1 px-3 py-1.5 text-sm font-semibold rounded-md transition-all ${
                 activePreset === key
                   ? "bg-brand-primary text-white shadow-sm"
                   : "text-slate-500 hover:bg-slate-100"
@@ -181,41 +190,60 @@ export default function Filters({ onChange, showTravellers = true }: Props) {
             </button>
           ))}
         </div>
+      </div>
 
-        {/* Custom date inputs */}
-        <div className="flex items-center gap-2 text-sm">
-          <input
-            type="date"
-            value={from}
-            onChange={(e) => {
-              setFrom(e.target.value);
-              setActivePreset(null);
-            }}
-            className="border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <span className="text-gray-400">—</span>
-          <input
-            type="date"
-            value={to}
-            onChange={(e) => {
-              setTo(e.target.value);
-              setActivePreset(null);
-            }}
-            className="border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
+      {/* From date */}
+      <div className="space-y-1.5">
+        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+          From
+        </label>
+        <input
+          type="date"
+          value={from}
+          onChange={(e) => {
+            setFrom(e.target.value);
+            setActivePreset(null);
+          }}
+          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
+        />
+      </div>
 
-        {/* Traveller multi-select */}
-        {showTravellers && (
+      {/* To date */}
+      <div className="space-y-1.5">
+        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+          To
+        </label>
+        <input
+          type="date"
+          value={to}
+          onChange={(e) => {
+            setTo(e.target.value);
+            setActivePreset(null);
+          }}
+          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
+        />
+      </div>
+
+      {/* Traveller multi-select */}
+      {showTravellers && (
+        <div className="space-y-1.5">
+          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+            Traveller
+          </label>
           <MultiSelect
             label="Traveller"
             options={meta?.travellers ?? []}
             selected={travellers}
             onChange={setTravellers}
           />
-        )}
+        </div>
+      )}
 
-        {/* Country multi-select */}
+      {/* Country multi-select */}
+      <div className="space-y-1.5">
+        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+          Country
+        </label>
         <MultiSelect
           label="Country"
           options={meta?.countries ?? []}
