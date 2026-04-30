@@ -68,7 +68,7 @@ export default function StepConfirm({
         return;
       }
 
-      router.push("/");
+      router.push("/dashboard");
     } catch {
       setError("An unexpected error occurred while saving.");
     } finally {
