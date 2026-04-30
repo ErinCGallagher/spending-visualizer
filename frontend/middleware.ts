@@ -7,10 +7,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const SESSION_COOKIE = "better-auth.session_token";
+const SECURE_SESSION_COOKIE = "__Secure-better-auth.session_token";
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  const hasSession = req.cookies.has(SESSION_COOKIE);
+  const hasSession = req.cookies.has(SESSION_COOKIE) || req.cookies.has(SECURE_SESSION_COOKIE);
 
   // Next.js internals and auth API always pass through
   if (
