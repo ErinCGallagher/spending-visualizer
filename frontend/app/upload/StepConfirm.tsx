@@ -36,6 +36,7 @@ export default function StepConfirm({
 
   const categorised = transactions.filter((t) => t.categoryName).length;
   const uncategorised = transactions.length - categorised;
+  const totalAmount = transactions.reduce((sum, t) => sum + t.amountHome, 0);
 
   // Count transactions assigned to the secondary group (if any)
   const secondaryCount = transactions.filter(
@@ -90,6 +91,15 @@ export default function StepConfirm({
           <dt className="text-xs text-gray-500 uppercase tracking-wide mb-1">Total Transactions</dt>
           <dd className="text-base font-medium text-gray-900">
             {transactions.length.toLocaleString()}
+          </dd>
+        </div>
+
+        <div className="bg-gray-50 rounded-lg p-4">
+          <dt className="text-xs text-gray-500 uppercase tracking-wide mb-1">
+            Total Amount ({uploadResult.homeCurrency})
+          </dt>
+          <dd className="text-base font-medium text-gray-900">
+            {totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </dd>
         </div>
 
