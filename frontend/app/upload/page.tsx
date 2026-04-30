@@ -1,6 +1,7 @@
 /**
- * Upload wizard — guides the user through a 6-step flow to parse a CSV,
- * organise categories, review AI suggestions, assign groups, and confirm the import.
+ * Upload wizard — guides the user through a 7-step flow to parse a CSV,
+ * set the country, organise categories, review AI suggestions, assign groups,
+ * and confirm the import.
  */
 
 "use client";
@@ -8,6 +9,7 @@
 import { useState } from "react";
 import StepFilePicker from "./StepFilePicker";
 import StepSummary from "./StepSummary";
+import StepCountry from "./StepCountry";
 import StepCategories from "./StepCategories";
 import StepReview from "./StepReview";
 import StepGroup from "./StepGroup";
@@ -21,15 +23,16 @@ import type {
   ParsedUploadResult,
 } from "./types";
 
-type Step = 1 | 2 | 3 | 4 | 5 | 6;
+type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 const STEP_LABELS: Record<Step, string> = {
   1: "Select file",
   2: "Review summary",
-  3: "Organise categories",
-  4: "Review suggestions",
-  5: "Assign group",
-  6: "Confirm",
+  3: "Set country",
+  4: "Organise categories",
+  5: "Review suggestions",
+  6: "Assign group",
+  7: "Confirm",
 };
 
 /** SVG icon for each step, matching the upload wizard mockup. */
@@ -52,11 +55,18 @@ const STEP_ICONS: Record<Step, React.ReactNode> = {
   ),
   3: (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+      <circle cx="12" cy="12" r="10" />
+      <line x1="2" y1="12" x2="22" y2="12" />
+      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+    </svg>
+  ),
+  4: (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
       <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
       <line x1="7" y1="7" x2="7.01" y2="7" />
     </svg>
   ),
-  4: (
+  5: (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
       <circle cx="12" cy="8" r="3" />
       <path d="M6.5 20a5.5 5.5 0 0 1 11 0" />
@@ -64,7 +74,7 @@ const STEP_ICONS: Record<Step, React.ReactNode> = {
       <path d="M19 12l1.5 1.5M3.5 13.5 5 12" />
     </svg>
   ),
-  5: (
+  6: (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
       <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
       <circle cx="9" cy="7" r="4" />
@@ -72,7 +82,7 @@ const STEP_ICONS: Record<Step, React.ReactNode> = {
       <path d="M16 3.13a4 4 0 0 1 0 7.75" />
     </svg>
   ),
-  6: (
+  7: (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
       <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
       <polyline points="17 21 17 13 7 13 7 21" />
@@ -115,11 +125,11 @@ export default function UploadPage() {
 
             {/* Step indicator */}
             <nav className="flex items-center justify-center">
-              {([1, 2, 3, 4, 5, 6] as Step[]).map((s, index) => (
+              {([1, 2, 3, 4, 5, 6, 7] as Step[]).map((s, index) => (
                 <div key={s} className="flex items-center">
-                  <div className="flex flex-col items-center gap-2 min-w-[80px]">
+                  <div className="flex flex-col items-center gap-2 min-w-[64px]">
                     <div
-                      className={`flex items-center justify-center w-12 h-12 rounded-full transition-colors ${
+                      className={`flex items-center justify-center w-10 h-10 rounded-full transition-colors ${
                         s === step
                           ? "bg-white text-[#064E3B]"
                           : "bg-white/10 text-white/50"
@@ -128,16 +138,16 @@ export default function UploadPage() {
                       {STEP_ICONS[s]}
                     </div>
                     <span
-                      className={`text-[10px] tracking-widest uppercase text-center leading-tight ${
+                      className={`text-[9px] tracking-widest uppercase text-center leading-tight ${
                         s === step ? "font-bold text-white" : "text-white/40"
                       }`}
                     >
                       {STEP_LABELS[s]}
                     </span>
                   </div>
-                  {index < 5 && (
+                  {index < 6 && (
                     <div
-                      className={`h-px w-10 mb-5 mx-1 ${
+                      className={`h-px w-6 mb-5 mx-1 ${
                         s < step ? "bg-white/40" : "bg-white/15"
                       }`}
                     />
@@ -173,47 +183,58 @@ export default function UploadPage() {
               />
             )}
 
-            {step === 3 && state.uploadResult && (
-              <StepCategories
-                parsedCategories={state.uploadResult.categories}
+            {step === 3 && (
+              <StepCountry
+                transactions={state.transactions}
                 onBack={() => goTo(2)}
-                onContinue={(taxonomy, assignments) => {
-                  setState((prev) => ({ ...prev, taxonomy, assignments }));
+                onContinue={(updated) => {
+                  setState((prev) => ({ ...prev, transactions: updated }));
                   goTo(4);
                 }}
               />
             )}
 
-            {step === 4 && (
-              <StepReview
-                transactions={state.transactions}
-                taxonomy={state.taxonomy}
+            {step === 4 && state.uploadResult && (
+              <StepCategories
+                parsedCategories={state.uploadResult.categories}
                 onBack={() => goTo(3)}
-                onContinue={(updated) => {
-                  setState((prev) => ({ ...prev, transactions: updated }));
+                onContinue={(taxonomy, assignments) => {
+                  setState((prev) => ({ ...prev, taxonomy, assignments }));
                   goTo(5);
                 }}
               />
             )}
 
             {step === 5 && (
-              <StepGroup
+              <StepReview
                 transactions={state.transactions}
+                taxonomy={state.taxonomy}
                 onBack={() => goTo(4)}
-                onContinue={(updated, primaryGroup) => {
-                  setState((prev) => ({ ...prev, transactions: updated, primaryGroup }));
+                onContinue={(updated) => {
+                  setState((prev) => ({ ...prev, transactions: updated }));
                   goTo(6);
                 }}
               />
             )}
 
-            {step === 6 && state.uploadResult && state.primaryGroup && (
+            {step === 6 && (
+              <StepGroup
+                transactions={state.transactions}
+                onBack={() => goTo(5)}
+                onContinue={(updated, primaryGroup) => {
+                  setState((prev) => ({ ...prev, transactions: updated, primaryGroup }));
+                  goTo(7);
+                }}
+              />
+            )}
+
+            {step === 7 && state.uploadResult && state.primaryGroup && (
               <StepConfirm
                 uploadResult={state.uploadResult}
                 transactions={state.transactions}
                 filename={state.filename}
                 primaryGroup={state.primaryGroup}
-                onBack={() => goTo(5)}
+                onBack={() => goTo(6)}
               />
             )}
           </div>
