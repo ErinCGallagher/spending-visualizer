@@ -36,15 +36,21 @@ export default function TransactionsPage() {
   const [deleteFrom, setDeleteFrom] = useState("");
   const [deleteTo, setDeleteTo] = useState("");
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteGroupId, setDeleteGroupId] = useState("");
+  const [showGroupDeleteModal, setShowGroupDeleteModal] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteResult, setDeleteResult] = useState<number | null>(null);
 
-  useEffect(() => {
+  const fetchMeta = useCallback(() => {
     fetch("/api/transactions/meta", { credentials: "include" })
       .then((r) => r.json())
       .then((d: Meta) => setMeta(d))
       .catch(() => setMeta(null));
   }, []);
+
+  useEffect(() => {
+    fetchMeta();
+  }, [fetchMeta]);
 
   const fetchTransactions = useCallback(
     (currentPage: number, f: typeof filters) => {
@@ -74,6 +80,29 @@ export default function TransactionsPage() {
   useEffect(() => {
     fetchTransactions(page, filters);
   }, [page, filters, fetchTransactions]);
+
+  function handleGroupDeleteConfirm() {
+    setDeleteLoading(true);
+    fetch("/api/transactions", {
+      method: "DELETE",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ groupId: deleteGroupId }),
+    })
+      .then((r) => r.json())
+      .then((d: { deleted: number }) => {
+        setDeleteResult(d.deleted);
+        setDeleteGroupId("");
+        setShowGroupDeleteModal(false);
+        setPage(1);
+        fetchMeta();
+        fetchTransactions(1, filters);
+      })
+      .catch(() => {
+        setShowGroupDeleteModal(false);
+      })
+      .finally(() => setDeleteLoading(false));
+  }
 
   function handleDeleteConfirm() {
     setDeleteLoading(true);
@@ -162,36 +191,69 @@ export default function TransactionsPage() {
             </div>
           )}
 
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="space-y-1">
-              <label className="block text-xs font-medium text-gray-600">
-                From
-              </label>
-              <input
-                type="date"
-                value={deleteFrom}
-                onChange={(e) => setDeleteFrom(e.target.value)}
-                className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
-              />
+          <div className="space-y-3">
+            <p className="text-xs font-medium text-gray-500">By date range</p>
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="space-y-1">
+                <label className="block text-xs font-medium text-gray-600">
+                  From
+                </label>
+                <input
+                  type="date"
+                  value={deleteFrom}
+                  onChange={(e) => setDeleteFrom(e.target.value)}
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-xs font-medium text-gray-600">
+                  To
+                </label>
+                <input
+                  type="date"
+                  value={deleteTo}
+                  onChange={(e) => setDeleteTo(e.target.value)}
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
+              <button
+                onClick={() => setShowDeleteModal(true)}
+                disabled={!deleteFrom || !deleteTo}
+                className="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-lg font-medium text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Delete transactions
+              </button>
             </div>
-            <div className="space-y-1">
-              <label className="block text-xs font-medium text-gray-600">
-                To
-              </label>
-              <input
-                type="date"
-                value={deleteTo}
-                onChange={(e) => setDeleteTo(e.target.value)}
-                className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
-              />
+          </div>
+
+          <div className="border-t border-gray-100 pt-4 space-y-3">
+            <p className="text-xs font-medium text-gray-500">By group</p>
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="space-y-1">
+                <label className="block text-xs font-medium text-gray-600">
+                  Group
+                </label>
+                <select
+                  value={deleteGroupId}
+                  onChange={(e) => setDeleteGroupId(e.target.value)}
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                >
+                  <option value="">Select a group…</option>
+                  {meta?.groups.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button
+                onClick={() => setShowGroupDeleteModal(true)}
+                disabled={!deleteGroupId}
+                className="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-lg font-medium text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Delete transactions
+              </button>
             </div>
-            <button
-              onClick={() => setShowDeleteModal(true)}
-              disabled={!deleteFrom || !deleteTo}
-              className="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-lg font-medium text-sm disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Delete transactions
-            </button>
           </div>
         </div>
       </div>
@@ -204,6 +266,19 @@ export default function TransactionsPage() {
           loadingLabel="Deleting…"
           onConfirm={handleDeleteConfirm}
           onCancel={() => setShowDeleteModal(false)}
+          loading={deleteLoading}
+          danger
+        />
+      )}
+
+      {showGroupDeleteModal && (
+        <ConfirmModal
+          title="Delete transactions"
+          description={`Are you sure? This will delete all transactions in the "${meta?.groups.find((g) => g.id === deleteGroupId)?.name}" group. This cannot be undone.`}
+          confirmLabel="Delete"
+          loadingLabel="Deleting…"
+          onConfirm={handleGroupDeleteConfirm}
+          onCancel={() => setShowGroupDeleteModal(false)}
           loading={deleteLoading}
           danger
         />

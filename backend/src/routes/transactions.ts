@@ -157,12 +157,56 @@ router.get("/meta", async (_req, res) => {
 });
 
 /**
- * DELETE /api/transactions — deletes all transactions within a date range.
- * Cascade handles transaction_splits.
+ * DELETE /api/transactions — deletes transactions by date range or by group.
+ * Supply either { from, to } or { groupId }. Cascade handles transaction_splits.
  */
 router.delete("/", async (req, res) => {
   const userId: string = res.locals.userId;
-  const { from, to } = req.body as { from: string; to: string };
+  const { from, to, groupId } = req.body as { from?: string; to?: string; groupId?: string };
+
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+  if (groupId !== undefined) {
+    if (!UUID_RE.test(groupId)) {
+      res.status(400).json({ error: "groupId must be a valid UUID" });
+      return;
+    }
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+
+      const txResult = await client.query(
+        `DELETE FROM transactions WHERE user_id = $1 AND group_id = $2`,
+        [userId, groupId]
+      );
+
+      const { rows } = await client.query<{ count: string }>(
+        `SELECT COUNT(*) AS count FROM transactions WHERE group_id = $1`,
+        [groupId]
+      );
+      if (parseInt(rows[0].count, 10) === 0) {
+        // Clear the FK on uploads before removing the group
+        await client.query(
+          `UPDATE uploads SET group_id = NULL WHERE group_id = $1 AND user_id = $2`,
+          [groupId, userId]
+        );
+        await client.query(
+          `DELETE FROM groups WHERE id = $1 AND user_id = $2`,
+          [groupId, userId]
+        );
+      }
+
+      await client.query("COMMIT");
+      res.json({ deleted: txResult.rowCount ?? 0 });
+    } catch (err) {
+      await client.query("ROLLBACK");
+      console.error("DELETE /api/transactions error:", err);
+      res.status(500).json({ error: "Internal server error" });
+    } finally {
+      client.release();
+    }
+    return;
+  }
 
   if (!from || !to) {
     res.status(400).json({ error: "from and to dates are required" });
