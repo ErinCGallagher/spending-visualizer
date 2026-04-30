@@ -5,5 +5,8 @@
     "dev:backend": "pnpm --filter backend dev",
     "dev:frontend": "pnpm --filter frontend dev",
     "test": "pnpm --filter backend test"
+  },
+  "dependencies": {
+    "@vercel/analytics": "^2.0.1"
   }
 }
