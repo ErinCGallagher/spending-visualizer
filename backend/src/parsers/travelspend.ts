@@ -2,6 +2,11 @@
 
 import { CsvParser, ParsedSplit, ParsedTransaction, ParseError, ParseResult } from "./types";
 
+/** Parse a number string that may contain thousand separators (commas). */
+function parseNumber(value: string): number {
+  return parseFloat(value.replace(/,/g, ""));
+}
+
 /** All column names that TravelSpend always exports. Columns not in this list are traveller names. */
 const FIXED_FIELDS = [
   "amount",
@@ -80,8 +85,8 @@ export class TravelSpendParser implements CsvParser {
       }
 
       const date = new Date(row["datePaid"]);
-      const amountHome = parseFloat(row["amountInHomeCurrency"].trim());
-      const amountLocal = row["amount"] ? parseFloat(row["amount"].trim()) : null;
+      const amountHome = parseNumber(row["amountInHomeCurrency"].trim());
+      const amountLocal = row["amount"] ? parseNumber(row["amount"].trim()) : null;
       const categoryName = row["category"]?.trim() || null;
 
       if (!homeCurrency && row["homeCurrency"]) {
@@ -92,7 +97,7 @@ export class TravelSpendParser implements CsvParser {
       const splits: ParsedSplit[] = travellers
         .map((name) => ({
           travellerName: name,
-          amountHome: parseFloat((row[name] ?? "0").trim()) || 0,
+          amountHome: parseNumber((row[name] ?? "0").trim()) || 0,
         }))
         .filter((s) => s.amountHome > 0);
 

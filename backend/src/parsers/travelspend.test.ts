@@ -101,6 +101,13 @@ describe("TravelSpendParser", () => {
       expect(result.transactions[0].amountHome).toBe(7.91);
     });
 
+    it("parses amounts with thousand separators (commas)", () => {
+      const row = { ...BASE_ROW, amountInHomeCurrency: "1,040.49", amount: "2,630.00" };
+      const result = parser.parse([row], "upload-1", "user-1");
+      expect(result.transactions[0].amountHome).toBe(1040.49);
+      expect(result.transactions[0].amountLocal).toBe(2630.0);
+    });
+
     it("maps amount to amountLocal", () => {
       const result = parser.parse([BASE_ROW], "upload-1", "user-1");
       expect(result.transactions[0].amountLocal).toBe(20.0);
@@ -182,6 +189,16 @@ describe("TravelSpendParser", () => {
       const result = parser.parse([row], "upload-1", "user-1");
       const splits = result.transactions[0].splits;
       expect(splits.every((s) => s.travellerName !== "susannaallin04")).toBe(true);
+    });
+
+    it("parses split amounts with thousand separators (commas)", () => {
+      const row = { ...BASE_ROW, kristianallin: "1,020.25", egal: "520.24" };
+      const result = parser.parse([row], "upload-1", "user-1");
+      const splits = result.transactions[0].splits;
+      const kristian = splits.find((s) => s.travellerName === "kristianallin");
+      const egal = splits.find((s) => s.travellerName === "egal");
+      expect(kristian?.amountHome).toBeCloseTo(1020.25);
+      expect(egal?.amountHome).toBeCloseTo(520.24);
     });
   });
 
