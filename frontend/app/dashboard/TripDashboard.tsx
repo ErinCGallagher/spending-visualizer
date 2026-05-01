@@ -15,6 +15,7 @@ import CategoryPieChart, {
   type CategoryTotal,
 } from "@/app/dashboard/CategoryPieChart";
 import { CountryDashboardSkeleton } from "@/app/components/ui/LoadingSkeleton";
+import { formatCurrency } from "@/lib/format";
 
 interface FilterState {
   from: string;
@@ -27,7 +28,7 @@ interface Props {
   currency: string;
 }
 
-export default function CountryDashboard({ onSwitchView, currency }: Props) {
+export default function TripDashboard({ onSwitchView, currency }: Props) {
   const [filterState, setFilterState] = useState<FilterState>({
     from: "",
     to: "",
@@ -35,6 +36,7 @@ export default function CountryDashboard({ onSwitchView, currency }: Props) {
   });
   const [selectedGroup, setSelectedGroup] = useState<{ id: string; name: string } | null>(null);
   const [categoryData, setCategoryData] = useState<CategoryTotal[]>([]);
+  const [totalSpend, setTotalSpend] = useState<number | null>(null);
   const [categoryLoading, setCategoryLoading] = useState(false);
 
   const [overlayState, setOverlayState] = useState<"visible" | "fading" | "hidden">("hidden");
@@ -75,8 +77,9 @@ export default function CountryDashboard({ onSwitchView, currency }: Props) {
       to: f.to,
       travellers: f.travellers,
     });
-    // Reset selection when filters change so stale category data is not shown
+    // Reset selection and total when filters change so stale data is not shown
     setSelectedGroup(null);
+    setTotalSpend(null);
   }, []);
 
   return (
@@ -88,12 +91,21 @@ export default function CountryDashboard({ onSwitchView, currency }: Props) {
         </div>
 
         <div className="relative space-y-6">
+          {/* Total spend */}
+          <div className="bg-slate-50/50 rounded-2xl border border-slate-100 p-6">
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Total spent</p>
+            <p className="text-3xl font-bold text-slate-900">
+              {totalSpend === null ? "—" : formatCurrency(totalSpend, currency, 2)}
+            </p>
+          </div>
+
           <div className="bg-slate-50/50 rounded-2xl border border-slate-100 overflow-hidden">
             <CountrySummaryTable
               filters={filterState}
               onSelect={setSelectedGroup}
               selectedGroupId={selectedGroup?.id ?? null}
               currency={currency}
+              onTotalChange={setTotalSpend}
             />
           </div>
 

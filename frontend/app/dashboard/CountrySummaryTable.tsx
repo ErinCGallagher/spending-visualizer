@@ -5,6 +5,7 @@
 
 "use client";
 
+import { useEffect } from "react";
 import { formatCurrency } from "@/lib/format";
 import { getSpendBand } from "./spendCategoryConfig";
 import { SkeletonRows } from "@/app/components/ui/LoadingSkeleton";
@@ -29,6 +30,7 @@ interface Props {
   onSelect: (group: { id: string; name: string } | null) => void;
   selectedGroupId: string | null;
   currency: string;
+  onTotalChange?: (total: number) => void;
 }
 
 export default function CountrySummaryTable({
@@ -36,6 +38,7 @@ export default function CountrySummaryTable({
   onSelect,
   selectedGroupId,
   currency,
+  onTotalChange,
 }: Props) {
   const params = new URLSearchParams();
   if (filters.from) params.set("from", filters.from);
@@ -47,6 +50,12 @@ export default function CountrySummaryTable({
     [filters]
   );
   const data = rawData ?? [];
+
+  useEffect(() => {
+    if (!loading && onTotalChange) {
+      onTotalChange(data.reduce((sum, row) => sum + row.total, 0));
+    }
+  }, [data, loading, onTotalChange]);
 
   function handleRowClick(row: TripTotal) {
     const isSelected = selectedGroupId === row.groupId;
