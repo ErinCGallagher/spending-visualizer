@@ -14,7 +14,8 @@ interface Transaction {
   amountHome: number;
   localCurrency: string | null;
   homeCurrency: string | null;
-  categoryName: string | null;
+  parentCategoryName: string | null;
+  subCategoryName: string | null;
   payer: string | null;
   groupName: string | null;
   groupType: string | null;
@@ -73,7 +74,10 @@ export default function TransactionTable({
                     Description
                   </th>
                   <th className="px-4 py-3 text-xs font-semibold tracking-widest text-gray-400 uppercase">
-                    Category
+                    Parent Category
+                  </th>
+                  <th className="px-4 py-3 text-xs font-semibold tracking-widest text-gray-400 uppercase">
+                    Sub Category
                   </th>
                   <th className="px-4 py-3 text-xs font-semibold tracking-widest text-gray-400 uppercase text-right">
                     Amount
@@ -99,7 +103,10 @@ export default function TransactionTable({
                       {t.description}
                     </td>
                     <td className="px-4 py-3 text-gray-600">
-                      {t.categoryName ?? <span className="text-gray-300">—</span>}
+                      {t.parentCategoryName ?? <span className="text-gray-300">—</span>}
+                    </td>
+                    <td className="px-4 py-3 text-gray-600">
+                      {t.subCategoryName ?? <span className="text-gray-300">—</span>}
                     </td>
                     <td className="px-4 py-3 text-gray-900 text-right whitespace-nowrap font-medium">
                       {formatAmount(t.amountHome)}
