@@ -53,7 +53,7 @@ export default function StepFilePicker({ onSuccess }: Props) {
       const data = await res.json();
 
       if (!res.ok) {
-        setErrors([data.message ?? "Upload failed"]);
+        setErrors([data.error ?? data.message ?? "Upload failed"]);
         return;
       }
 
@@ -89,6 +89,7 @@ export default function StepFilePicker({ onSuccess }: Props) {
             className="border border-gray-200 rounded-lg px-3 py-2 text-sm w-full"
           >
             <option value="travelspend">TravelSpend</option>
+            <option value="wealthsimple">Wealthsimple Visa (CSV)</option>
           </select>
         </div>
 

@@ -23,6 +23,8 @@ export default function StepSummary({ result, onBack, onContinue }: Props) {
     ...new Set(result.transactions.map((t) => t.country).filter(Boolean)),
   ].sort() as string[];
 
+  const isWealthsimple = result.transactions[0]?.sourceFormat === "wealthsimple";
+
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-6">
       <h2 className="text-lg font-semibold text-gray-900 mb-4">
@@ -75,22 +77,32 @@ export default function StepSummary({ result, onBack, onContinue }: Props) {
           </span>
         </div>
 
-        <div className="flex justify-between border-b border-gray-100 py-2">
-          <span className="text-sm text-gray-500">Travellers</span>
-          <span className="text-sm font-medium text-gray-900">
-            {result.travellers.length > 0
-              ? result.travellers.join(", ")
-              : "—"}
-          </span>
-        </div>
+        {!isWealthsimple && (
+          <>
+            <div className="flex justify-between border-b border-gray-100 py-2">
+              <span className="text-sm text-gray-500">Travellers</span>
+              <span className="text-sm font-medium text-gray-900">
+                {result.travellers.length > 0
+                  ? result.travellers.join(", ")
+                  : "—"}
+              </span>
+            </div>
 
-        <div className="flex justify-between border-b border-gray-100 py-2 last:border-b-0">
-          <span className="text-sm text-gray-500">Countries</span>
-          <span className="text-sm font-medium text-gray-900">
-            {countries.length > 0 ? countries.join(", ") : "None recorded"}
-          </span>
-        </div>
+            <div className="flex justify-between border-b border-gray-100 py-2 last:border-b-0">
+              <span className="text-sm text-gray-500">Countries</span>
+              <span className="text-sm font-medium text-gray-900">
+                {countries.length > 0 ? countries.join(", ") : "None recorded"}
+              </span>
+            </div>
+          </>
+        )}
       </div>
+
+      {!!result.skippedPayments && result.skippedPayments > 0 && (
+        <p className="text-sm text-gray-500">
+          {result.skippedPayments} payment row{result.skippedPayments > 1 ? "s" : ""} were skipped
+        </p>
+      )}
 
       {hasNoTransactions && (
         <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-800">
