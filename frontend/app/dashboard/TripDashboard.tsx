@@ -16,6 +16,7 @@ import CategoryPieChart, {
 } from "@/app/dashboard/CategoryPieChart";
 import { CountryDashboardSkeleton } from "@/app/components/ui/LoadingSkeleton";
 import { formatCurrency } from "@/lib/format";
+import type { Meta } from "@/app/dashboard/useDashboardData";
 
 interface FilterState {
   from: string;
@@ -26,9 +27,10 @@ interface FilterState {
 interface Props {
   onSwitchView: (view: "overview" | "trip") => void;
   currency: string;
+  meta: Meta | null;
 }
 
-export default function TripDashboard({ onSwitchView, currency }: Props) {
+export default function TripDashboard({ onSwitchView, currency, meta }: Props) {
   const [filterState, setFilterState] = useState<FilterState>({
     from: "",
     to: "",
@@ -87,7 +89,7 @@ export default function TripDashboard({ onSwitchView, currency }: Props) {
       <DashboardTabBar activeView="trip" onSwitch={onSwitchView} />
       <div className="p-8 space-y-6">
         <div className="bg-slate-50/50 rounded-2xl border border-slate-100 p-6">
-          <Filters onChange={handleFiltersChange} />
+          <Filters meta={meta} onChange={handleFiltersChange} showGroupType={false} />
         </div>
 
         <div className="relative space-y-6">

@@ -33,6 +33,7 @@ export default function DashboardPage() {
     to: "",
     travellers: [],
     countries: [],
+    groupTypes: [],
   });
   const [monthlyGroupBy, setMonthlyGroupBy] = useState<"category" | "total">(
     "category"
@@ -101,7 +102,7 @@ export default function DashboardPage() {
           <DashboardTabBar activeView={view} onSwitch={setView} />
           <div className="p-8 space-y-6">
             <div className="bg-slate-50/50 rounded-2xl border border-slate-100 p-6">
-              <Filters onChange={handleFiltersChange} showTravellers={false} />
+              <Filters meta={meta} onChange={handleFiltersChange} showTravellers={false} />
             </div>
             <DashboardOverview
               categoryData={categoryData}
@@ -125,7 +126,7 @@ export default function DashboardPage() {
 
         {/* Trip card stays mounted so overlay/data state is preserved on tab switch */}
         <div className={view !== "trip" ? "hidden" : ""}>
-          <TripDashboard onSwitchView={setView} currency={currency} />
+          <TripDashboard onSwitchView={setView} currency={currency} meta={meta} />
         </div>
       </div>
     </main>

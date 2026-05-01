@@ -151,6 +151,11 @@ router.get("/meta", async (_req, res) => {
       countries: countryResult.rows.map((r) => r.country),
       dateRange,
       groups: groupResult.rows,
+      groupTypes: [
+        { value: "trip", label: "Trip" },
+        { value: "daily", label: "Daily Living" },
+        { value: "business", label: "Business" },
+      ],
       homeCurrency: currencyResult.rows[0]?.home_currency ?? null,
     });
   } catch (err) {
