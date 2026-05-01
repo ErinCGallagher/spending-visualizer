@@ -32,12 +32,16 @@ router.get("/mappings", async (_req, res) => {
   try {
     const { rows } = await pool.query<{
       merchant_key: string;
+      category_id: string;
       category_name: string;
+      parent_id: string | null;
       parent_name: string | null;
     }>(
       `SELECT 
          ccm.merchant_key, 
+         ccm.category_id,
          c.name AS category_name,
+         c.parent_id,
          p.name AS parent_name
        FROM credit_card_category_mappings ccm
        JOIN categories c ON c.id = ccm.category_id
@@ -50,6 +54,59 @@ router.get("/mappings", async (_req, res) => {
   } catch (err) {
     console.error("GET /api/categories/mappings error:", err);
     res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+/** PUT /api/categories/mappings — updates a credit card category mapping and all linked transactions. */
+router.put("/mappings", async (req, res) => {
+  const userId: string = res.locals.userId;
+  const { merchantKey, categoryId } = req.body as {
+    merchantKey: string;
+    categoryId: string;
+  };
+
+  if (!merchantKey || !categoryId) {
+    res.status(400).json({ error: "merchantKey and categoryId are required" });
+    return;
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    // 1. Update the mapping
+    const mappingResult = await client.query(
+      `UPDATE credit_card_category_mappings
+       SET category_id = $1, updated_at = NOW()
+       WHERE user_id = $2 AND merchant_key = $3`,
+      [categoryId, userId, merchantKey]
+    );
+
+    if (mappingResult.rowCount === 0) {
+      await client.query("ROLLBACK");
+      res.status(404).json({ error: "Mapping not found" });
+      return;
+    }
+
+    // 2. Update all references in existing transactions
+    // We use the same normalisation logic as toMerchantKey in TypeScript:
+    // description.toLowerCase().trim().replace(/\s+/g, " ")
+    await client.query(
+      `UPDATE transactions
+       SET category_id = $1, category_source = 'user'
+       WHERE user_id = $2 
+         AND LOWER(TRIM(REGEXP_REPLACE(description, '\\s+', ' ', 'g'))) = $3`,
+      [categoryId, userId, merchantKey]
+    );
+
+    await client.query("COMMIT");
+    res.json({ success: true });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("PUT /api/categories/mappings error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  } finally {
+    client.release();
   }
 });
 

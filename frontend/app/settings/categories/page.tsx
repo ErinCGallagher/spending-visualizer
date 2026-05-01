@@ -6,16 +6,76 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { useFetch } from "@/app/hooks/useFetch";
 import NavBar from "@/app/components/NavBar";
+import type { Category } from "@/app/upload/types";
 
 interface Mapping {
   merchant_key: string;
+  category_id: string;
   category_name: string;
+  parent_id: string | null;
+  parent_name: string | null;
 }
 
 export default function CategoryMappingsPage() {
-  const { data: mappings, loading, error } = useFetch<Mapping[]>("/api/categories/mappings", []);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const { data: mappings, loading, error } = useFetch<Mapping[]>("/api/categories/mappings", [refreshTrigger]);
+  const { data: taxonomy } = useFetch<Category[]>("/api/categories", []);
+
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [selectedParentId, setSelectedParentId] = useState<string>("");
+  const [selectedSubId, setSelectedSubId] = useState<string>("");
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const handleEdit = (mapping: Mapping) => {
+    setEditingKey(mapping.merchant_key);
+    // If it has a parent, the parent_id is the main category, and category_id is the sub
+    if (mapping.parent_id) {
+      setSelectedParentId(mapping.parent_id);
+      setSelectedSubId(mapping.category_id);
+    } else {
+      setSelectedParentId(mapping.category_id);
+      setSelectedSubId("");
+    }
+    setSaveError(null);
+  };
+
+  const handleCancel = () => {
+    setEditingKey(null);
+    setSaveError(null);
+  };
+
+  const handleSave = async (merchantKey: string) => {
+    setSaving(true);
+    setSaveError(null);
+
+    const categoryId = selectedSubId || selectedParentId;
+
+    try {
+      const res = await fetch("/api/categories/mappings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ merchantKey, categoryId }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to update mapping");
+      }
+
+      setRefreshTrigger(prev => prev + 1);
+      setEditingKey(null);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Failed to save");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const currentParent = taxonomy?.find(c => c.id === selectedParentId);
 
   return (
     <main className="min-h-screen">
@@ -69,11 +129,13 @@ export default function CategoryMappingsPage() {
                     <tr className="border-b border-gray-100 bg-slate-50/50">
                       <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider border-r border-gray-100">Merchant / Keyword</th>
                       <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider border-r border-gray-100">Parent Category</th>
-                      <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Sub Category (optional)</th>
+                      <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider border-r border-gray-100">Sub Category (optional)</th>
+                      <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {mappings.map((mapping) => {
+                      const isEditing = editingKey === mapping.merchant_key;
                       const hasParent = mapping.parent_name !== null;
                       const parentDisplay = mapping.parent_name ?? mapping.category_name;
                       const subDisplay = hasParent ? mapping.category_name : null;
@@ -84,10 +146,78 @@ export default function CategoryMappingsPage() {
                             {mapping.merchant_key}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-900 font-medium border-r border-gray-100">
-                            {parentDisplay}
+                            {isEditing ? (
+                              <select
+                                className="w-full text-sm border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500"
+                                value={selectedParentId}
+                                onChange={(e) => {
+                                  setSelectedParentId(e.target.value);
+                                  setSelectedSubId("");
+                                }}
+                              >
+                                {taxonomy?.map(cat => (
+                                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                                ))}
+                              </select>
+                            ) : (
+                              parentDisplay
+                            )}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-900 font-medium border-r border-gray-100">
+                            {isEditing ? (
+                              <select
+                                className="w-full text-sm border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-gray-50 disabled:text-gray-400"
+                                value={selectedSubId}
+                                onChange={(e) => setSelectedSubId(e.target.value)}
+                                disabled={!currentParent || currentParent.children.length === 0}
+                              >
+                                <option value="">None</option>
+                                {currentParent?.children.map(child => (
+                                  <option key={child.id} value={child.id}>{child.name}</option>
+                                ))}
+                              </select>
+                            ) : (
+                              subDisplay ?? <span className="text-gray-300">—</span>
+                            )}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-900 font-medium">
-                            {subDisplay ?? <span className="text-gray-300">—</span>}
+                            {isEditing ? (
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => handleSave(mapping.merchant_key)}
+                                  disabled={saving}
+                                  className="text-emerald-600 hover:text-emerald-700 font-semibold disabled:opacity-50"
+                                >
+                                  {saving ? "..." : "Save"}
+                                </button>
+                                <button
+                                  onClick={handleCancel}
+                                  disabled={saving}
+                                  className="text-gray-400 hover:text-gray-600"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => handleEdit(mapping)}
+                                className="text-emerald-600 hover:text-emerald-700 transition-colors p-1.5 rounded-lg hover:bg-emerald-50 flex items-center gap-2 font-medium"
+                              >
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  className="w-4 h-4"
+                                >
+                                  <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+                                </svg>
+                                <span>Edit</span>
+                              </button>
+                            )}
                           </td>
                         </tr>
                       );
@@ -95,6 +225,11 @@ export default function CategoryMappingsPage() {
                   </tbody>
                 </table>
               </div>
+            )}
+            {saveError && (
+              <p className="mt-4 text-sm text-red-600 bg-red-50 p-3 rounded-lg border border-red-100">
+                {saveError}
+              </p>
             )}
           </div>
         </div>
