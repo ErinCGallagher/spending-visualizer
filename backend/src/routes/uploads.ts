@@ -10,13 +10,13 @@ import { TravelSpendParser } from "../parsers/travelspend";
 import { WealthsimpleParser } from "../parsers/wealthsimple";
 import { buildCategorisePrompt, parseCategoriseResponse } from "../lib/categorisePrompt";
 import { toMerchantKey } from "../lib/merchantKey";
-import { ParsedTransaction } from "../parsers/types";
+import { CsvParser, ParsedTransaction } from "../parsers/types";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
 const travelspendParser = new TravelSpendParser();
 
-const SUPPORTED_PARSERS: Record<string, typeof travelspendParser> = {
+const SUPPORTED_PARSERS: Record<string, CsvParser> = {
   travelspend: travelspendParser,
   wealthsimple: new WealthsimpleParser(),
 };
@@ -334,12 +334,24 @@ router.post("/confirm", async (req, res) => {
     }
 
     if (merchantMappings.length > 0) {
+      // Deduplicate mappings by merchantKey to avoid Postgres error:
+      // "ON CONFLICT DO UPDATE command cannot affect row a second time"
+      const uniqueMappings = Array.from(
+        merchantMappings
+          .reduce((map, m) => map.set(m.merchantKey, m.categoryId), new Map<string, string>())
+          .entries()
+      );
+
       await client.query(
         `INSERT INTO credit_card_category_mappings (user_id, merchant_key, category_id, updated_at)
          SELECT $1, unnest($2::text[]), unnest($3::uuid[]), now()
          ON CONFLICT (user_id, merchant_key)
          DO UPDATE SET category_id = EXCLUDED.category_id, updated_at = EXCLUDED.updated_at`,
-        [userId, merchantMappings.map((m) => m.merchantKey), merchantMappings.map((m) => m.categoryId)]
+        [
+          userId,
+          uniqueMappings.map(([key]) => key),
+          uniqueMappings.map(([, id]) => id),
+        ]
       );
     }
 
