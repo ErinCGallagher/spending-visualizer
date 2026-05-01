@@ -8,6 +8,7 @@ export interface TransactionInput {
 export interface CategoriseResult {
   categoryName: string;
   confidence: number;
+  source: "cache" | "ai";
 }
 
 /**
@@ -55,9 +56,10 @@ export function parseCategoriseResponse(
   text: string,
   count: number
 ): CategoriseResult[] {
-  const fallback = Array.from({ length: count }, () => ({
+  const fallback: CategoriseResult[] = Array.from({ length: count }, () => ({
     categoryName: "Uncategorized",
     confidence: 0,
+    source: "ai",
   }));
 
   try {
@@ -72,6 +74,7 @@ export function parseCategoriseResponse(
     return parsed.map((item) => ({
       categoryName: typeof item.categoryName === "string" ? item.categoryName : "Uncategorized",
       confidence: typeof item.confidence === "number" ? Math.min(1, Math.max(0, item.confidence)) : 0,
+      source: "ai",
     }));
   } catch {
     return fallback;
