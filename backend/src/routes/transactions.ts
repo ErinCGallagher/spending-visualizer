@@ -95,7 +95,7 @@ router.get("/meta", async (_req, res) => {
   const userId: string = res.locals.userId;
 
   try {
-    const [catResult, travellerResult, pmResult, countryResult, dateResult, groupResult, currencyResult] = await Promise.all([
+    const [catResult, travellerResult, pmResult, countryResult, dateResult, groupResult, currencyResult, userResult] = await Promise.all([
       pool.query<{ id: string; name: string }>(
         `SELECT DISTINCT c.id, c.name
          FROM transactions t
@@ -136,6 +136,10 @@ router.get("/meta", async (_req, res) => {
         `SELECT home_currency FROM uploads WHERE user_id = $1 ORDER BY uploaded_at DESC LIMIT 1`,
         [userId]
       ),
+      pool.query<{ overview_default_filter: string | null; trip_default_filter: string | null }>(
+        `SELECT overview_default_filter, trip_default_filter FROM "user" WHERE id = $1`,
+        [userId]
+      ),
     ]);
 
     const dateRow = dateResult.rows[0];
@@ -156,6 +160,8 @@ router.get("/meta", async (_req, res) => {
         { value: "daily", label: "Daily Living" },
         { value: "business", label: "Business" },
       ],
+      overviewDefaultFilter: userResult.rows[0]?.overview_default_filter ?? null,
+      tripDefaultFilter: userResult.rows[0]?.trip_default_filter ?? null,
       homeCurrency: currencyResult.rows[0]?.home_currency ?? null,
     });
   } catch (err) {

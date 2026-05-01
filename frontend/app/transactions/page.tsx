@@ -20,6 +20,8 @@ interface Meta {
   dateRange: { from: string; to: string } | null;
   groups: { id: string; name: string; groupType: string }[];
   groupTypes: { value: string; label: string }[];
+  overviewDefaultFilter: string | null;
+  tripDefaultFilter: string | null;
 }
 
 const PAGE_LIMIT = 50;

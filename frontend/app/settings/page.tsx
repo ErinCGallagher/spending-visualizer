@@ -5,7 +5,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
@@ -18,6 +18,34 @@ export default function SettingsPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [meta, setMeta] = useState<any>(null);
+
+  useEffect(() => {
+    fetch("/api/transactions/meta", { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => setMeta(d))
+      .catch(() => {});
+  }, []);
+
+  async function updateDefaultFilter(field: string, value: string) {
+    setSavingSettings(true);
+    try {
+      const res = await fetch("/api/account/settings", {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [field]: value || null }),
+      });
+      if (res.ok) {
+        setMeta((prev: any) => ({ ...prev, [field]: value || null }));
+      }
+    } catch (err) {
+      console.error("Failed to update settings:", err);
+    } finally {
+      setSavingSettings(false);
+    }
+  }
 
   async function handleDeleteConfirm() {
     setDeleteLoading(true);
@@ -93,6 +121,55 @@ export default function SettingsPage() {
               </dd>
             </div>
           </dl>
+        </div>
+
+        {/* Dashboard Settings */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
+          <h2 className="text-sm font-semibold text-gray-700">Dashboard</h2>
+          <div className="space-y-6 text-sm">
+            {/* Overview Default */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <dt className="font-semibold text-gray-900">Overview default filter</dt>
+                <dd className="text-gray-500 text-xs mt-0.5">Which group type to show by default when opening the overview.</dd>
+              </div>
+              <div className="flex items-center gap-2">
+                <select
+                  value={meta?.overviewDefaultFilter ?? ""}
+                  onChange={(e) => updateDefaultFilter("overviewDefaultFilter", e.target.value)}
+                  disabled={savingSettings || !meta}
+                  className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20 disabled:opacity-50"
+                >
+                  <option value="">All groups</option>
+                  {meta?.groupTypes?.map((gt: { value: string; label: string }) => (
+                    <option key={gt.value} value={gt.value}>
+                      {gt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Trip Default */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 opacity-60">
+              <div>
+                <dt className="font-semibold text-gray-900">Trip default filter</dt>
+                <dd className="text-gray-500 text-xs mt-0.5">Preferred default filter for the trip dashboard.</dd>
+              </div>
+              <div className="flex items-center gap-2">
+                <select
+                  value=""
+                  disabled
+                  className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm cursor-not-allowed"
+                >
+                  <option value="">No default set</option>
+                </select>
+                {savingSettings && (
+                  <div className="w-4 h-4 border-2 border-brand-primary border-t-transparent rounded-full animate-spin" />
+                )}
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Categories */}
