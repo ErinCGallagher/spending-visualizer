@@ -30,7 +30,31 @@ export default function TransactionsPage() {
 
   const { filters, page, setPage, handleFilterChange } = useTransactionFilters();
 
-  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState(filters.search);
+
+  // Debounce search filter updates to avoid excessive API calls
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (debouncedSearch !== filters.search) {
+        handleFilterChange(
+          filters.from,
+          filters.to,
+          filters.category,
+          filters.group,
+          filters.groupTypeFilter,
+          filters.payer,
+          debouncedSearch
+        );
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [debouncedSearch, filters, handleFilterChange]);
+
+  // Sync debounced search if filters change from elsewhere (e.g. reset)
+  useEffect(() => {
+    setDebouncedSearch(filters.search);
+  }, [filters.search]);
 
   // Delete section state
   const [deleteFrom, setDeleteFrom] = useState("");
@@ -64,6 +88,7 @@ export default function TransactionsPage() {
       if (f.group) params.set("groupId", f.group);
       if (f.groupTypeFilter) params.set("groupType", f.groupTypeFilter);
       if (f.payer) params.set("traveller", f.payer);
+      if (f.search) params.set("search", f.search);
       params.set("page", String(currentPage));
       params.set("limit", String(PAGE_LIMIT));
 
@@ -127,21 +152,6 @@ export default function TransactionsPage() {
 
   const totalPages = data ? Math.max(1, Math.ceil(data.total / PAGE_LIMIT)) : 1;
 
-  // TODO: move search to backend query param for full-dataset support
-  const displayData = useMemo(() => {
-    if (!data || !search.trim()) return data;
-    const q = search.toLowerCase();
-    return {
-      ...data,
-      transactions: data.transactions.filter(
-        (t) =>
-          t.description.toLowerCase().includes(q) ||
-          (t.categoryName ?? "").toLowerCase().includes(q) ||
-          (t.payer ?? "").toLowerCase().includes(q)
-      ),
-    };
-  }, [data, search]);
-
   return (
     <main className="min-h-screen animate-fade-in">
       {/* Hero */}
@@ -159,19 +169,22 @@ export default function TransactionsPage() {
           <div className="p-4">
             <TransactionFilters
               meta={meta}
-              search={search}
-              onSearchChange={setSearch}
               from={filters.from}
               to={filters.to}
               category={filters.category}
               group={filters.group}
               groupType={filters.groupTypeFilter}
               payer={filters.payer}
-              onChange={handleFilterChange}
+              search={debouncedSearch}
+              onChange={(from, to, category, group, groupType, payer, search) => {
+                setDebouncedSearch(search);
+                // Immediately apply other filters, but keep search debounced
+                handleFilterChange(from, to, category, group, groupType, payer, filters.search);
+              }}
             />
           </div>
           <TransactionTable
-            data={displayData}
+            data={data}
             loading={loading}
             page={page}
             totalPages={totalPages}
