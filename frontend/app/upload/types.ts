@@ -17,10 +17,13 @@ export interface ParsedTransaction {
   date: string;
   category?: string;
   categoryName?: string;
+  categorySource?: "csv" | "ai" | "user" | null;
   country?: string | null;
   traveller?: string;
   paymentMethod?: string;
   groupId?: string;
+  sourceFormat: string;
+  raw: Record<string, string>;
 }
 
 export interface ParsedUploadResult {
