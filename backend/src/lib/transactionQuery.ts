@@ -12,6 +12,7 @@ export interface TransactionFilterInput {
   traveller?: string;
   groupId?: string;
   groupType?: string;
+  search?: string;
 }
 
 export interface TransactionFilterSQL {
@@ -45,7 +46,20 @@ export function buildTransactionFilterSQL(
   if (params.category) conditions.push(`t.category_id = ${addParam(params.category)}`);
   if (params.paymentMethod) conditions.push(`t.payment_method = ${addParam(params.paymentMethod)}`);
   if (params.groupId) conditions.push(`t.group_id = ${addParam(params.groupId)}`);
-  if (params.groupType) conditions.push(`g.group_type = ${addParam(params.groupType)}`);
+  if (params.groupType) {
+    joins.push(`LEFT JOIN groups g ON g.id = t.group_id`);
+    conditions.push(`g.group_type = ${addParam(params.groupType)}`);
+  }
+
+  if (params.search) {
+    // Ensure we have categories for searching by name
+    if (!joins.some(j => j.includes("JOIN categories c"))) {
+      joins.push(`LEFT JOIN categories c ON c.id = t.category_id`);
+    }
+    const s = `%${params.search}%`;
+    const p = addParam(s);
+    conditions.push(`(t.description ILIKE ${p} OR c.name ILIKE ${p} OR t.payer ILIKE ${p})`);
+  }
 
   // Filter by the payer stored directly on the transaction, not by split participant.
   if (params.traveller) {
