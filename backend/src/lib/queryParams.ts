@@ -8,6 +8,7 @@ export interface TransactionQueryParams {
   traveller: string | undefined;
   groupId: string | undefined;
   groupType: string | undefined;
+  search: string | undefined;
   page: number;
   limit: number;
 }
@@ -38,6 +39,7 @@ export function parseTransactionQuery(raw: Record<string, unknown>): {
   const traveller = typeof raw.traveller === "string" ? raw.traveller : undefined;
   const groupId = typeof raw.groupId === "string" ? raw.groupId : undefined;
   const groupType = typeof raw.groupType === "string" ? raw.groupType : undefined;
+  const search = typeof raw.search === "string" ? raw.search : undefined;
 
   if (from !== undefined && !ISO_DATE.test(from)) {
     errors.push({ field: "from", message: "Must be ISO date (YYYY-MM-DD)" });
@@ -77,7 +79,7 @@ export function parseTransactionQuery(raw: Record<string, unknown>): {
   }
 
   return {
-    params: { from, to, category, paymentMethod, traveller, groupId, groupType, page, limit },
+    params: { from, to, category, paymentMethod, traveller, groupId, groupType, search, page, limit },
     errors,
   };
 }
