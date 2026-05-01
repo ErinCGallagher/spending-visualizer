@@ -23,13 +23,13 @@ router.get("/", async (req, res) => {
     return;
   }
 
-  const { from, to, category, paymentMethod, traveller, groupId, groupType, page, limit } = params;
+  const { from, to, category, paymentMethod, traveller, groupId, groupType, search, page, limit } = params;
 
   const { joins, conditions, values } = buildTransactionFilterSQL(userId, {
-    from, to, category, paymentMethod, traveller, groupId, groupType,
+    from, to, category, paymentMethod, traveller, groupId, groupType, search,
   });
 
-  const travellerJoin = joins.join("\n");
+  const filterJoins = [...new Set(joins)].join("\n");
   const where = conditions.join(" AND ");
   const offset = (page - 1) * limit;
 
@@ -37,8 +37,7 @@ router.get("/", async (req, res) => {
     const countResult = await pool.query<{ count: string }>(
       `SELECT COUNT(*) AS count
        FROM transactions t
-       ${travellerJoin}
-       LEFT JOIN groups g ON g.id = t.group_id
+       ${filterJoins}
        WHERE ${where}`,
       values
     );
@@ -67,10 +66,12 @@ router.get("/", async (req, res) => {
          g.name           AS "groupName",
          g.group_type     AS "groupType"
        FROM transactions t
-       ${travellerJoin}
-       LEFT JOIN categories c ON c.id = t.category_id
-       LEFT JOIN uploads u ON u.id = t.upload_id
-       LEFT JOIN groups g ON g.id = t.group_id
+       ${[...new Set([
+         ...joins,
+         "LEFT JOIN categories c ON c.id = t.category_id",
+         "LEFT JOIN uploads u ON u.id = t.upload_id",
+         "LEFT JOIN groups g ON g.id = t.group_id"
+       ])].join("\n")}
        WHERE ${where}
        ORDER BY t.date DESC, t.id
        LIMIT ${limitParam} OFFSET ${offsetParam}`,

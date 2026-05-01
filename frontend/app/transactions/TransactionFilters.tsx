@@ -18,34 +18,33 @@ interface Meta {
 
 interface Props {
   meta: Meta | null;
-  search: string;
-  onSearchChange: (search: string) => void;
   from: string;
   to: string;
   category: string;
   group: string;
   groupType: string;
   payer: string;
+  search: string;
   onChange: (
     from: string,
     to: string,
     category: string,
     group: string,
     groupType: string,
-    payer: string
+    payer: string,
+    search: string
   ) => void;
 }
 
 export default function TransactionFilters({
   meta,
-  search,
-  onSearchChange,
   from,
   to,
   category,
   group,
   groupType,
   payer,
+  search,
   onChange,
 }: Props) {
   const [showFilters, setShowFilters] = useState(false);
@@ -60,8 +59,7 @@ export default function TransactionFilters({
     search !== "";
 
   function resetFilters() {
-    onSearchChange("");
-    onChange("", "", "", "", "", "");
+    onChange("", "", "", "", "", "", "");
   }
 
   const groupTypes = Array.from(
@@ -78,7 +76,9 @@ export default function TransactionFilters({
             type="text"
             placeholder="Search transactions..."
             value={search}
-            onChange={(e) => onSearchChange(e.target.value)}
+            onChange={(e) =>
+              onChange(from, to, category, group, groupType, payer, e.target.value)
+            }
             className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20 text-slate-900"
           />
         </div>
@@ -109,7 +109,7 @@ export default function TransactionFilters({
               type="date"
               value={from}
               onChange={(e) =>
-                onChange(e.target.value, to, category, group, groupType, payer)
+                onChange(e.target.value, to, category, group, groupType, payer, search)
               }
               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
             />
@@ -122,7 +122,7 @@ export default function TransactionFilters({
               type="date"
               value={to}
               onChange={(e) =>
-                onChange(from, e.target.value, category, group, groupType, payer)
+                onChange(from, e.target.value, category, group, groupType, payer, search)
               }
               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
             />
@@ -134,7 +134,7 @@ export default function TransactionFilters({
             <select
               value={category}
               onChange={(e) =>
-                onChange(from, to, e.target.value, group, groupType, payer)
+                onChange(from, to, e.target.value, group, groupType, payer, search)
               }
               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
             >
@@ -153,7 +153,7 @@ export default function TransactionFilters({
             <select
               value={payer}
               onChange={(e) =>
-                onChange(from, to, category, group, groupType, e.target.value)
+                onChange(from, to, category, group, groupType, e.target.value, search)
               }
               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
             >
@@ -172,7 +172,7 @@ export default function TransactionFilters({
             <select
               value={group}
               onChange={(e) =>
-                onChange(from, to, category, e.target.value, groupType, payer)
+                onChange(from, to, category, e.target.value, groupType, payer, search)
               }
               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
             >
@@ -192,7 +192,7 @@ export default function TransactionFilters({
               <select
                 value={groupType}
                 onChange={(e) =>
-                  onChange(from, to, category, group, e.target.value, payer)
+                  onChange(from, to, category, group, e.target.value, payer, search)
                 }
                 className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
               >
