@@ -24,12 +24,15 @@ export interface Meta {
   dateRange: { from: string; to: string } | null;
   groups: { id: string; name: string; groupType: string }[];
   groupTypes: { value: string; label: string }[];
+  overviewDefaultFilter: string | null;
+  tripDefaultFilter: string | null;
   homeCurrency: string | null;
 }
 
 interface Props {
   meta: Meta | null;
   onChange: (filters: FilterValues) => void;
+  initialValues?: Partial<FilterValues>;
   showTravellers?: boolean;
   showGroupType?: boolean;
 }
@@ -122,13 +125,13 @@ function MultiSelect({
   );
 }
 
-export default function Filters({ meta, onChange, showTravellers = true, showGroupType = true }: Props) {
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
-  const [travellers, setTravellers] = useState<string[]>([]);
-  const [countries, setCountries] = useState<string[]>([]);
-  const [groupTypes, setGroupTypes] = useState<string[]>([]);
-  const [activePreset, setActivePreset] = useState<Preset | null>("all");
+export default function Filters({ meta, onChange, initialValues, showTravellers = true, showGroupType = true }: Props) {
+  const [from, setFrom] = useState(initialValues?.from ?? "");
+  const [to, setTo] = useState(initialValues?.to ?? "");
+  const [travellers, setTravellers] = useState<string[]>(initialValues?.travellers ?? []);
+  const [countries, setCountries] = useState<string[]>(initialValues?.countries ?? []);
+  const [groupTypes, setGroupTypes] = useState<string[]>(initialValues?.groupTypes ?? []);
+  const [activePreset, setActivePreset] = useState<Preset | null>(initialValues?.from || initialValues?.to ? null : "all");
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   const hasActiveFilters =
