@@ -61,8 +61,8 @@ describe("parseCategoriseResponse", () => {
       { categoryName: "Transport", confidence: 0.7 },
     ]);
     const result = parseCategoriseResponse(text, 2);
-    expect(result[0]).toEqual({ categoryName: "Food", confidence: 0.9 });
-    expect(result[1]).toEqual({ categoryName: "Transport", confidence: 0.7 });
+    expect(result[0]).toEqual({ categoryName: "Food", confidence: 0.9, source: "ai" });
+    expect(result[1]).toEqual({ categoryName: "Transport", confidence: 0.7, source: "ai" });
   });
 
   it("strips markdown code fences before parsing", () => {
