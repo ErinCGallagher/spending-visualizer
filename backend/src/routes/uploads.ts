@@ -132,10 +132,12 @@ router.post("/categorise", async (req, res) => {
     }
   }
 
-  // Pre-fill results with cache hits (confidence 1)
-  const results: { categoryName: string; confidence: number }[] = transactions.map((_, i) => {
+  // Pre-fill results with cache hits
+  const results: CategoriseResult[] = transactions.map((_, i) => {
     const cached = cacheByKey.get(merchantKeys[i]);
-    return cached ? { categoryName: cached, confidence: 1 } : { categoryName: "Uncategorized", confidence: 0 };
+    return cached
+      ? { categoryName: cached, confidence: 1, source: "cache" }
+      : { categoryName: "Uncategorized", confidence: 0, source: "ai" };
   });
 
   if (uncachedTransactions.length === 0) {
@@ -178,6 +180,11 @@ router.post("/categorise", async (req, res) => {
 
     const aiResults = parseCategoriseResponse(response.text ?? "", uncachedTransactions.length);
     for (let i = 0; i < uncachedIndices.length; i++) {
+      // Cap AI confidence at 0.99 so they are always shown in the review table.
+      // 1.0 is reserved for true database cache hits.
+      if (aiResults[i].confidence >= 1) {
+        aiResults[i].confidence = 0.99;
+      }
       results[uncachedIndices[i]] = aiResults[i];
     }
     res.json({ results });

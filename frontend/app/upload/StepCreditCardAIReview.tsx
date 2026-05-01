@@ -27,6 +27,7 @@ function formatAmount(amount: number) {
 interface CategoriseResult {
   categoryName: string;
   confidence: number;
+  source: "cache" | "ai";
 }
 
 export default function StepCreditCardAIReview({
@@ -86,32 +87,33 @@ export default function StepCreditCardAIReview({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const cacheHitCount = results.filter((r) => r.confidence === 1).length;
+  const cacheHitCount = results.filter((r) => r.source === "cache").length;
   // All non-cache-hit results go into the review table
   const aiSuggestions = results
     .map((r, i) => ({ ...r, transactionIndex: i }))
-    .filter((r) => r.confidence < 1);
+    .filter((r) => r.source === "ai");
 
   const allTaxonomyNames = new Set(
     existingTaxonomy.flatMap((c) => [c.name, ...c.children.map((ch) => ch.name)])
   );
 
-  const allSubOptions: { label: string; value: string; group: string }[] = [];
-  for (const main of existingTaxonomy) {
-    if (main.children?.length) {
-      for (const sub of main.children) {
-        allSubOptions.push({ label: sub.name, value: sub.name, group: main.name });
-      }
-    } else {
-      allSubOptions.push({ label: main.name, value: main.name, group: main.name });
+  const parentCategories = existingTaxonomy.map((c) => c.name);
+  const childToParent = new Map<string, string>();
+  const parentToChildren = new Map<string, string[]>();
+
+  for (const cat of existingTaxonomy) {
+    parentToChildren.set(cat.name, cat.children.map((ch) => ch.name));
+    for (const child of cat.children) {
+      childToParent.set(child.name, cat.name);
     }
   }
-  const groups = Array.from(new Set(allSubOptions.map((o) => o.group)));
 
   function handleContinue() {
     const updated = transactions.map((t, i) => ({
       ...t,
       categoryName: choices[i] ?? t.categoryName ?? undefined,
+      categorySource: results[i]?.source === "cache" ? ("user" as const) : ("ai" as const),
+      categoryConfidence: results[i]?.confidence ?? 0,
     }));
 
     const confirmedNames = new Set(
@@ -175,13 +177,28 @@ export default function StepCreditCardAIReview({
                   <th className="py-2 pr-4">Description</th>
                   <th className="py-2 pr-4">Amount</th>
                   <th className="py-2 pr-4">AI Suggestion</th>
-                  <th className="py-2">Category</th>
+                  <th className="py-2 pr-4">Parent Category</th>
+                  <th className="py-2">Sub Category</th>
                 </tr>
               </thead>
               <tbody>
                 {aiSuggestions.map((s) => {
                   const tx = transactions[s.transactionIndex];
                   const isLowConfidence = s.confidence < 0.8;
+                  const currentChoice = choices[s.transactionIndex] ?? "";
+                  
+                  // Determine current parent and sub based on taxonomy
+                  const inferredParent = childToParent.get(currentChoice) || (parentCategories.includes(currentChoice) ? currentChoice : null);
+                  const inferredSub = inferredParent && inferredParent !== currentChoice ? currentChoice : null;
+
+                  const parentOptions = [...parentCategories];
+                  // If current choice is completely new, it acts as a new parent for now
+                  if (!inferredParent && currentChoice !== "") {
+                    parentOptions.unshift(currentChoice);
+                  }
+
+                  const subOptions = inferredParent ? parentToChildren.get(inferredParent) || [] : [];
+
                   return (
                     <tr
                       key={s.transactionIndex}
@@ -201,30 +218,49 @@ export default function StepCreditCardAIReview({
                           {s.categoryName} ({Math.round(s.confidence * 100)}%)
                         </span>
                       </td>
-                      <td className="py-3">
+                      <td className="py-3 pr-4">
                         <select
-                          value={choices[s.transactionIndex] ?? ""}
-                          onChange={(e) =>
+                          value={inferredParent || ""}
+                          onChange={(e) => {
+                            const newParent = e.target.value;
                             setChoices((prev) => ({
                               ...prev,
-                              [s.transactionIndex]: e.target.value,
-                            }))
-                          }
-                          className="border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-800"
+                              [s.transactionIndex]: newParent,
+                            }));
+                          }}
+                          className="border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-800 w-full"
                         >
                           <option value="">Uncategorised</option>
-                          {groups.map((group) => {
-                            const opts = allSubOptions.filter((o) => o.group === group);
-                            return (
-                              <optgroup key={group} label={group}>
-                                {opts.map((o) => (
-                                  <option key={o.value} value={o.value}>
-                                    {o.label}
-                                  </option>
-                                ))}
-                              </optgroup>
-                            );
-                          })}
+                          {parentOptions.map((p) => (
+                            <option key={p} value={p}>
+                              {p} {!allTaxonomyNames.has(p) ? "(New)" : ""}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="py-3">
+                        <select
+                          value={inferredSub || ""}
+                          disabled={!inferredParent}
+                          onChange={(e) => {
+                            const newSub = e.target.value;
+                            setChoices((prev) => ({
+                              ...prev,
+                              [s.transactionIndex]: newSub || inferredParent || "",
+                            }));
+                          }}
+                          className="border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-800 w-full disabled:bg-gray-50 disabled:text-gray-400"
+                        >
+                          <option value="">Optional / None</option>
+                          {subOptions.map((sub) => (
+                            <option key={sub} value={sub}>
+                              {sub}
+                            </option>
+                          ))}
+                          {/* If the AI suggested a sub that isn't in taxonomy yet */}
+                          {!inferredParent && !parentCategories.includes(currentChoice) && currentChoice !== "" && (
+                             <option value={currentChoice}>{currentChoice} (New)</option>
+                          )}
                         </select>
                       </td>
                     </tr>
