@@ -12,8 +12,13 @@ import type { CategoryTotal } from "@/app/dashboard/CategoryPieChart";
 import type { MonthlyTotal } from "@/app/dashboard/MonthlyBarChart";
 import type { CumulativePoint, Granularity } from "@/app/dashboard/CumulativeLineChart";
 
-interface Meta {
+export interface Meta {
+  categories: { id: string; name: string }[];
+  travellers: string[];
+  paymentMethods: string[];
   dateRange: { from: string; to: string } | null;
+  groups: { id: string; name: string; groupType: string }[];
+  groupTypes: { value: string; label: string }[];
   homeCurrency: string | null;
 }
 
@@ -26,6 +31,7 @@ function buildParams(
   if (filters.to) params.set("to", filters.to);
   for (const t of filters.travellers) params.append("traveller", t);
   for (const c of filters.countries) params.append("country", c);
+  for (const gt of filters.groupTypes) params.append("groupType", gt);
   for (const [k, v] of Object.entries(extra)) params.set(k, v);
   return params.toString();
 }
@@ -66,7 +72,17 @@ export function useDashboardData(
     fetch("/api/transactions/meta", { credentials: "include" })
       .then((r) => r.json())
       .then((data: Meta) => setMeta(data))
-      .catch(() => setMeta({ dateRange: null, homeCurrency: null }))
+      .catch(() =>
+        setMeta({
+          categories: [],
+          travellers: [],
+          paymentMethods: [],
+          dateRange: null,
+          groups: [],
+          groupTypes: [],
+          homeCurrency: null,
+        })
+      )
       .finally(() => setMetaLoading(false));
   }, []);
 

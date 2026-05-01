@@ -14,17 +14,24 @@ export interface FilterValues {
   to: string;
   travellers: string[];
   countries: string[];
+  groupTypes: string[];
 }
 
-interface Meta {
+export interface Meta {
+  categories: { id: string; name: string }[];
   travellers: string[];
-  countries: string[];
+  paymentMethods: string[];
   dateRange: { from: string; to: string } | null;
+  groups: { id: string; name: string; groupType: string }[];
+  groupTypes: { value: string; label: string }[];
+  homeCurrency: string | null;
 }
 
 interface Props {
+  meta: Meta | null;
   onChange: (filters: FilterValues) => void;
   showTravellers?: boolean;
+  showGroupType?: boolean;
 }
 
 type Preset = "30d" | "all";
@@ -38,11 +45,13 @@ function MultiSelect({
   options,
   selected,
   onChange,
+  renderOption,
 }: {
   label: string;
   options: string[];
   selected: string[];
   onChange: (val: string[]) => void;
+  renderOption?: (opt: string) => string;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -103,7 +112,7 @@ function MultiSelect({
                   onChange={() => toggle(opt)}
                   className="rounded border-slate-300 text-brand-primary"
                 />
-                {opt}
+                {renderOption ? renderOption(opt) : opt}
               </label>
             ))
           )}
@@ -113,28 +122,24 @@ function MultiSelect({
   );
 }
 
-export default function Filters({ onChange, showTravellers = true }: Props) {
-  const [meta, setMeta] = useState<Meta | null>(null);
+export default function Filters({ meta, onChange, showTravellers = true, showGroupType = true }: Props) {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [travellers, setTravellers] = useState<string[]>([]);
   const [countries, setCountries] = useState<string[]>([]);
+  const [groupTypes, setGroupTypes] = useState<string[]>([]);
   const [activePreset, setActivePreset] = useState<Preset | null>("all");
   const [filtersOpen, setFiltersOpen] = useState(false);
 
-  const hasActiveFilters = from !== "" || to !== "" || travellers.length > 0 || countries.length > 0;
+  const hasActiveFilters =
+    from !== "" ||
+    to !== "" ||
+    travellers.length > 0 ||
+    countries.length > 0 ||
+    groupTypes.length > 0;
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isMounted = useRef(false);
-
-  useEffect(() => {
-    fetch("/api/transactions/meta", { credentials: "include" })
-      .then((r) => r.json())
-      .then((data: Meta) => setMeta(data))
-      .catch(() => {
-        // Non-fatal — filters just won't have options
-      });
-  }, []);
 
   // Emit debounced filter changes upward, skipping the initial mount so the
   // parent's existing filter state isn't overwritten with a new object reference.
@@ -145,12 +150,12 @@ export default function Filters({ onChange, showTravellers = true }: Props) {
     }
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      onChange({ from, to, travellers, countries });
+      onChange({ from, to, travellers, countries, groupTypes });
     }, 300);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [from, to, travellers, countries, onChange]);
+  }, [from, to, travellers, countries, groupTypes, onChange]);
 
   function applyPreset(preset: Preset) {
     const today = new Date();
@@ -186,9 +191,9 @@ export default function Filters({ onChange, showTravellers = true }: Props) {
         <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${filtersOpen ? "rotate-180" : ""}`} />
       </button>
 
-    <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 ${filtersOpen ? "mt-3" : "hidden md:grid"}`}>
+    <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-11 gap-4 ${filtersOpen ? "mt-3" : "hidden md:grid"}`}>
       {/* Date presets */}
-      <div className="space-y-1.5">
+      <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
           Quick range
         </label>
@@ -202,7 +207,7 @@ export default function Filters({ onChange, showTravellers = true }: Props) {
             <button
               key={key}
               onClick={() => applyPreset(key)}
-              className={`flex-1 px-3 py-1.5 text-sm font-semibold rounded-md transition-all ${
+              className={`flex-1 px-3 py-1.5 text-sm font-semibold rounded-md transition-all whitespace-nowrap ${
                 activePreset === key
                   ? "bg-brand-primary text-white shadow-sm"
                   : "text-slate-500 hover:bg-slate-100"
@@ -215,7 +220,7 @@ export default function Filters({ onChange, showTravellers = true }: Props) {
       </div>
 
       {/* From date */}
-      <div className="space-y-1.5">
+      <div className="space-y-1.5 lg:col-span-2">
         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
           From
         </label>
@@ -231,7 +236,7 @@ export default function Filters({ onChange, showTravellers = true }: Props) {
       </div>
 
       {/* To date */}
-      <div className="space-y-1.5">
+      <div className="space-y-1.5 lg:col-span-2">
         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
           To
         </label>
@@ -248,7 +253,7 @@ export default function Filters({ onChange, showTravellers = true }: Props) {
 
       {/* Traveller multi-select */}
       {showTravellers && (
-        <div className="space-y-1.5">
+        <div className="space-y-1.5 lg:col-span-2">
           <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
             Traveller
           </label>
@@ -262,7 +267,7 @@ export default function Filters({ onChange, showTravellers = true }: Props) {
       )}
 
       {/* Country multi-select */}
-      <div className="space-y-1.5">
+      <div className="space-y-1.5 lg:col-span-2">
         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
           Country
         </label>
@@ -273,6 +278,26 @@ export default function Filters({ onChange, showTravellers = true }: Props) {
           onChange={setCountries}
         />
       </div>
+
+      {/* Group Type multi-select */}
+      {showGroupType && (
+        <div className="space-y-1.5 lg:col-span-2">
+          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+            Group Type
+          </label>
+          <MultiSelect
+            label="Type"
+            options={Array.isArray(meta?.groupTypes) ? meta.groupTypes.map((gt) => gt.value) : []}
+            selected={groupTypes}
+            onChange={setGroupTypes}
+            renderOption={(val) =>
+              Array.isArray(meta?.groupTypes) 
+                ? meta.groupTypes.find((gt) => gt.value === val)?.label ?? val
+                : val
+            }
+          />
+        </div>
+      )}
     </div>
     </div>
   );

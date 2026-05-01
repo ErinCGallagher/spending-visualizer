@@ -7,7 +7,7 @@ export interface TransactionQueryParams {
   paymentMethod: string | undefined;
   traveller: string | undefined;
   groupId: string | undefined;
-  groupType: string | undefined;
+  groupType: string[];
   search: string | undefined;
   page: number;
   limit: number;
@@ -38,7 +38,7 @@ export function parseTransactionQuery(raw: Record<string, unknown>): {
   const paymentMethod = typeof raw.paymentMethod === "string" ? raw.paymentMethod : undefined;
   const traveller = typeof raw.traveller === "string" ? raw.traveller : undefined;
   const groupId = typeof raw.groupId === "string" ? raw.groupId : undefined;
-  const groupType = typeof raw.groupType === "string" ? raw.groupType : undefined;
+  const groupType = [raw.groupType ?? []].flat().filter(Boolean) as string[];
   const search = typeof raw.search === "string" ? raw.search : undefined;
 
   if (from !== undefined && !ISO_DATE.test(from)) {
@@ -54,8 +54,10 @@ export function parseTransactionQuery(raw: Record<string, unknown>): {
     errors.push({ field: "groupId", message: "Must be a valid UUID" });
   }
   const VALID_GROUP_TYPES = ["trip", "daily", "business"];
-  if (groupType !== undefined && !VALID_GROUP_TYPES.includes(groupType)) {
-    errors.push({ field: "groupType", message: "Must be one of: trip, daily, business" });
+  for (const gt of groupType) {
+    if (!VALID_GROUP_TYPES.includes(gt)) {
+      errors.push({ field: "groupType", message: "Must be one of: trip, daily, business" });
+    }
   }
 
   let page = 1;

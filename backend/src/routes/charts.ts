@@ -27,10 +27,12 @@ router.get("/category-totals", async (req, res) => {
   const userId: string = res.locals.userId;
   const { from, to, traveller } = req.query as Record<string, string | undefined>;
   const countries = [req.query.country ?? []].flat().filter(Boolean) as string[];
+  const groupTypes = [req.query.groupType ?? []].flat().filter(Boolean) as string[];
   const groupId = typeof req.query.groupId === "string" ? req.query.groupId : undefined;
 
   const conditions: string[] = ["t.user_id = $1"];
   const values: unknown[] = [userId];
+  const joins: string[] = [];
 
   const addParam = (value: unknown): string => {
     values.push(value);
@@ -41,8 +43,13 @@ router.get("/category-totals", async (req, res) => {
   if (to) conditions.push(`t.date <= ${addParam(to)}`);
   if (countries.length > 0) conditions.push(`t.country = ANY(${addParam(countries)})`);
   if (groupId) conditions.push(`t.group_id = ${addParam(groupId)}`);
+  if (groupTypes.length > 0) {
+    joins.push("LEFT JOIN groups g ON g.id = t.group_id");
+    conditions.push(`g.group_type = ANY(${addParam(groupTypes)})`);
+  }
 
   const where = conditions.join(" AND ");
+  const joinClause = joins.join(" ");
 
   try {
     let rows: { category: string; total: number }[];
@@ -57,6 +64,7 @@ router.get("/category-totals", async (req, res) => {
            FROM transactions t
            JOIN transaction_splits ts
              ON ts.transaction_id = t.id AND ts.traveller_name = ${travellerParam}
+           ${joinClause}
            LEFT JOIN categories c ON c.id = t.category_id
            LEFT JOIN categories p ON p.id = c.parent_id
            WHERE ${where}
@@ -73,6 +81,7 @@ router.get("/category-totals", async (req, res) => {
            SELECT COALESCE(p.name, c.name, 'Uncategorized') AS category,
                   t.amount_home AS total
            FROM transactions t
+           ${joinClause}
            LEFT JOIN categories c ON c.id = t.category_id
            LEFT JOIN categories p ON p.id = c.parent_id
            WHERE ${where}
@@ -242,6 +251,7 @@ router.get("/monthly-totals", async (req, res) => {
   const userId: string = res.locals.userId;
   const { from, to, traveller, groupBy = "total", granularity = "month" } = req.query as Record<string, string | undefined>;
   const countries = [req.query.country ?? []].flat().filter(Boolean) as string[];
+  const groupTypes = [req.query.groupType ?? []].flat().filter(Boolean) as string[];
 
   if (groupBy !== "category" && groupBy !== "total") {
     res.status(400).json({ error: "groupBy must be 'category' or 'total'" });
@@ -260,6 +270,7 @@ router.get("/monthly-totals", async (req, res) => {
 
   const conditions: string[] = ["t.user_id = $1"];
   const values: unknown[] = [userId];
+  const joins: string[] = [];
 
   const addParam = (value: unknown): string => {
     values.push(value);
@@ -269,8 +280,13 @@ router.get("/monthly-totals", async (req, res) => {
   if (from) conditions.push(`t.date >= ${addParam(from)}`);
   if (to) conditions.push(`t.date <= ${addParam(to)}`);
   if (countries.length > 0) conditions.push(`t.country = ANY(${addParam(countries)})`);
+  if (groupTypes.length > 0) {
+    joins.push("LEFT JOIN groups g ON g.id = t.group_id");
+    conditions.push(`g.group_type = ANY(${addParam(groupTypes)})`);
+  }
 
   const where = conditions.join(" AND ");
+  const joinClause = joins.join(" ");
 
   try {
     let rows: { month: string; category?: string; total: number }[];
@@ -287,6 +303,7 @@ router.get("/monthly-totals", async (req, res) => {
              FROM transactions t
              JOIN transaction_splits ts
                ON ts.transaction_id = t.id AND ts.traveller_name = ${travellerParam}
+             ${joinClause}
              LEFT JOIN categories c ON c.id = t.category_id
              LEFT JOIN categories p ON p.id = c.parent_id
              WHERE ${where}
@@ -307,6 +324,7 @@ router.get("/monthly-totals", async (req, res) => {
            FROM transactions t
            JOIN transaction_splits ts
              ON ts.transaction_id = t.id AND ts.traveller_name = ${travellerParam}
+           ${joinClause}
            WHERE ${where}
            GROUP BY month
            ORDER BY month`,
@@ -322,6 +340,7 @@ router.get("/monthly-totals", async (req, res) => {
                   COALESCE(p.name, c.name, 'Uncategorized') AS category,
                   t.amount_home AS total
            FROM transactions t
+           ${joinClause}
            LEFT JOIN categories c ON c.id = t.category_id
            LEFT JOIN categories p ON p.id = c.parent_id
            WHERE ${where}
@@ -340,6 +359,7 @@ router.get("/monthly-totals", async (req, res) => {
         `SELECT ${dateExpr} AS month,
                 SUM(t.amount_home) AS total
          FROM transactions t
+         ${joinClause}
          WHERE ${where}
          GROUP BY month
          ORDER BY month`,
@@ -364,6 +384,7 @@ router.get("/cumulative", async (req, res) => {
   const userId: string = res.locals.userId;
   const { from, to, traveller, granularity = "day" } = req.query as Record<string, string | undefined>;
   const countries = [req.query.country ?? []].flat().filter(Boolean) as string[];
+  const groupTypes = [req.query.groupType ?? []].flat().filter(Boolean) as string[];
 
   if (!["day", "week", "month"].includes(granularity)) {
     res.status(400).json({ error: "granularity must be 'day', 'week', or 'month'" });
@@ -376,6 +397,7 @@ router.get("/cumulative", async (req, res) => {
 
   const conditions: string[] = ["t.user_id = $1"];
   const values: unknown[] = [userId];
+  const joins: string[] = [];
 
   const addParam = (value: unknown): string => {
     values.push(value);
@@ -385,8 +407,13 @@ router.get("/cumulative", async (req, res) => {
   if (from) conditions.push(`t.date >= ${addParam(from)}`);
   if (to) conditions.push(`t.date <= ${addParam(to)}`);
   if (countries.length > 0) conditions.push(`t.country = ANY(${addParam(countries)})`);
+  if (groupTypes.length > 0) {
+    joins.push("LEFT JOIN groups g ON g.id = t.group_id");
+    conditions.push(`g.group_type = ANY(${addParam(groupTypes)})`);
+  }
 
   const where = conditions.join(" AND ");
+  const joinClause = joins.join(" ");
 
   try {
     let rows: { date: string; runningTotal: number }[];
@@ -404,6 +431,7 @@ router.get("/cumulative", async (req, res) => {
            FROM transactions t
            JOIN transaction_splits ts
              ON ts.transaction_id = t.id AND ts.traveller_name = ${travellerParam}
+           ${joinClause}
            WHERE ${where}
            GROUP BY bucket
          ) sub
@@ -424,6 +452,7 @@ router.get("/cumulative", async (req, res) => {
              DATE_TRUNC('${trunc}', t.date) AS bucket,
              SUM(t.amount_home) AS period_total
            FROM transactions t
+           ${joinClause}
            WHERE ${where}
            GROUP BY bucket
          ) sub
