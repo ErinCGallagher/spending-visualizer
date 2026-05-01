@@ -1,9 +1,14 @@
 /**
  * Generic confirmation modal with optional danger styling.
+ * Rendered via a portal at document.body to avoid being clipped by
+ * transformed ancestors (e.g. page transition wrappers).
  * Used for destructive actions that require explicit user confirmation.
  */
 
 "use client";
+
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 interface Props {
   title: string;
@@ -28,7 +33,17 @@ export default function ConfirmModal({
   danger = false,
   error,
 }: Props) {
-  return (
+  const [mounted, setMounted] = useState(false);
+  const portalRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    portalRef.current = document.body;
+    setMounted(true);
+  }, []);
+
+  if (!mounted || !portalRef.current) return null;
+
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="bg-white rounded-xl border border-gray-200 shadow-xl p-6 max-w-md w-full mx-4 space-y-4">
         <h3 className="text-base font-semibold text-gray-900">{title}</h3>
@@ -55,6 +70,7 @@ export default function ConfirmModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    portalRef.current
   );
 }
