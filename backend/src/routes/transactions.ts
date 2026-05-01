@@ -57,7 +57,8 @@ router.get("/", async (req, res) => {
          t.amount_local   AS "amountLocal",
          t.local_currency AS "localCurrency",
          t.category_id    AS "categoryId",
-         c.name           AS "categoryName",
+         COALESCE(p.name, c.name) AS "parentCategoryName",
+         CASE WHEN p.name IS NOT NULL THEN c.name ELSE NULL END AS "subCategoryName",
          t.category_source AS "categorySource",
          t.payment_method  AS "paymentMethod",
          t.country,
@@ -69,6 +70,7 @@ router.get("/", async (req, res) => {
        ${[...new Set([
          ...joins,
          "LEFT JOIN categories c ON c.id = t.category_id",
+         "LEFT JOIN categories p ON p.id = c.parent_id",
          "LEFT JOIN uploads u ON u.id = t.upload_id",
          "LEFT JOIN groups g ON g.id = t.group_id"
        ])].join("\n")}
