@@ -7,6 +7,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { format, subDays } from "date-fns";
+import { ChevronDown, SlidersHorizontal } from "lucide-react";
 
 export interface FilterValues {
   from: string;
@@ -119,6 +120,9 @@ export default function Filters({ onChange, showTravellers = true }: Props) {
   const [travellers, setTravellers] = useState<string[]>([]);
   const [countries, setCountries] = useState<string[]>([]);
   const [activePreset, setActivePreset] = useState<Preset | null>("all");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+
+  const hasActiveFilters = from !== "" || to !== "" || travellers.length > 0 || countries.length > 0;
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isMounted = useRef(false);
@@ -164,7 +168,25 @@ export default function Filters({ onChange, showTravellers = true }: Props) {
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+    <div>
+      {/* Mobile collapse toggle */}
+      <button
+        onClick={() => setFiltersOpen((o) => !o)}
+        className="md:hidden w-full flex items-center justify-between px-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+      >
+        <span className="flex items-center gap-2">
+          <SlidersHorizontal className="w-4 h-4 text-slate-400" />
+          Filters
+          {hasActiveFilters && (
+            <span className="inline-flex items-center justify-center w-4 h-4 bg-brand-primary text-white text-[10px] font-bold rounded-full">
+              !
+            </span>
+          )}
+        </span>
+        <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${filtersOpen ? "rotate-180" : ""}`} />
+      </button>
+
+    <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 ${filtersOpen ? "mt-3" : "hidden md:grid"}`}>
       {/* Date presets */}
       <div className="space-y-1.5">
         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
@@ -251,6 +273,7 @@ export default function Filters({ onChange, showTravellers = true }: Props) {
           onChange={setCountries}
         />
       </div>
+    </div>
     </div>
   );
 }
