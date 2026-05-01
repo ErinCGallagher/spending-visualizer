@@ -25,6 +25,34 @@ router.get("/", async (_req, res) => {
   }
 });
 
+/** GET /api/categories/mappings — returns the user's credit card category mappings. */
+router.get("/mappings", async (_req, res) => {
+  const userId: string = res.locals.userId;
+
+  try {
+    const { rows } = await pool.query<{
+      merchant_key: string;
+      category_name: string;
+      parent_name: string | null;
+    }>(
+      `SELECT 
+         ccm.merchant_key, 
+         c.name AS category_name,
+         p.name AS parent_name
+       FROM credit_card_category_mappings ccm
+       JOIN categories c ON c.id = ccm.category_id
+       LEFT JOIN categories p ON p.id = c.parent_id
+       WHERE ccm.user_id = $1
+       ORDER BY ccm.merchant_key`,
+      [userId]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error("GET /api/categories/mappings error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 /**
  * POST /api/categories/organise — upserts categories and sets parent relationships.
  * Accepts `{ categories: { name, parentName | null }[] }` and returns the

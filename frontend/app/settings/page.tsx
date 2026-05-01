@@ -95,6 +95,34 @@ export default function SettingsPage() {
           </dl>
         </div>
 
+        {/* Categories */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
+          <h2 className="text-sm font-semibold text-gray-700">Data Management</h2>
+          <div className="space-y-3 text-sm">
+            <Link
+              href="/settings/categories"
+              className="flex items-center justify-between p-4 bg-slate-50 border border-slate-100 rounded-xl hover:bg-slate-100 hover:border-slate-200 transition-all group shadow-sm"
+            >
+              <div>
+                <dt className="font-semibold text-gray-900">Credit card categories</dt>
+                <dd className="text-gray-500 text-xs mt-0.5">View and manage mappings from merchant names to categories.</dd>
+              </div>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                className="w-6 h-6 text-gray-400 group-hover:text-gray-600 transition-colors"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            </Link>
+          </div>
+        </div>
+
         {/* Danger zone */}
         <div className="bg-white rounded-xl shadow-sm border border-red-200 p-6 space-y-4">
           <h2 className="text-sm font-semibold text-red-700">Danger zone</h2>
