@@ -53,7 +53,7 @@ export default function StepFilePicker({ onSuccess }: Props) {
       const data = await res.json();
 
       if (!res.ok) {
-        setErrors([data.message ?? "Upload failed"]);
+        setErrors([data.error ?? data.message ?? "Upload failed"]);
         return;
       }
 
