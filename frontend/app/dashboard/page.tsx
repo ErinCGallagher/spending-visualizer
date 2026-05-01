@@ -9,7 +9,7 @@ import { useCallback, useState } from "react";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
 import Filters, { type FilterValues } from "@/app/dashboard/Filters";
-import CountryDashboard from "@/app/dashboard/CountryDashboard";
+import TripDashboard from "@/app/dashboard/TripDashboard";
 import DashboardTabBar from "@/app/dashboard/DashboardTabBar";
 import DashboardOverview from "@/app/dashboard/DashboardOverview";
 import { useDashboardData } from "@/app/dashboard/useDashboardData";
@@ -125,7 +125,7 @@ export default function DashboardPage() {
 
         {/* Trip card stays mounted so overlay/data state is preserved on tab switch */}
         <div className={view !== "trip" ? "hidden" : ""}>
-          <CountryDashboard onSwitchView={setView} currency={currency} />
+          <TripDashboard onSwitchView={setView} currency={currency} />
         </div>
       </div>
     </main>
