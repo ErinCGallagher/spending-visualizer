@@ -145,6 +145,7 @@ export default function SettingsPage() {
           description="This will permanently delete your account and all your data. This cannot be undone."
           confirmLabel="Delete account"
           loadingLabel="Deleting…"
+          requiredConfirmText="DELETE"
           onConfirm={handleDeleteConfirm}
           onCancel={() => {
             setShowDeleteModal(false);
