@@ -86,6 +86,16 @@ async function migrate() {
     `);
 
     await client.query(`
+      CREATE TABLE IF NOT EXISTS credit_card_category_mappings (
+        user_id       text NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+        merchant_key  text NOT NULL,
+        category_id   uuid NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+        updated_at    timestamptz NOT NULL DEFAULT now(),
+        PRIMARY KEY (user_id, merchant_key)
+      )
+    `);
+
+    await client.query(`
       CREATE TABLE IF NOT EXISTS transactions (
         id                  uuid primary key default gen_random_uuid(),
         upload_id           uuid references uploads(id) on delete cascade,
