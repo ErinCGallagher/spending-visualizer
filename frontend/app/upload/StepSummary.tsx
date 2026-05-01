@@ -92,6 +92,12 @@ export default function StepSummary({ result, onBack, onContinue }: Props) {
         </div>
       </div>
 
+      {!!result.skippedPayments && result.skippedPayments > 0 && (
+        <p className="text-sm text-gray-500">
+          {result.skippedPayments} payment row{result.skippedPayments > 1 ? "s" : ""} were skipped
+        </p>
+      )}
+
       {hasNoTransactions && (
         <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-800">
           <strong>No valid transactions found.</strong> The file could not be

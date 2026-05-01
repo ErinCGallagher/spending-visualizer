@@ -31,6 +31,7 @@ export interface ParsedUploadResult {
   homeCurrency: string;
   dateRange: { from: string; to: string };
   overlapWarning: boolean;
+  skippedPayments?: number;
 }
 
 export interface Category {

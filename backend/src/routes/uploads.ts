@@ -9,6 +9,7 @@ import { pool } from "../db";
 import { TravelSpendParser } from "../parsers/travelspend";
 import { WealthsimpleParser } from "../parsers/wealthsimple";
 import { buildCategorisePrompt, parseCategoriseResponse } from "../lib/categorisePrompt";
+import { toMerchantKey } from "../lib/merchantKey";
 import { ParsedTransaction } from "../parsers/types";
 
 const router = Router();
@@ -19,6 +20,8 @@ const SUPPORTED_PARSERS: Record<string, typeof travelspendParser> = {
   travelspend: travelspendParser,
   wealthsimple: new WealthsimpleParser(),
 };
+
+const CREDIT_CARD_FORMATS = new Set(["wealthsimple"]);
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 MB
 const MAX_ROWS = 10_000;
@@ -108,6 +111,38 @@ router.post("/categorise", async (req, res) => {
     return;
   }
 
+  // Build merchant keys and check the cache for previously categorised merchants
+  const merchantKeys = transactions.map((tx) => toMerchantKey(tx.description));
+  const { rows: cacheRows } = await pool.query<{ merchant_key: string; category_name: string }>(
+    `SELECT ccm.merchant_key, c.name AS category_name
+     FROM credit_card_category_mappings ccm
+     JOIN categories c ON c.id = ccm.category_id
+     WHERE ccm.user_id = $1 AND ccm.merchant_key = ANY($2)`,
+    [userId, merchantKeys]
+  );
+  const cacheByKey = new Map(cacheRows.map((r) => [r.merchant_key, r.category_name]));
+
+  // Partition into cache hits and transactions that need AI categorisation
+  const uncachedIndices: number[] = [];
+  const uncachedTransactions: typeof transactions = [];
+  for (let i = 0; i < transactions.length; i++) {
+    if (!cacheByKey.has(merchantKeys[i])) {
+      uncachedIndices.push(i);
+      uncachedTransactions.push(transactions[i]);
+    }
+  }
+
+  // Pre-fill results with cache hits (confidence 1)
+  const results: { categoryName: string; confidence: number }[] = transactions.map((_, i) => {
+    const cached = cacheByKey.get(merchantKeys[i]);
+    return cached ? { categoryName: cached, confidence: 1 } : { categoryName: "Uncategorized", confidence: 0 };
+  });
+
+  if (uncachedTransactions.length === 0) {
+    res.json({ results });
+    return;
+  }
+
   // Fetch the user's existing category names to give the model context
   const { rows: catRows } = await pool.query<{ name: string }>(
     "SELECT name FROM categories WHERE user_id = $1 ORDER BY name",
@@ -115,7 +150,7 @@ router.post("/categorise", async (req, res) => {
   );
   const availableCategories = catRows.map((r) => r.name);
 
-  const prompt = buildCategorisePrompt(transactions, availableCategories);
+  const prompt = buildCategorisePrompt(uncachedTransactions, availableCategories);
 
   try {
     const apiKey = process.env.GEMINI_API_KEY;
@@ -141,12 +176,17 @@ router.post("/categorise", async (req, res) => {
       },
     });
 
-    const results = parseCategoriseResponse(response.text ?? "", transactions.length);
+    const aiResults = parseCategoriseResponse(response.text ?? "", uncachedTransactions.length);
+    for (let i = 0; i < uncachedIndices.length; i++) {
+      results[uncachedIndices[i]] = aiResults[i];
+    }
     res.json({ results });
   } catch (err) {
     // Degrade gracefully — the client can let the user categorise manually
     console.error("AI categorisation error:", err);
-    const results = transactions.map(() => ({ categoryName: "Uncategorized", confidence: 0 }));
+    for (const idx of uncachedIndices) {
+      results[idx] = { categoryName: "Uncategorized", confidence: 0 };
+    }
     res.json({ results });
   }
 });
@@ -254,7 +294,9 @@ router.post("/confirm", async (req, res) => {
     }
 
     // Insert transactions and their splits
+    const merchantMappings: { merchantKey: string; categoryId: string }[] = [];
     for (const tx of transactions) {
+      const resolvedCategoryId = tx.categoryId ?? (tx.categoryName ? categoryIdByName.get(tx.categoryName) ?? null : null);
       const txResult = await client.query<{ id: string }>(
         `INSERT INTO transactions (
            id, upload_id, user_id, date, description,
@@ -270,7 +312,7 @@ router.post("/confirm", async (req, res) => {
         [
           uploadId, userId, tx.date, tx.description,
           tx.amountHome, tx.amountLocal ?? null, tx.localCurrency ?? null,
-          tx.categoryId ?? (tx.categoryName ? categoryIdByName.get(tx.categoryName) ?? null : null),
+          resolvedCategoryId,
           tx.categorySource ?? null, tx.categoryConfidence ?? null,
           tx.paymentMethod ?? null, tx.country ?? null, tx.payer ?? null,
           tx.sourceFormat, JSON.stringify(tx.raw), tx.groupId ?? primaryGroupId,
@@ -285,6 +327,20 @@ router.post("/confirm", async (req, res) => {
           [txId, split.travellerName, split.amountHome]
         );
       }
+
+      if (CREDIT_CARD_FORMATS.has(tx.sourceFormat) && resolvedCategoryId) {
+        merchantMappings.push({ merchantKey: toMerchantKey(tx.description), categoryId: resolvedCategoryId });
+      }
+    }
+
+    if (merchantMappings.length > 0) {
+      await client.query(
+        `INSERT INTO credit_card_category_mappings (user_id, merchant_key, category_id, updated_at)
+         SELECT $1, unnest($2::text[]), unnest($3::uuid[]), now()
+         ON CONFLICT (user_id, merchant_key)
+         DO UPDATE SET category_id = EXCLUDED.category_id, updated_at = EXCLUDED.updated_at`,
+        [userId, merchantMappings.map((m) => m.merchantKey), merchantMappings.map((m) => m.categoryId)]
+      );
     }
 
     await client.query("COMMIT");
