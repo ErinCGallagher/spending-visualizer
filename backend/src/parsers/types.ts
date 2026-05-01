@@ -36,6 +36,7 @@ export interface ParseResult {
   errors: ParseError[];
   homeCurrency: string;
   dateRange: { from: Date; to: Date };
+  skippedPayments?: number;
 }
 
 export interface CsvParser {

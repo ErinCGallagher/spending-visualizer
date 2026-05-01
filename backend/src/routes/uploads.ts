@@ -7,6 +7,7 @@ import { GoogleGenAI } from "@google/genai";
 import { requireAuth } from "../middleware/requireAuth";
 import { pool } from "../db";
 import { TravelSpendParser } from "../parsers/travelspend";
+import { WealthsimpleParser } from "../parsers/wealthsimple";
 import { buildCategorisePrompt, parseCategoriseResponse } from "../lib/categorisePrompt";
 import { ParsedTransaction } from "../parsers/types";
 
@@ -16,6 +17,7 @@ const travelspendParser = new TravelSpendParser();
 
 const SUPPORTED_PARSERS: Record<string, typeof travelspendParser> = {
   travelspend: travelspendParser,
+  wealthsimple: new WealthsimpleParser(),
 };
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 MB
@@ -86,6 +88,7 @@ router.post("/", upload.single("file"), async (req, res) => {
       to: result.dateRange.to.toISOString(),
     },
     overlapWarning,
+    ...(result.skippedPayments ? { skippedPayments: result.skippedPayments } : {}),
   });
 });
 
