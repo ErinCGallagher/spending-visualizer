@@ -6,7 +6,7 @@
 
 "use client";
 
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import StepFilePicker from "./StepFilePicker";
 import StepSummary from "./StepSummary";
 import StepCountry from "./StepCountry";
@@ -14,30 +14,19 @@ import StepCategories from "./StepCategories";
 import StepReview from "./StepReview";
 import StepGroup from "./StepGroup";
 import StepConfirm from "./StepConfirm";
+import StepCreditCardAIReview from "./StepCreditCardAIReview";
+import StepCreditCardCategories from "./StepCreditCardCategories";
+import { DEFAULT_STEPS, PARSER_STEPS, type StepDefinition } from "./stepConfig";
 import type {
   Category,
   CategoryAssignment,
-  Group,
   GroupType,
   ParsedTransaction,
   ParsedUploadResult,
 } from "./types";
 
-type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7;
-
-const STEP_LABELS: Record<Step, string> = {
-  1: "Select file",
-  2: "Review summary",
-  3: "Set country",
-  4: "Organise categories",
-  5: "Review suggestions",
-  6: "Assign group",
-  7: "Confirm",
-};
-
-/** SVG icon for each step, matching the upload wizard mockup. */
-const STEP_ICONS: Record<Step, React.ReactNode> = {
-  1: (
+const STEP_ICONS: Record<string, React.ReactNode> = {
+  file: (
     <svg
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 24 24"
@@ -53,7 +42,7 @@ const STEP_ICONS: Record<Step, React.ReactNode> = {
       <line x1="12" y1="3" x2="12" y2="15" />
     </svg>
   ),
-  2: (
+  summary: (
     <svg
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 24 24"
@@ -71,7 +60,7 @@ const STEP_ICONS: Record<Step, React.ReactNode> = {
       <polyline points="10 9 9 9 8 9" />
     </svg>
   ),
-  3: (
+  country: (
     <svg
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 24 24"
@@ -87,7 +76,7 @@ const STEP_ICONS: Record<Step, React.ReactNode> = {
       <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
     </svg>
   ),
-  4: (
+  categories: (
     <svg
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 24 24"
@@ -102,7 +91,22 @@ const STEP_ICONS: Record<Step, React.ReactNode> = {
       <line x1="7" y1="7" x2="7.01" y2="7" />
     </svg>
   ),
-  5: (
+  "cc-categories": (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="w-5 h-5 md:w-6 md:h-6"
+    >
+      <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+      <line x1="7" y1="7" x2="7.01" y2="7" />
+    </svg>
+  ),
+  review: (
     <svg
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 24 24"
@@ -119,7 +123,24 @@ const STEP_ICONS: Record<Step, React.ReactNode> = {
       <path d="M19 12l1.5 1.5M3.5 13.5 5 12" />
     </svg>
   ),
-  6: (
+  "cc-review": (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="w-5 h-5 md:w-6 md:h-6"
+    >
+      <circle cx="12" cy="8" r="3" />
+      <path d="M6.5 20a5.5 5.5 0 0 1 11 0" />
+      <path d="M19 8h2M3 8h2" />
+      <path d="M19 12l1.5 1.5M3.5 13.5 5 12" />
+    </svg>
+  ),
+  group: (
     <svg
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 24 24"
@@ -136,7 +157,7 @@ const STEP_ICONS: Record<Step, React.ReactNode> = {
       <path d="M16 3.13a4 4 0 0 1 0 7.75" />
     </svg>
   ),
-  7: (
+  confirm: (
     <svg
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 24 24"
@@ -161,10 +182,14 @@ interface WizardState {
   assignments: CategoryAssignment[];
   transactions: ParsedTransaction[];
   primaryGroup: { id: string; name: string; groupType: GroupType } | null;
+  newCategoryNames: string[];
+  existingTaxonomy: Category[];
 }
 
 export default function UploadPage() {
-  const [step, setStep] = useState<Step>(1);
+  const [currentStepId, setCurrentStepId] = useState<string>("file");
+  const [activeSteps, setActiveSteps] = useState<StepDefinition[]>(DEFAULT_STEPS);
+  const [skippedStepIds, setSkippedStepIds] = useState<Set<string>>(new Set());
   const [state, setState] = useState<WizardState>({
     uploadResult: null,
     filename: "",
@@ -172,11 +197,58 @@ export default function UploadPage() {
     assignments: [],
     transactions: [],
     primaryGroup: null,
+    newCategoryNames: [],
+    existingTaxonomy: [],
   });
 
-  function goTo(s: Step) {
-    setStep(s);
+  useEffect(() => {
+    async function loadTaxonomy() {
+      try {
+        const res = await fetch("/api/categories", { credentials: "include" });
+        if (res.ok) {
+          const data = await res.json();
+          // The API returns { categories: Category[] } based on StepCategories.tsx logic
+          // Actually StepCategories.tsx says data: Category[] but wait... 
+          // let me double check that API response shape.
+          setState((prev) => ({ ...prev, existingTaxonomy: Array.isArray(data) ? data : (data.categories || []) }));
+        }
+      } catch (err) {
+        console.error("Failed to load taxonomy", err);
+      }
+    }
+    loadTaxonomy();
+  }, []);
+
+  const currentIndex = activeSteps.findIndex((s) => s.id === currentStepId);
+  const currentStep = activeSteps[currentIndex];
+
+  function goTo(stepId: string) {
+    setCurrentStepId(stepId);
   }
+
+  function goBack() {
+    const prevIndex = currentIndex - 1;
+    if (prevIndex >= 0) {
+      const prevStep = activeSteps[prevIndex];
+      if (skippedStepIds.has(prevStep.id)) {
+        // Skip backwards too
+        const prevPrevIndex = prevIndex - 1;
+        if (prevPrevIndex >= 0) {
+          setCurrentStepId(activeSteps[prevPrevIndex].id);
+        }
+      } else {
+        setCurrentStepId(prevStep.id);
+      }
+    }
+  }
+
+  function goNext() {
+    const nextIndex = currentIndex + 1;
+    if (nextIndex < activeSteps.length) {
+      setCurrentStepId(activeSteps[nextIndex].id);
+    }
+  }
+
 
   return (
     <div className="min-h-screen">
@@ -191,44 +263,80 @@ export default function UploadPage() {
           {/* Mobile step indicator */}
           <div className="md:hidden">
             <p className="text-sm tracking-widest uppercase text-white/40">
-              Step {step} of 7
+              Step {currentIndex + 1} of {activeSteps.length}
             </p>
             <p className="text-xl text-white font-semibold mt-0.5">
-              {STEP_LABELS[step]}
+              {currentStep?.label}
             </p>
           </div>
 
           {/* Desktop step indicator */}
           <nav className="hidden md:flex items-center">
-            {([1, 2, 3, 4, 5, 6, 7] as Step[]).map((s, index) => (
-              <Fragment key={s}>
-                <div className="flex-none w-16 md:w-20 flex flex-col items-center gap-2">
-                  <div
-                    className={`flex items-center justify-center w-10 h-10 md:w-12 md:h-12 rounded-full transition-colors ${
-                      s === step
-                        ? "bg-white text-[#064E3B]"
-                        : "bg-white/10 text-white/50"
-                    }`}
-                  >
-                    {STEP_ICONS[s]}
+            {activeSteps.map((s, index) => {
+              const isCurrent = s.id === currentStepId;
+              const isCompleted = currentIndex > index;
+              const isSkipped = skippedStepIds.has(s.id);
+
+              return (
+                <Fragment key={s.id}>
+                  <div className="flex-none w-16 md:w-20 flex flex-col items-center gap-2">
+                    <div
+                      className={`flex items-center justify-center w-10 h-10 md:w-12 md:h-12 rounded-full transition-colors ${
+                        isCurrent
+                          ? "bg-white text-[#064E3B]"
+                          : isSkipped
+                          ? "bg-transparent border border-dashed border-white/30 text-white/30"
+                          : isCompleted
+                          ? "bg-white/40 text-white/80"
+                          : s.conditional
+                          ? "bg-transparent border border-dashed border-white/20 text-white/20"
+                          : "bg-white/10 text-white/50"
+                      } ${isSkipped ? "relative overflow-hidden" : ""}`}
+                    >
+                      {isSkipped && (
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                          <div className="w-[140%] h-px bg-white/40 rotate-45" />
+                        </div>
+                      )}
+                      {isCompleted && !isSkipped ? (
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                          className="w-5 h-5 md:w-6 md:h-6"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      ) : (
+                        STEP_ICONS[s.id]
+                      )}
+                    </div>
+                    <span
+                      className={`text-[9px] md:text-[11px] tracking-widest uppercase text-center leading-tight ${
+                        isCurrent
+                          ? "font-bold text-white"
+                          : isSkipped
+                          ? "text-white/20"
+                          : "text-white/40"
+                      }`}
+                    >
+                      {isSkipped ? "Skipped" : s.label}
+                    </span>
                   </div>
-                  <span
-                    className={`text-[9px] md:text-[11px] tracking-widest uppercase text-center leading-tight ${
-                      s === step ? "font-bold text-white" : "text-white/40"
-                    }`}
-                  >
-                    {STEP_LABELS[s]}
-                  </span>
-                </div>
-                {index < 6 && (
-                  <div
-                    className={`h-px flex-1 mb-5 ${
-                      s < step ? "bg-white/40" : "bg-white/15"
-                    }`}
-                  />
-                )}
-              </Fragment>
-            ))}
+                  {index < activeSteps.length - 1 && (
+                    <div
+                      className={`h-px flex-1 mb-5 ${
+                        currentIndex > index ? "bg-white/40" : "bg-white/15"
+                      }`}
+                    />
+                  )}
+                </Fragment>
+              );
+            })}
           </nav>
         </div>
       </div>
@@ -236,7 +344,7 @@ export default function UploadPage() {
       {/* Step content */}
       <div className="max-w-6xl mx-auto px-6 py-8">
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          {step === 1 && (
+          {currentStepId === "file" && (
             <StepFilePicker
               onSuccess={(result, file) => {
                 setState((prev) => ({
@@ -245,75 +353,115 @@ export default function UploadPage() {
                   filename: file.name,
                   transactions: result.transactions,
                 }));
-                goTo(2);
+                // Set active steps based on parser format
+                const format = result.transactions[0]?.sourceFormat || "travelspend";
+                setActiveSteps(PARSER_STEPS[format] || DEFAULT_STEPS);
+                setSkippedStepIds(new Set());
+                setCurrentStepId("summary");
               }}
             />
           )}
 
-          {step === 2 && state.uploadResult && (
+          {currentStepId === "summary" && state.uploadResult && (
             <StepSummary
               result={state.uploadResult}
-              onBack={() => goTo(1)}
-              onContinue={() => goTo(3)}
+              onBack={goBack}
+              onContinue={goNext}
             />
           )}
 
-          {step === 3 && (
+          {currentStepId === "country" && (
             <StepCountry
               transactions={state.transactions}
-              onBack={() => goTo(2)}
+              onBack={goBack}
               onContinue={(updated) => {
                 setState((prev) => ({ ...prev, transactions: updated }));
-                goTo(4);
+                goNext();
               }}
             />
           )}
 
-          {step === 4 && state.uploadResult && (
+          {currentStepId === "categories" && state.uploadResult && (
             <StepCategories
               parsedCategories={state.uploadResult.categories}
-              onBack={() => goTo(3)}
+              onBack={goBack}
               onContinue={(taxonomy, assignments) => {
                 setState((prev) => ({ ...prev, taxonomy, assignments }));
-                goTo(5);
+                goNext();
               }}
             />
           )}
 
-          {step === 5 && (
+          {currentStepId === "review" && (
             <StepReview
               transactions={state.transactions}
               taxonomy={state.taxonomy}
-              onBack={() => goTo(4)}
+              onBack={goBack}
               onContinue={(updated) => {
                 setState((prev) => ({ ...prev, transactions: updated }));
-                goTo(6);
+                goNext();
               }}
             />
           )}
 
-          {step === 6 && (
+          {currentStepId === "cc-review" && (
+            <StepCreditCardAIReview
+              transactions={state.transactions}
+              existingTaxonomy={state.existingTaxonomy}
+              onBack={goBack}
+              onContinue={(updated, newCategoryNames) => {
+                setState((prev) => ({ ...prev, transactions: updated, newCategoryNames }));
+                if (newCategoryNames.length === 0) {
+                  setSkippedStepIds((prev) => new Set([...prev, "cc-categories"]));
+                  // Explicitly jump to next step if skipping
+                  const nextIndex = currentIndex + 1;
+                  const nextStep = activeSteps[nextIndex];
+                  if (nextStep?.id === "cc-categories") {
+                    setCurrentStepId(activeSteps[nextIndex + 1].id);
+                  } else {
+                    goNext();
+                  }
+                } else {
+                  goNext();
+                }
+              }}
+            />
+          )}
+
+          {currentStepId === "cc-categories" && (
+            <StepCreditCardCategories
+              newCategoryNames={state.newCategoryNames}
+              existingTaxonomy={state.existingTaxonomy}
+              onBack={goBack}
+              onContinue={(taxonomy) => {
+                setState((prev) => ({ ...prev, taxonomy }));
+                goNext();
+              }}
+            />
+          )}
+
+          {currentStepId === "group" && (
             <StepGroup
               transactions={state.transactions}
-              onBack={() => goTo(5)}
+              onBack={goBack}
               onContinue={(updated, primaryGroup) => {
                 setState((prev) => ({
                   ...prev,
                   transactions: updated,
                   primaryGroup,
                 }));
-                goTo(7);
+                goNext();
               }}
             />
           )}
 
-          {step === 7 && state.uploadResult && state.primaryGroup && (
+          {currentStepId === "confirm" && state.uploadResult && state.primaryGroup && (
             <StepConfirm
               uploadResult={state.uploadResult}
               transactions={state.transactions}
               filename={state.filename}
               primaryGroup={state.primaryGroup}
-              onBack={() => goTo(6)}
+              onBack={goBack}
             />
           )}
         </div>
