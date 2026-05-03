@@ -219,10 +219,11 @@ export default function Filters({ meta, onChange, initialValues, showTravellers 
 
       {/* From date */}
       <div className="space-y-1.5 lg:col-span-2">
-        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+        <label htmlFor="filter-from" className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
           From
         </label>
         <input
+          id="filter-from"
           type="date"
           value={from}
           onChange={(e) => {
@@ -235,10 +236,11 @@ export default function Filters({ meta, onChange, initialValues, showTravellers 
 
       {/* To date */}
       <div className="space-y-1.5 lg:col-span-2">
-        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+        <label htmlFor="filter-to" className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
           To
         </label>
         <input
+          id="filter-to"
           type="date"
           value={to}
           onChange={(e) => {
