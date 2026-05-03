@@ -48,7 +48,7 @@ export function buildTransactionFilterSQL(
   if (params.groupId) conditions.push(`t.group_id = ${addParam(params.groupId)}`);
   const groupTypes = [params.groupType ?? []].flat().filter(Boolean);
   if (groupTypes.length > 0) {
-    joins.push(`JOIN groups g ON g.id = t.group_id`);
+    joins.push(`LEFT JOIN groups g ON g.id = t.group_id`);
     conditions.push(`g.group_type = ANY(${addParam(groupTypes)})`);
   }
 
