@@ -34,11 +34,6 @@ export interface ParamError {
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/**
- * Parses raw Express query params for the transactions list endpoint.
- * Returns the parsed params and any validation errors. The caller
- * should return 400 if errors is non-empty.
- */
 export function validateGroupTypes(groupTypes: string[]): string | null {
   for (const gt of groupTypes) {
     if (!(VALID_GROUP_TYPE_VALUES as readonly string[]).includes(gt)) {
@@ -48,6 +43,11 @@ export function validateGroupTypes(groupTypes: string[]): string | null {
   return null;
 }
 
+/**
+ * Parses raw Express query params for the transactions list endpoint.
+ * Returns the parsed params and any validation errors. The caller
+ * should return 400 if errors is non-empty.
+ */
 export function parseTransactionQuery(raw: Record<string, unknown>): {
   params: TransactionQueryParams;
   errors: ParamError[];
@@ -75,10 +75,9 @@ export function parseTransactionQuery(raw: Record<string, unknown>): {
   if (groupId !== undefined && !UUID.test(groupId)) {
     errors.push({ field: "groupId", message: "Must be a valid UUID" });
   }
-  for (const gt of groupType) {
-    if (!(VALID_GROUP_TYPE_VALUES as readonly string[]).includes(gt)) {
-      errors.push({ field: "groupType", message: `Must be one of: ${VALID_GROUP_TYPE_VALUES.join(", ")}` });
-    }
+  const groupTypeError = validateGroupTypes(groupType);
+  if (groupTypeError) {
+    errors.push({ field: "groupType", message: `Must be one of: ${VALID_GROUP_TYPE_VALUES.join(", ")}` });
   }
 
   let page = 1;
