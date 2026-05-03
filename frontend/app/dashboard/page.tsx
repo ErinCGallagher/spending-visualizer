@@ -5,7 +5,7 @@
 
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
 import Filters, { type FilterValues } from "@/app/dashboard/Filters";

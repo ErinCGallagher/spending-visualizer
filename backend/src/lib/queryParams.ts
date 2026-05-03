@@ -39,6 +39,15 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  * Returns the parsed params and any validation errors. The caller
  * should return 400 if errors is non-empty.
  */
+export function validateGroupTypes(groupTypes: string[]): string | null {
+  for (const gt of groupTypes) {
+    if (!(VALID_GROUP_TYPE_VALUES as readonly string[]).includes(gt)) {
+      return `Invalid groupType: ${gt}. Must be one of: ${VALID_GROUP_TYPE_VALUES.join(", ")}`;
+    }
+  }
+  return null;
+}
+
 export function parseTransactionQuery(raw: Record<string, unknown>): {
   params: TransactionQueryParams;
   errors: ParamError[];

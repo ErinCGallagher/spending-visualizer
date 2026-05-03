@@ -3,6 +3,7 @@
 import { Router } from "express";
 import { requireAuth } from "../middleware/requireAuth";
 import { pool } from "../db";
+import { validateGroupTypes } from "../lib/queryParams";
 
 export function mapCountryTotalRow(r: { country: string; total: string; days: string; per_day: string | null }) {
   return {
@@ -28,6 +29,11 @@ router.get("/category-totals", async (req, res) => {
   const { from, to, traveller } = req.query as Record<string, string | undefined>;
   const countries = [req.query.country ?? []].flat().filter(Boolean) as string[];
   const groupTypes = [req.query.groupType ?? []].flat().filter(Boolean) as string[];
+  const groupTypeError = validateGroupTypes(groupTypes);
+  if (groupTypeError) {
+    res.status(400).json({ error: groupTypeError });
+    return;
+  }
   const groupId = typeof req.query.groupId === "string" ? req.query.groupId : undefined;
 
   const conditions: string[] = ["t.user_id = $1"];
@@ -252,6 +258,11 @@ router.get("/monthly-totals", async (req, res) => {
   const { from, to, traveller, groupBy = "total", granularity = "month" } = req.query as Record<string, string | undefined>;
   const countries = [req.query.country ?? []].flat().filter(Boolean) as string[];
   const groupTypes = [req.query.groupType ?? []].flat().filter(Boolean) as string[];
+  const groupTypeError = validateGroupTypes(groupTypes);
+  if (groupTypeError) {
+    res.status(400).json({ error: groupTypeError });
+    return;
+  }
 
   if (groupBy !== "category" && groupBy !== "total") {
     res.status(400).json({ error: "groupBy must be 'category' or 'total'" });
@@ -385,6 +396,11 @@ router.get("/cumulative", async (req, res) => {
   const { from, to, traveller, granularity = "day" } = req.query as Record<string, string | undefined>;
   const countries = [req.query.country ?? []].flat().filter(Boolean) as string[];
   const groupTypes = [req.query.groupType ?? []].flat().filter(Boolean) as string[];
+  const groupTypeError = validateGroupTypes(groupTypes);
+  if (groupTypeError) {
+    res.status(400).json({ error: groupTypeError });
+    return;
+  }
 
   if (!["day", "week", "month"].includes(granularity)) {
     res.status(400).json({ error: "granularity must be 'day', 'week', or 'month'" });
