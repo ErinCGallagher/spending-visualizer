@@ -61,6 +61,9 @@ This is a monorepo managed by pnpm workspaces:
 - **Comments**: Explain *why*, not *what*. description comment (`/** */`) for every new file.
 - **Naming**: Evergreen names only (avoid "new", "improved", etc.).
 
+### Validation 
+- **Build**: Always run the build command (`pnpm build` in backend/frontend) and ensure it passes before finishing any changes. 
+
 ### Testing
 - **TDD**: Write tests before implementation.
 - **No Mocking Targets**: Never mock what you are testing.
