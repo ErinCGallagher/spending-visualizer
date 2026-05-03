@@ -45,10 +45,10 @@ describe("AmexParser", () => {
       expect(result.transactions[1].paymentMethod).toBe("Amex Cobalt");
     });
 
-    it("defaults unknown Account # to Amex", () => {
+    it("defaults unknown Account # to Amex with suffix", () => {
       const result = parser.parse(rows, "upload-1", "user-1");
       // Index 2 is UBER because the payment was skipped
-      expect(result.transactions[2].paymentMethod).toBe("Amex");
+      expect(result.transactions[2].paymentMethod).toBe("Amex (...12345)");
     });
 
     it("sets sourceFormat to amex", () => {

@@ -25,8 +25,7 @@ export class AmexParser implements CsvParser {
       const normalizedAccount = accountNum.replace(/[^0-9]/g, "");
       const paymentMethod =
         this.cardMapping[normalizedAccount] ||
-        this.cardMapping[accountNum] ||
-        "Amex";
+        (normalizedAccount ? `Amex (...${normalizedAccount.slice(-5)})` : "Amex");
 
       transactions.push(
         buildCreditCardTransaction({
