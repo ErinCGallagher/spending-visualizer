@@ -5,7 +5,7 @@
 
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
 import Filters, { type FilterValues } from "@/app/dashboard/Filters";
@@ -42,8 +42,6 @@ export default function DashboardPage() {
   const [categoryTimelineGranularity, setCategoryTimelineGranularity] =
     useState<Granularity>("month");
 
-  const [hasAppliedDefault, setHasAppliedDefault] = useState(false);
-
   const {
     meta,
     metaLoading,
@@ -58,19 +56,6 @@ export default function DashboardPage() {
   } = useDashboardData(filters, monthlyGroupBy, granularity, categoryTimelineGranularity);
 
   const currency = meta?.homeCurrency ?? "CAD";
-
-  // Apply user setting for default filter on first load
-  useEffect(() => {
-    if (meta && !hasAppliedDefault) {
-      if (meta.overviewDefaultFilter) {
-        setFilters((prev) => ({
-          ...prev,
-          groupTypes: [meta.overviewDefaultFilter!],
-        }));
-      }
-      setHasAppliedDefault(true);
-    }
-  }, [meta, hasAppliedDefault]);
 
   const handleFiltersChange = useCallback((f: FilterValues) => {
     setFilters(f);
