@@ -21,7 +21,8 @@ export default function ParserSettingsPage() {
   const [settings, setSettings] = useState<ParserSetting[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
-  
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
   // Form state
   const [newKey, setNewKey] = useState("");
   const [newValue, setNewValue] = useState("");
@@ -84,8 +85,6 @@ export default function ParserSettingsPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Are you sure you want to delete this mapping?")) return;
-
     try {
       const res = await fetch(`/api/account/settings/parsers/${id}`, {
         method: "DELETE",
@@ -94,6 +93,7 @@ export default function ParserSettingsPage() {
 
       if (res.ok) {
         setSettings((prev) => prev.filter((s) => s.id !== id));
+        setConfirmDeleteId(null);
       } else {
         setError("Failed to delete mapping.");
       }
@@ -204,12 +204,30 @@ export default function ParserSettingsPage() {
                           {s.settingValue}
                         </span>
                       </div>
-                      <button
-                        onClick={() => handleDelete(s.id)}
-                        className="p-1.5 text-gray-400 hover:text-red-600 transition-colors opacity-0 group-hover:opacity-100"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      {confirmDeleteId === s.id ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-500">Delete?</span>
+                          <button
+                            onClick={() => handleDelete(s.id)}
+                            className="text-xs font-medium text-red-600 hover:text-red-700"
+                          >
+                            Yes
+                          </button>
+                          <button
+                            onClick={() => setConfirmDeleteId(null)}
+                            className="text-xs font-medium text-gray-400 hover:text-gray-600"
+                          >
+                            No
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setConfirmDeleteId(s.id)}
+                          className="p-1.5 text-gray-400 hover:text-red-600 transition-colors opacity-0 group-hover:opacity-100"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>

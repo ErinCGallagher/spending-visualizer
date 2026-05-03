@@ -53,6 +53,14 @@ router.post("/", upload.single("file"), async (req, res) => {
     return;
   }
 
+  // Kick off settings query early so the DB round-trip overlaps with CSV parsing
+  const settingsPromise = parserName === "amex"
+    ? pool.query<{ setting_key: string; setting_value: string }>(
+        `SELECT setting_key, setting_value FROM parser_settings WHERE user_id = $1 AND parser_type = 'amex'`,
+        [userId]
+      )
+    : null;
+
   const csvText = req.file.buffer.toString("utf-8");
   const parsed = Papa.parse<Record<string, string>>(csvText, {
     header: true,
@@ -66,12 +74,8 @@ router.post("/", upload.single("file"), async (req, res) => {
 
   let parser = SUPPORTED_PARSERS[parserName];
 
-  // Dynamic initialization for AmexParser to include user settings
-  if (parserName === "amex") {
-    const { rows: settingsRows } = await pool.query<{ setting_key: string; setting_value: string }>(
-      `SELECT setting_key, setting_value FROM parser_settings WHERE user_id = $1 AND parser_type = 'amex'`,
-      [userId]
-    );
+  if (settingsPromise) {
+    const { rows: settingsRows } = await settingsPromise;
     const mappings = Object.fromEntries(settingsRows.map(r => [r.setting_key, r.setting_value]));
     parser = new AmexParser(mappings);
   }

@@ -3,7 +3,10 @@
 import { Router } from "express";
 import { requireAuth } from "../middleware/requireAuth";
 import { pool } from "../db";
-import { VALID_GROUP_TYPE_VALUES, GROUP_TYPE_OPTIONS } from "../lib/queryParams";
+import {
+  VALID_GROUP_TYPE_VALUES,
+  GROUP_TYPE_OPTIONS,
+} from "../lib/queryParams";
 
 const router = Router();
 
@@ -18,9 +21,12 @@ router.get("/settings", async (_req, res) => {
               trip_default_filter AS "tripDefaultFilter"
        FROM "user"
        WHERE id = $1`,
-      [userId]
+      [userId],
     );
-    const row = rows[0] || { overviewDefaultFilter: null, tripDefaultFilter: null };
+    const row = rows[0] || {
+      overviewDefaultFilter: null,
+      tripDefaultFilter: null,
+    };
     res.json({ ...row, groupTypes: GROUP_TYPE_OPTIONS });
   } catch (err) {
     console.error("GET /api/account/settings error:", err);
@@ -36,26 +42,32 @@ router.patch("/settings", async (req, res) => {
   const allowedUpdates = ["overviewDefaultFilter", "tripDefaultFilter"];
   const dbFields: Record<string, string> = {
     overviewDefaultFilter: "overview_default_filter",
-    tripDefaultFilter: "trip_default_filter"
+    tripDefaultFilter: "trip_default_filter",
   };
 
-  const fieldsToUpdate = Object.keys(updates).filter(k => allowedUpdates.includes(k));
+  const fieldsToUpdate = Object.keys(updates).filter((k) =>
+    allowedUpdates.includes(k),
+  );
   if (fieldsToUpdate.length === 0) {
     res.status(400).json({ error: "No valid fields provided" });
     return;
   }
 
   // Empty string means "clear the preference" — treat as null
-  const values: (string | null)[] = fieldsToUpdate.map(k => {
+  const values: (string | null)[] = fieldsToUpdate.map((k) => {
     const v = updates[k];
     return typeof v === "string" && v !== "" ? v : null;
   });
   const invalidField = fieldsToUpdate.find((k, i) => {
     const v = values[i];
-    return v !== null && !(VALID_GROUP_TYPE_VALUES as readonly string[]).includes(v);
+    return (
+      v !== null && !(VALID_GROUP_TYPE_VALUES as readonly string[]).includes(v)
+    );
   });
   if (invalidField) {
-    res.status(400).json({ error: `Invalid value for ${invalidField}. Must be one of: ${VALID_GROUP_TYPE_VALUES.join(", ")}` });
+    res.status(400).json({
+      error: `Invalid value for ${invalidField}. Must be one of: ${VALID_GROUP_TYPE_VALUES.join(", ")}`,
+    });
     return;
   }
 
@@ -65,7 +77,7 @@ router.patch("/settings", async (req, res) => {
   try {
     await pool.query(
       `UPDATE "user" SET ${sets.join(", ")} WHERE id = $${values.length}`,
-      values
+      values,
     );
     res.json({ ok: true });
   } catch (err) {
@@ -83,7 +95,7 @@ router.get("/settings/parsers", async (_req, res) => {
        FROM parser_settings
        WHERE user_id = $1
        ORDER BY parser_type, setting_key`,
-      [userId]
+      [userId],
     );
     res.json({ settings: rows });
   } catch (err) {
@@ -95,20 +107,41 @@ router.get("/settings/parsers", async (_req, res) => {
 /** POST /api/account/settings/parsers — upserts a parser setting. */
 router.post("/settings/parsers", async (req, res) => {
   const userId: string = res.locals.userId;
-  const { parserType, settingKey, settingValue } = req.body as {
-    parserType: string;
-    settingKey: string;
-    settingValue: string;
-  };
+  const { parserType, settingKey, settingValue } = req.body ?? {};
 
-  const VALID_PARSER_TYPES = ["amex"] as const;
-  if (!parserType || !VALID_PARSER_TYPES.includes(parserType as (typeof VALID_PARSER_TYPES)[number])) {
-    res.status(400).json({ error: `parserType must be one of: ${VALID_PARSER_TYPES.join(", ")}` });
+  if (
+    typeof parserType !== "string" ||
+    typeof settingKey !== "string" ||
+    typeof settingValue !== "string"
+  ) {
+    res.status(400).json({ error: "parserType, settingKey, and settingValue must be strings" });
     return;
   }
 
-  if (!settingKey || !settingValue) {
-    res.status(400).json({ error: "settingKey and settingValue are required" });
+  const VALID_PARSER_TYPES = ["amex"] as const;
+  if (
+    !parserType ||
+    !VALID_PARSER_TYPES.includes(
+      parserType as (typeof VALID_PARSER_TYPES)[number],
+    )
+  ) {
+    res.status(400).json({
+      error: `parserType must be one of: ${VALID_PARSER_TYPES.join(", ")}`,
+    });
+    return;
+  }
+
+  if (!settingKey || settingKey.length > 10) {
+    res.status(400).json({
+      error: "settingKey is required and must be 10 characters or fewer",
+    });
+    return;
+  }
+
+  if (!settingValue || settingValue.length > 50) {
+    res.status(400).json({
+      error: "settingValue is required and must be 50 characters or fewer",
+    });
     return;
   }
 
@@ -119,7 +152,7 @@ router.post("/settings/parsers", async (req, res) => {
        ON CONFLICT (user_id, parser_type, setting_key)
        DO UPDATE SET setting_value = EXCLUDED.setting_value, updated_at = now()
        RETURNING id`,
-      [userId, parserType, settingKey, settingValue]
+      [userId, parserType, settingKey, settingValue],
     );
     res.json({ id: rows[0].id });
   } catch (err) {
@@ -134,10 +167,14 @@ router.delete("/settings/parsers/:id", async (req, res) => {
   const { id } = req.params;
 
   try {
-    await pool.query(
+    const result = await pool.query(
       "DELETE FROM parser_settings WHERE id = $1 AND user_id = $2",
-      [id, userId]
+      [id, userId],
     );
+    if ((result.rowCount ?? 0) === 0) {
+      res.status(404).json({ error: "Setting not found" });
+      return;
+    }
     res.json({ ok: true });
   } catch (err) {
     console.error("DELETE /api/account/settings/parsers error:", err);
