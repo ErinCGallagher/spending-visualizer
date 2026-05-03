@@ -64,7 +64,18 @@ router.post("/", upload.single("file"), async (req, res) => {
     return;
   }
 
-  const parser = SUPPORTED_PARSERS[parserName];
+  let parser = SUPPORTED_PARSERS[parserName];
+
+  // Dynamic initialization for AmexParser to include user settings
+  if (parserName === "amex") {
+    const { rows: settingsRows } = await pool.query<{ setting_key: string; setting_value: string }>(
+      `SELECT setting_key, setting_value FROM parser_settings WHERE user_id = $1 AND parser_type = 'amex'`,
+      [userId]
+    );
+    const mappings = Object.fromEntries(settingsRows.map(r => [r.setting_key, r.setting_value]));
+    parser = new AmexParser(mappings);
+  }
+
   const result = parser.parse(parsed.data, "", userId);
 
   // Check for date range overlap with existing transactions

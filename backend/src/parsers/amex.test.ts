@@ -10,7 +10,10 @@ const rows = [
   { Date: "15 Feb 2024", Description: "UBER", Amount: "25.00", "Account #": "-12345" },
 ];
 
-const parser = new AmexParser();
+const parser = new AmexParser({
+  "-42006": "Amex Gold",
+  "-61005": "Amex Cobalt",
+});
 
 describe("AmexParser", () => {
   describe("fixedFields", () => {
