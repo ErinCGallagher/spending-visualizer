@@ -102,11 +102,10 @@ export default function DashboardPage() {
           <DashboardTabBar activeView={view} onSwitch={setView} />
           <div className="p-8 space-y-6">
             <div className="bg-slate-50/50 rounded-2xl border border-slate-100 p-6">
-              <Filters 
-                key={meta?.overviewDefaultFilter ?? "loading"}
-                meta={meta} 
-                onChange={handleFiltersChange} 
-                showTravellers={false} 
+              <Filters
+                meta={meta}
+                onChange={handleFiltersChange}
+                showTravellers={false}
                 initialValues={{ groupTypes: meta?.overviewDefaultFilter ? [meta.overviewDefaultFilter] : [] }}
               />
             </div>

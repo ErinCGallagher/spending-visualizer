@@ -9,7 +9,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
-import { GROUP_TYPES } from "@/lib/groupTypes";
 import ConfirmModal from "@/app/components/ui/ConfirmModal";
 import NavBar from "@/app/components/NavBar";
 
@@ -20,7 +19,11 @@ export default function SettingsPage() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [savingSettings, setSavingSettings] = useState(false);
-  const [userSettings, setUserSettings] = useState<{ overviewDefaultFilter: string | null; tripDefaultFilter: string | null } | null>(null);
+  const [userSettings, setUserSettings] = useState<{
+    overviewDefaultFilter: string | null;
+    tripDefaultFilter: string | null;
+    groupTypes: { value: string; label: string }[];
+  } | null>(null);
   const [settingsLoadError, setSettingsLoadError] = useState(false);
 
   useEffect(() => {
@@ -149,7 +152,7 @@ export default function SettingsPage() {
                   className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20 disabled:opacity-50"
                 >
                   <option value="">All groups</option>
-                  {GROUP_TYPES.map((gt) => (
+                  {(userSettings?.groupTypes ?? []).map((gt) => (
                     <option key={gt.value} value={gt.value}>
                       {gt.label}
                     </option>
