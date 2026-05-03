@@ -74,6 +74,71 @@ router.patch("/settings", async (req, res) => {
   }
 });
 
+/** GET /api/account/settings/parsers — returns parser settings (e.g. card mappings). */
+router.get("/settings/parsers", async (_req, res) => {
+  const userId: string = res.locals.userId;
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, parser_type AS "parserType", setting_key AS "settingKey", setting_value AS "settingValue"
+       FROM parser_settings
+       WHERE user_id = $1
+       ORDER BY parser_type, setting_key`,
+      [userId]
+    );
+    res.json({ settings: rows });
+  } catch (err) {
+    console.error("GET /api/account/settings/parsers error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+/** POST /api/account/settings/parsers — upserts a parser setting. */
+router.post("/settings/parsers", async (req, res) => {
+  const userId: string = res.locals.userId;
+  const { parserType, settingKey, settingValue } = req.body as {
+    parserType: string;
+    settingKey: string;
+    settingValue: string;
+  };
+
+  if (!parserType || !settingKey || !settingValue) {
+    res.status(400).json({ error: "parserType, settingKey, and settingValue are required" });
+    return;
+  }
+
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO parser_settings (user_id, parser_type, setting_key, setting_value, updated_at)
+       VALUES ($1, $2, $3, $4, now())
+       ON CONFLICT (user_id, parser_type, setting_key)
+       DO UPDATE SET setting_value = EXCLUDED.setting_value, updated_at = now()
+       RETURNING id`,
+      [userId, parserType, settingKey, settingValue]
+    );
+    res.json({ id: rows[0].id });
+  } catch (err) {
+    console.error("POST /api/account/settings/parsers error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+/** DELETE /api/account/settings/parsers/:id — deletes a parser setting. */
+router.delete("/settings/parsers/:id", async (req, res) => {
+  const userId: string = res.locals.userId;
+  const { id } = req.params;
+
+  try {
+    await pool.query(
+      "DELETE FROM parser_settings WHERE id = $1 AND user_id = $2",
+      [id, userId]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("DELETE /api/account/settings/parsers error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 /**
  * DELETE /api/account — deletes the authenticated user's account and all
  * associated data. Categories are deleted first (not FK-cascaded from uploads),
