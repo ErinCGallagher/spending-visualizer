@@ -47,11 +47,18 @@ describe("buildTransactionFilterSQL", () => {
     expect(conditions.some((c) => c.includes("t.payer"))).toBe(false);
   });
 
-  it("groupType filter uses INNER JOIN so ungrouped transactions are excluded", () => {
+  it("groupType filter uses LEFT JOIN groups g", () => {
     const { joins } = buildTransactionFilterSQL("user1", { groupType: ["trip"] });
     expect(joins).toHaveLength(1);
-    expect(joins[0]).toMatch(/^JOIN groups/i);
-    expect(joins[0]).not.toMatch(/LEFT JOIN/i);
+    // Must be LEFT JOIN so the string deduplicates with the fixed SELECT join in transactions.ts,
+    // preventing the "table name g specified more than once" Postgres error.
+    expect(joins[0]).toBe("LEFT JOIN groups g ON g.id = t.group_id");
+  });
+
+  it("groupType join string exactly matches the fixed SELECT join to enable Set deduplication", () => {
+    const FIXED_SELECT_JOIN = "LEFT JOIN groups g ON g.id = t.group_id";
+    const { joins } = buildTransactionFilterSQL("user1", { groupType: ["trip"] });
+    expect(joins[0]).toBe(FIXED_SELECT_JOIN);
   });
 
   it("groupType filter adds a g.group_type = ANY condition", () => {
