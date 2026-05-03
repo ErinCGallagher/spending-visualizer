@@ -8,7 +8,7 @@ import { requireAuth } from "../middleware/requireAuth";
 import { pool } from "../db";
 import { TravelSpendParser } from "../parsers/travelspend";
 import { WealthsimpleParser } from "../parsers/wealthsimple";
-import { buildCategorisePrompt, parseCategoriseResponse } from "../lib/categorisePrompt";
+import { buildCategorisePrompt, parseCategoriseResponse, CategoriseResult } from "../lib/categorisePrompt";
 import { toMerchantKey } from "../lib/merchantKey";
 import { CsvParser, ParsedTransaction } from "../parsers/types";
 
@@ -192,7 +192,7 @@ router.post("/categorise", async (req, res) => {
     // Degrade gracefully — the client can let the user categorise manually
     console.error("AI categorisation error:", err);
     for (const idx of uncachedIndices) {
-      results[idx] = { categoryName: "Uncategorized", confidence: 0 };
+      results[idx] = { categoryName: "Uncategorized", confidence: 0, source: "ai" };
     }
     res.json({ results });
   }
