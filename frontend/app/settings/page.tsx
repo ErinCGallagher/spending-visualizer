@@ -19,6 +19,7 @@ export default function SettingsPage() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [savingSettings, setSavingSettings] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [userSettings, setUserSettings] = useState<{
     overviewDefaultFilter: string | null;
     tripDefaultFilter: string | null;
@@ -38,6 +39,7 @@ export default function SettingsPage() {
 
   async function updateDefaultFilter(field: "overviewDefaultFilter" | "tripDefaultFilter", value: string) {
     setSavingSettings(true);
+    setSaveError(null);
     try {
       const res = await fetch("/api/account/settings", {
         method: "PATCH",
@@ -47,9 +49,12 @@ export default function SettingsPage() {
       });
       if (res.ok) {
         setUserSettings((prev) => prev ? { ...prev, [field]: value || null } : prev);
+      } else {
+        setSaveError("Failed to save. Please try again.");
       }
     } catch (err) {
       console.error("Failed to update settings:", err);
+      setSaveError("Failed to save. Please try again.");
     } finally {
       setSavingSettings(false);
     }
@@ -160,6 +165,9 @@ export default function SettingsPage() {
                 </select>
                 {savingSettings && (
                   <div className="w-4 h-4 border-2 border-brand-primary border-t-transparent rounded-full animate-spin" />
+                )}
+                {saveError && (
+                  <p className="text-xs text-red-600">{saveError}</p>
                 )}
               </div>
             </div>
