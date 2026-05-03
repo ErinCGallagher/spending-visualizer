@@ -3,6 +3,7 @@
 import { Router } from "express";
 import { requireAuth } from "../middleware/requireAuth";
 import { pool } from "../db";
+import { VALID_GROUP_TYPE_VALUES } from "../lib/queryParams";
 
 const router = Router();
 
@@ -43,8 +44,17 @@ router.patch("/settings", async (req, res) => {
     return;
   }
 
-  const sets = fieldsToUpdate.map((k, i) => `${dbFields[k]} = $${i + 1}`);
   const values = fieldsToUpdate.map(k => updates[k] || null);
+  const invalidField = fieldsToUpdate.find((k, i) => {
+    const v = values[i];
+    return v !== null && !(VALID_GROUP_TYPE_VALUES as readonly string[]).includes(v);
+  });
+  if (invalidField) {
+    res.status(400).json({ error: `Invalid value for ${invalidField}. Must be one of: ${VALID_GROUP_TYPE_VALUES.join(", ")}` });
+    return;
+  }
+
+  const sets = fieldsToUpdate.map((k, i) => `${dbFields[k]} = $${i + 1}`);
   values.push(userId);
 
   try {

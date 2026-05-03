@@ -1,5 +1,7 @@
 /** Pure helpers for parsing and validating transaction query parameters. */
 
+export const VALID_GROUP_TYPE_VALUES = ["trip", "daily", "business"] as const;
+
 export interface TransactionQueryParams {
   from: string | undefined;
   to: string | undefined;
@@ -53,9 +55,8 @@ export function parseTransactionQuery(raw: Record<string, unknown>): {
   if (groupId !== undefined && !UUID.test(groupId)) {
     errors.push({ field: "groupId", message: "Must be a valid UUID" });
   }
-  const VALID_GROUP_TYPES = ["trip", "daily", "business"];
   for (const gt of groupType) {
-    if (!VALID_GROUP_TYPES.includes(gt)) {
+    if (!(VALID_GROUP_TYPE_VALUES as readonly string[]).includes(gt)) {
       errors.push({ field: "groupType", message: "Must be one of: trip, daily, business" });
     }
   }
