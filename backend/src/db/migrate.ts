@@ -184,7 +184,9 @@ async function migrate() {
       END $$
     `);
     await client.query(`
-      ALTER TABLE "user" RENAME COLUMN default_dashboard_filter TO overview_default_filter;
+      CREATE INDEX IF NOT EXISTS idx_transactions_group
+        ON transactions(group_id);
+      ALTER TABLE "user" ADD COLUMN IF NOT EXISTS overview_default_filter text;
       ALTER TABLE "user" ADD COLUMN IF NOT EXISTS trip_default_filter text;
     `);
 
