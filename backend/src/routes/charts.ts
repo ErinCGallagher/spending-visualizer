@@ -44,7 +44,7 @@ router.get("/category-totals", async (req, res) => {
   if (countries.length > 0) conditions.push(`t.country = ANY(${addParam(countries)})`);
   if (groupId) conditions.push(`t.group_id = ${addParam(groupId)}`);
   if (groupTypes.length > 0) {
-    joins.push("LEFT JOIN groups g ON g.id = t.group_id");
+    joins.push("JOIN groups g ON g.id = t.group_id");
     conditions.push(`g.group_type = ANY(${addParam(groupTypes)})`);
   }
 
@@ -281,7 +281,7 @@ router.get("/monthly-totals", async (req, res) => {
   if (to) conditions.push(`t.date <= ${addParam(to)}`);
   if (countries.length > 0) conditions.push(`t.country = ANY(${addParam(countries)})`);
   if (groupTypes.length > 0) {
-    joins.push("LEFT JOIN groups g ON g.id = t.group_id");
+    joins.push("JOIN groups g ON g.id = t.group_id");
     conditions.push(`g.group_type = ANY(${addParam(groupTypes)})`);
   }
 
@@ -408,7 +408,7 @@ router.get("/cumulative", async (req, res) => {
   if (to) conditions.push(`t.date <= ${addParam(to)}`);
   if (countries.length > 0) conditions.push(`t.country = ANY(${addParam(countries)})`);
   if (groupTypes.length > 0) {
-    joins.push("LEFT JOIN groups g ON g.id = t.group_id");
+    joins.push("JOIN groups g ON g.id = t.group_id");
     conditions.push(`g.group_type = ANY(${addParam(groupTypes)})`);
   }
 
