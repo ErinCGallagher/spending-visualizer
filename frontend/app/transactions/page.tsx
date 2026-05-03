@@ -96,7 +96,10 @@ export default function TransactionsPage() {
       params.set("limit", String(PAGE_LIMIT));
 
       fetch(`/api/transactions?${params.toString()}`, { credentials: "include" })
-        .then((r) => r.json())
+        .then((r) => {
+          if (!r.ok) throw new Error("Failed to fetch transactions");
+          return r.json();
+        })
         .then((d: TransactionsResponse) => setData(d))
         .catch(() => setData(null))
         .finally(() => setLoading(false));
