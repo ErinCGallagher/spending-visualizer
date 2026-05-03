@@ -21,12 +21,16 @@ export default function SettingsPage() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [savingSettings, setSavingSettings] = useState(false);
   const [userSettings, setUserSettings] = useState<{ overviewDefaultFilter: string | null; tripDefaultFilter: string | null } | null>(null);
+  const [settingsLoadError, setSettingsLoadError] = useState(false);
 
   useEffect(() => {
     fetch("/api/account/settings", { credentials: "include" })
       .then((r) => r.json())
       .then((d) => setUserSettings(d))
-      .catch((err) => console.error("Failed to load settings:", err));
+      .catch((err) => {
+        console.error("Failed to load settings:", err);
+        setSettingsLoadError(true);
+      });
   }, []);
 
   async function updateDefaultFilter(field: "overviewDefaultFilter" | "tripDefaultFilter", value: string) {
@@ -127,6 +131,9 @@ export default function SettingsPage() {
         {/* Dashboard Settings */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
           <h2 className="text-sm font-semibold text-gray-700">Dashboard</h2>
+          {settingsLoadError && (
+            <p className="text-sm text-red-600">Failed to load settings. Please refresh the page.</p>
+          )}
           <div className="space-y-6 text-sm">
             {/* Overview Default */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">

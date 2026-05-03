@@ -40,7 +40,7 @@ router.patch("/settings", async (req, res) => {
 
   const fieldsToUpdate = Object.keys(updates).filter(k => allowedUpdates.includes(k));
   if (fieldsToUpdate.length === 0) {
-    res.json({ ok: true });
+    res.status(400).json({ error: "No valid fields provided" });
     return;
   }
 
