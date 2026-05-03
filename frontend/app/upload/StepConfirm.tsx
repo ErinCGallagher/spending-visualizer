@@ -47,7 +47,13 @@ export default function StepConfirm({
     setSaving(true);
     setError(null);
 
-    const sourceFormat = transactions[0]?.sourceFormat || "travelspend";
+    if (transactions.length === 0) {
+      setError("No transactions to save.");
+      setSaving(false);
+      return;
+    }
+
+    const sourceFormat = transactions[0].sourceFormat;
 
     try {
       const res = await fetch("/api/uploads/confirm", {

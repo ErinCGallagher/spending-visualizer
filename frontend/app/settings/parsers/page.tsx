@@ -29,9 +29,12 @@ export default function ParserSettingsPage() {
 
   useEffect(() => {
     fetch("/api/account/settings/parsers", { credentials: "include" })
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error("Failed to load settings");
+        return r.json();
+      })
       .then((d) => {
-        setSettings(d.settings);
+        setSettings(d.settings ?? []);
         setLoading(false);
       })
       .catch(() => {

@@ -101,8 +101,14 @@ router.post("/settings/parsers", async (req, res) => {
     settingValue: string;
   };
 
-  if (!parserType || !settingKey || !settingValue) {
-    res.status(400).json({ error: "parserType, settingKey, and settingValue are required" });
+  const VALID_PARSER_TYPES = ["amex"] as const;
+  if (!parserType || !VALID_PARSER_TYPES.includes(parserType as (typeof VALID_PARSER_TYPES)[number])) {
+    res.status(400).json({ error: `parserType must be one of: ${VALID_PARSER_TYPES.join(", ")}` });
+    return;
+  }
+
+  if (!settingKey || !settingValue) {
+    res.status(400).json({ error: "settingKey and settingValue are required" });
     return;
   }
 
