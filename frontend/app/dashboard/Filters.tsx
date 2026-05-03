@@ -291,13 +291,11 @@ export default function Filters({ meta, onChange, initialValues, showTravellers 
           </label>
           <MultiSelect
             label="Type"
-            options={Array.isArray(meta?.groupTypes) ? meta.groupTypes.map((gt) => gt.value) : []}
+            options={(meta?.groupTypes ?? []).map((gt) => gt.value)}
             selected={groupTypes}
             onChange={setGroupTypes}
             renderOption={(val) =>
-              Array.isArray(meta?.groupTypes) 
-                ? meta.groupTypes.find((gt) => gt.value === val)?.label ?? val
-                : val
+              meta?.groupTypes?.find((gt) => gt.value === val)?.label ?? val
             }
           />
         </div>
