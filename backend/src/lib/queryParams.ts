@@ -2,6 +2,17 @@
 
 export const VALID_GROUP_TYPE_VALUES = ["trip", "daily", "business"] as const;
 
+const GROUP_TYPE_LABELS: Record<typeof VALID_GROUP_TYPE_VALUES[number], string> = {
+  trip: "Trip",
+  daily: "Daily Living",
+  business: "Business",
+};
+
+export const GROUP_TYPE_OPTIONS = VALID_GROUP_TYPE_VALUES.map((value) => ({
+  value,
+  label: GROUP_TYPE_LABELS[value],
+}));
+
 export interface TransactionQueryParams {
   from: string | undefined;
   to: string | undefined;
@@ -57,7 +68,7 @@ export function parseTransactionQuery(raw: Record<string, unknown>): {
   }
   for (const gt of groupType) {
     if (!(VALID_GROUP_TYPE_VALUES as readonly string[]).includes(gt)) {
-      errors.push({ field: "groupType", message: "Must be one of: trip, daily, business" });
+      errors.push({ field: "groupType", message: `Must be one of: ${VALID_GROUP_TYPE_VALUES.join(", ")}` });
     }
   }
 

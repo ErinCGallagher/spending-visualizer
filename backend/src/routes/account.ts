@@ -3,7 +3,7 @@
 import { Router } from "express";
 import { requireAuth } from "../middleware/requireAuth";
 import { pool } from "../db";
-import { VALID_GROUP_TYPE_VALUES } from "../lib/queryParams";
+import { VALID_GROUP_TYPE_VALUES, GROUP_TYPE_OPTIONS } from "../lib/queryParams";
 
 const router = Router();
 
@@ -20,7 +20,8 @@ router.get("/settings", async (_req, res) => {
        WHERE id = $1`,
       [userId]
     );
-    res.json(rows[0] || { overviewDefaultFilter: null, tripDefaultFilter: null });
+    const row = rows[0] || { overviewDefaultFilter: null, tripDefaultFilter: null };
+    res.json({ ...row, groupTypes: GROUP_TYPE_OPTIONS });
   } catch (err) {
     console.error("GET /api/account/settings error:", err);
     res.status(500).json({ error: "Internal server error" });

@@ -3,7 +3,7 @@
 import { Router } from "express";
 import { requireAuth } from "../middleware/requireAuth";
 import { pool } from "../db";
-import { parseTransactionQuery } from "../lib/queryParams";
+import { parseTransactionQuery, GROUP_TYPE_OPTIONS } from "../lib/queryParams";
 import { buildTransactionFilterSQL, buildGroupsMetaSQL } from "../lib/transactionQuery";
 
 const router = Router();
@@ -155,11 +155,7 @@ router.get("/meta", async (_req, res) => {
       countries: countryResult.rows.map((r) => r.country),
       dateRange,
       groups: groupResult.rows,
-      groupTypes: [
-        { value: "trip", label: "Trip" },
-        { value: "daily", label: "Daily Living" },
-        { value: "business", label: "Business" },
-      ],
+      groupTypes: GROUP_TYPE_OPTIONS,
       overviewDefaultFilter: userResult.rows[0]?.overview_default_filter ?? null,
       tripDefaultFilter: userResult.rows[0]?.trip_default_filter ?? null,
       homeCurrency: currencyResult.rows[0]?.home_currency ?? null,
