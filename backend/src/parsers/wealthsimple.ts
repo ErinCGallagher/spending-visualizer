@@ -1,6 +1,7 @@
 /** Parser for Wealthsimple Visa credit card CSV statement exports. */
 
 import type { CsvParser, ParseResult, ParsedTransaction } from "./types";
+import { buildCreditCardTransaction, calculateDateRange } from "./utils";
 
 export class WealthsimpleParser implements CsvParser {
   name = "Wealthsimple";
@@ -17,26 +18,17 @@ export class WealthsimpleParser implements CsvParser {
         continue;
       }
 
-      transactions.push({
-        date: new Date(row.transaction_date),
-        description: row.details.trim(),
-        amountHome: parseFloat(row.amount),
-        amountLocal: null,
-        localCurrency: null,
-        categoryName: null,
-        categorySource: null,
-        paymentMethod: "Wealthsimple Visa",
-        country: null,
-        payer: null,
-        sourceFormat: "wealthsimple",
-        raw: row,
-        splits: [],
-      });
+      transactions.push(
+        buildCreditCardTransaction({
+          date: new Date(row.transaction_date),
+          description: row.details,
+          amount: parseFloat(row.amount),
+          paymentMethod: "Wealthsimple Visa",
+          sourceFormat: "wealthsimple",
+          raw: row,
+        })
+      );
     }
-
-    const dates = transactions.map((tx) => tx.date.getTime());
-    const from = dates.length > 0 ? new Date(Math.min(...dates)) : new Date(0);
-    const to = dates.length > 0 ? new Date(Math.max(...dates)) : new Date(0);
 
     const homeCurrency = rows[0]?.currency ?? "CAD";
 
@@ -46,7 +38,7 @@ export class WealthsimpleParser implements CsvParser {
       categories: [],
       errors: [],
       homeCurrency,
-      dateRange: { from, to },
+      dateRange: calculateDateRange(transactions),
       ...(skippedPayments > 0 ? { skippedPayments } : {}),
     };
   }

@@ -23,7 +23,9 @@ export default function StepSummary({ result, onBack, onContinue }: Props) {
     ...new Set(result.transactions.map((t) => t.country).filter(Boolean)),
   ].sort() as string[];
 
-  const isWealthsimple = result.transactions[0]?.sourceFormat === "wealthsimple";
+  const isCreditCard = ["wealthsimple", "amex"].includes(
+    result.transactions[0]?.sourceFormat
+  );
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-6">
@@ -77,7 +79,7 @@ export default function StepSummary({ result, onBack, onContinue }: Props) {
           </span>
         </div>
 
-        {!isWealthsimple && (
+        {!isCreditCard && (
           <>
             <div className="flex justify-between border-b border-gray-100 py-2">
               <span className="text-sm text-gray-500">Travellers</span>
