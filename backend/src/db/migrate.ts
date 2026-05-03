@@ -197,6 +197,7 @@ async function migrate() {
       CREATE INDEX IF NOT EXISTS idx_groups_user_type
         ON groups(user_id, group_type)
     `);
+
     await client.query(`
       DO $$
       BEGIN
