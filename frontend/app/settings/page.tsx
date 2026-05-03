@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
+import { GROUP_TYPES } from "@/lib/groupTypes";
 import ConfirmModal from "@/app/components/ui/ConfirmModal";
 import NavBar from "@/app/components/NavBar";
 
@@ -19,16 +20,16 @@ export default function SettingsPage() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [savingSettings, setSavingSettings] = useState(false);
-  const [meta, setMeta] = useState<any>(null);
+  const [userSettings, setUserSettings] = useState<{ overviewDefaultFilter: string | null; tripDefaultFilter: string | null } | null>(null);
 
   useEffect(() => {
-    fetch("/api/transactions/meta", { credentials: "include" })
+    fetch("/api/account/settings", { credentials: "include" })
       .then((r) => r.json())
-      .then((d) => setMeta(d))
-      .catch(() => {});
+      .then((d) => setUserSettings(d))
+      .catch((err) => console.error("Failed to load settings:", err));
   }, []);
 
-  async function updateDefaultFilter(field: string, value: string) {
+  async function updateDefaultFilter(field: "overviewDefaultFilter" | "tripDefaultFilter", value: string) {
     setSavingSettings(true);
     try {
       const res = await fetch("/api/account/settings", {
@@ -38,7 +39,7 @@ export default function SettingsPage() {
         body: JSON.stringify({ [field]: value || null }),
       });
       if (res.ok) {
-        setMeta((prev: any) => ({ ...prev, [field]: value || null }));
+        setUserSettings((prev) => prev ? { ...prev, [field]: value || null } : prev);
       }
     } catch (err) {
       console.error("Failed to update settings:", err);
@@ -135,18 +136,21 @@ export default function SettingsPage() {
               </div>
               <div className="flex items-center gap-2">
                 <select
-                  value={meta?.overviewDefaultFilter ?? ""}
+                  value={userSettings?.overviewDefaultFilter ?? ""}
                   onChange={(e) => updateDefaultFilter("overviewDefaultFilter", e.target.value)}
-                  disabled={savingSettings || !meta}
+                  disabled={savingSettings || !userSettings}
                   className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20 disabled:opacity-50"
                 >
                   <option value="">All groups</option>
-                  {meta?.groupTypes?.map((gt: { value: string; label: string }) => (
+                  {GROUP_TYPES.map((gt) => (
                     <option key={gt.value} value={gt.value}>
                       {gt.label}
                     </option>
                   ))}
                 </select>
+                {savingSettings && (
+                  <div className="w-4 h-4 border-2 border-brand-primary border-t-transparent rounded-full animate-spin" />
+                )}
               </div>
             </div>
 
@@ -164,9 +168,6 @@ export default function SettingsPage() {
                 >
                   <option value="">No default set</option>
                 </select>
-                {savingSettings && (
-                  <div className="w-4 h-4 border-2 border-brand-primary border-t-transparent rounded-full animate-spin" />
-                )}
               </div>
             </div>
           </div>
