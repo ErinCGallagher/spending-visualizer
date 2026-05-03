@@ -16,6 +16,7 @@ export interface Meta {
   categories: { id: string; name: string }[];
   travellers: string[];
   paymentMethods: string[];
+  countries: string[];
   dateRange: { from: string; to: string } | null;
   groups: { id: string; name: string; groupType: string }[];
   groupTypes: { value: string; label: string }[];
@@ -79,9 +80,12 @@ export function useDashboardData(
           categories: [],
           travellers: [],
           paymentMethods: [],
+          countries: [],
           dateRange: null,
           groups: [],
           groupTypes: [],
+          overviewDefaultFilter: null,
+          tripDefaultFilter: null,
           homeCurrency: null,
         })
       )
