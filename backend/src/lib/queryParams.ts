@@ -1,5 +1,18 @@
 /** Pure helpers for parsing and validating transaction query parameters. */
 
+export const VALID_GROUP_TYPE_VALUES = ["trip", "daily", "business"] as const;
+
+const GROUP_TYPE_LABELS: Record<typeof VALID_GROUP_TYPE_VALUES[number], string> = {
+  trip: "Trip",
+  daily: "Daily Living",
+  business: "Business",
+};
+
+export const GROUP_TYPE_OPTIONS = VALID_GROUP_TYPE_VALUES.map((value) => ({
+  value,
+  label: GROUP_TYPE_LABELS[value],
+}));
+
 export interface TransactionQueryParams {
   from: string | undefined;
   to: string | undefined;
@@ -7,7 +20,7 @@ export interface TransactionQueryParams {
   paymentMethod: string | undefined;
   traveller: string | undefined;
   groupId: string | undefined;
-  groupType: string | undefined;
+  groupType: string[];
   search: string | undefined;
   page: number;
   limit: number;
@@ -20,6 +33,15 @@ export interface ParamError {
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function validateGroupTypes(groupTypes: string[]): string | null {
+  for (const gt of groupTypes) {
+    if (!(VALID_GROUP_TYPE_VALUES as readonly string[]).includes(gt)) {
+      return `Invalid groupType: ${gt}. Must be one of: ${VALID_GROUP_TYPE_VALUES.join(", ")}`;
+    }
+  }
+  return null;
+}
 
 /**
  * Parses raw Express query params for the transactions list endpoint.
@@ -38,7 +60,7 @@ export function parseTransactionQuery(raw: Record<string, unknown>): {
   const paymentMethod = typeof raw.paymentMethod === "string" ? raw.paymentMethod : undefined;
   const traveller = typeof raw.traveller === "string" ? raw.traveller : undefined;
   const groupId = typeof raw.groupId === "string" ? raw.groupId : undefined;
-  const groupType = typeof raw.groupType === "string" ? raw.groupType : undefined;
+  const groupType = [raw.groupType ?? []].flat().filter(Boolean) as string[];
   const search = typeof raw.search === "string" ? raw.search : undefined;
 
   if (from !== undefined && !ISO_DATE.test(from)) {
@@ -53,9 +75,9 @@ export function parseTransactionQuery(raw: Record<string, unknown>): {
   if (groupId !== undefined && !UUID.test(groupId)) {
     errors.push({ field: "groupId", message: "Must be a valid UUID" });
   }
-  const VALID_GROUP_TYPES = ["trip", "daily", "business"];
-  if (groupType !== undefined && !VALID_GROUP_TYPES.includes(groupType)) {
-    errors.push({ field: "groupType", message: "Must be one of: trip, daily, business" });
+  const groupTypeError = validateGroupTypes(groupType);
+  if (groupTypeError) {
+    errors.push({ field: "groupType", message: `Must be one of: ${VALID_GROUP_TYPE_VALUES.join(", ")}` });
   }
 
   let page = 1;

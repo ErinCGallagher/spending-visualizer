@@ -5,7 +5,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
@@ -18,6 +18,47 @@ export default function SettingsPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [userSettings, setUserSettings] = useState<{
+    overviewDefaultFilter: string | null;
+    tripDefaultFilter: string | null;
+    groupTypes: { value: string; label: string }[];
+  } | null>(null);
+  const [settingsLoadError, setSettingsLoadError] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/account/settings", { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => setUserSettings(d))
+      .catch((err) => {
+        console.error("Failed to load settings:", err);
+        setSettingsLoadError(true);
+      });
+  }, []);
+
+  async function updateDefaultFilter(field: "overviewDefaultFilter" | "tripDefaultFilter", value: string) {
+    setSavingSettings(true);
+    setSaveError(null);
+    try {
+      const res = await fetch("/api/account/settings", {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [field]: value || null }),
+      });
+      if (res.ok) {
+        setUserSettings((prev) => prev ? { ...prev, [field]: value || null } : prev);
+      } else {
+        setSaveError("Failed to save. Please try again.");
+      }
+    } catch (err) {
+      console.error("Failed to update settings:", err);
+      setSaveError("Failed to save. Please try again.");
+    } finally {
+      setSavingSettings(false);
+    }
+  }
 
   async function handleDeleteConfirm() {
     setDeleteLoading(true);
@@ -93,6 +134,61 @@ export default function SettingsPage() {
               </dd>
             </div>
           </dl>
+        </div>
+
+        {/* Dashboard Settings */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
+          <h2 className="text-sm font-semibold text-gray-700">Dashboard</h2>
+          {settingsLoadError && (
+            <p className="text-sm text-red-600">Failed to load settings. Please refresh the page.</p>
+          )}
+          <div className="space-y-6 text-sm">
+            {/* Overview Default */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <dt className="font-semibold text-gray-900">Overview default filter</dt>
+                <dd className="text-gray-500 text-xs mt-0.5">Which group type to show by default when opening the overview.</dd>
+              </div>
+              <div className="flex items-center gap-2">
+                <select
+                  value={userSettings?.overviewDefaultFilter ?? ""}
+                  onChange={(e) => updateDefaultFilter("overviewDefaultFilter", e.target.value)}
+                  disabled={savingSettings || !userSettings}
+                  className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20 disabled:opacity-50"
+                >
+                  <option value="">All groups</option>
+                  {(userSettings?.groupTypes ?? []).map((gt) => (
+                    <option key={gt.value} value={gt.value}>
+                      {gt.label}
+                    </option>
+                  ))}
+                </select>
+                {savingSettings && (
+                  <div className="w-4 h-4 border-2 border-brand-primary border-t-transparent rounded-full animate-spin" />
+                )}
+                {saveError && (
+                  <p className="text-xs text-red-600">{saveError}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Trip Default */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 opacity-60">
+              <div>
+                <dt className="font-semibold text-gray-900">Trip default filter</dt>
+                <dd className="text-gray-500 text-xs mt-0.5">Preferred default filter for the trip dashboard.</dd>
+              </div>
+              <div className="flex items-center gap-2">
+                <select
+                  value=""
+                  disabled
+                  className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm cursor-not-allowed"
+                >
+                  <option value="">No default set</option>
+                </select>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Categories */}

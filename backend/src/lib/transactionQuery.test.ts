@@ -2,6 +2,7 @@
 
 import { describe, it, expect } from "vitest";
 import { buildTransactionFilterSQL, buildGroupsMetaSQL } from "./transactionQuery";
+import { parseTransactionQuery } from "./queryParams";
 
 describe("buildTransactionFilterSQL", () => {
   it("includes only user_id condition when no filters are provided", () => {
@@ -44,6 +45,53 @@ describe("buildTransactionFilterSQL", () => {
     const { joins, conditions } = buildTransactionFilterSQL("user1", {});
     expect(joins).toHaveLength(0);
     expect(conditions.some((c) => c.includes("t.payer"))).toBe(false);
+  });
+
+  it("groupType filter uses INNER JOIN so ungrouped transactions are excluded", () => {
+    const { joins } = buildTransactionFilterSQL("user1", { groupType: ["trip"] });
+    expect(joins).toHaveLength(1);
+    expect(joins[0]).toMatch(/^JOIN groups/i);
+    expect(joins[0]).not.toMatch(/LEFT JOIN/i);
+  });
+
+  it("groupType filter adds a g.group_type = ANY condition", () => {
+    const { conditions } = buildTransactionFilterSQL("user1", { groupType: ["trip"] });
+    expect(conditions.some((c) => c.includes("g.group_type = ANY"))).toBe(true);
+  });
+
+  it("groupType filter binds the types array as a single parameter", () => {
+    const { values } = buildTransactionFilterSQL("user1", { groupType: ["trip", "daily"] });
+    expect(values).toContainEqual(["trip", "daily"]);
+  });
+
+  it("single groupType string is coerced to an array", () => {
+    const { joins, values } = buildTransactionFilterSQL("user1", { groupType: "business" });
+    expect(joins).toHaveLength(1);
+    expect(values).toContainEqual(["business"]);
+  });
+
+  it("empty groupType array adds no join or group_type condition", () => {
+    const { joins, conditions } = buildTransactionFilterSQL("user1", { groupType: [] });
+    expect(joins).toHaveLength(0);
+    expect(conditions.some((c) => c.includes("g.group_type"))).toBe(false);
+  });
+});
+
+describe("parseTransactionQuery groupType", () => {
+  it("parses a multi-value groupType array with no errors", () => {
+    const { params, errors } = parseTransactionQuery({ groupType: ["trip", "daily"] });
+    expect(errors).toHaveLength(0);
+    expect(params.groupType).toEqual(["trip", "daily"]);
+  });
+
+  it("produces an error for an invalid value inside a multi-value array", () => {
+    const { errors } = parseTransactionQuery({ groupType: ["trip", "invalid"] });
+    expect(errors.some((e) => e.field === "groupType")).toBe(true);
+  });
+
+  it("produces exactly one error for a single invalid value", () => {
+    const { errors } = parseTransactionQuery({ groupType: "bad" });
+    expect(errors.filter((e) => e.field === "groupType")).toHaveLength(1);
   });
 });
 

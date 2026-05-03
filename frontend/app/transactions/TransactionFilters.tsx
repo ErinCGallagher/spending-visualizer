@@ -14,6 +14,7 @@ interface Meta {
   paymentMethods: string[];
   dateRange: { from: string; to: string } | null;
   groups: { id: string; name: string; groupType: string }[];
+  groupTypes: { value: string; label: string }[];
 }
 
 interface Props {
@@ -61,10 +62,6 @@ export default function TransactionFilters({
   function resetFilters() {
     onChange("", "", "", "", "", "", "");
   }
-
-  const groupTypes = Array.from(
-    new Set((meta?.groups ?? []).map((g) => g.groupType))
-  );
 
   return (
     <div className="space-y-4">
@@ -197,9 +194,9 @@ export default function TransactionFilters({
                 className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
               >
                 <option value="">All types</option>
-                {groupTypes.map((t) => (
-                  <option key={t} value={t}>
-                    {t.charAt(0).toUpperCase() + t.slice(1)}
+                {Array.isArray(meta?.groupTypes) && meta.groupTypes.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
                   </option>
                 ))}
               </select>

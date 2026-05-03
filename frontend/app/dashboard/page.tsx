@@ -5,7 +5,7 @@
 
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
 import Filters, { type FilterValues } from "@/app/dashboard/Filters";
@@ -28,12 +28,7 @@ export default function DashboardPage() {
   const firstName = session?.user?.name?.split(" ")[0] ?? "";
   const [view, setView] = useState<"overview" | "trip">("overview");
 
-  const [filters, setFilters] = useState<FilterValues>({
-    from: "",
-    to: "",
-    travellers: [],
-    countries: [],
-  });
+  const [filters, setFilters] = useState<FilterValues | null>(null);
   const [monthlyGroupBy, setMonthlyGroupBy] = useState<"category" | "total">(
     "category"
   );
@@ -54,13 +49,28 @@ export default function DashboardPage() {
     categoryTimelineLoading,
   } = useDashboardData(filters, monthlyGroupBy, granularity, categoryTimelineGranularity);
 
+  // Seed filters once from meta defaults
+  const isSeeded = useRef(false);
+  useEffect(() => {
+    if (!metaLoading && meta && !isSeeded.current) {
+      isSeeded.current = true;
+      setFilters({
+        from: "",
+        to: "",
+        travellers: [],
+        countries: [],
+        groupTypes: meta.overviewDefaultFilter ? [meta.overviewDefaultFilter] : [],
+      });
+    }
+  }, [meta, metaLoading]);
+
   const currency = meta?.homeCurrency ?? "CAD";
 
   const handleFiltersChange = useCallback((f: FilterValues) => {
     setFilters(f);
   }, []);
 
-  if (metaLoading) {
+  if (metaLoading || !filters) {
     return (
       <main className="min-h-screen flex items-center justify-center">
         <p className="text-sm text-gray-400">Loading…</p>
@@ -101,7 +111,12 @@ export default function DashboardPage() {
           <DashboardTabBar activeView={view} onSwitch={setView} />
           <div className="p-8 space-y-6">
             <div className="bg-slate-50/50 rounded-2xl border border-slate-100 p-6">
-              <Filters onChange={handleFiltersChange} showTravellers={false} />
+              <Filters
+                meta={meta}
+                onChange={handleFiltersChange}
+                showTravellers={false}
+                initialValues={filters}
+              />
             </div>
             <DashboardOverview
               categoryData={categoryData}
@@ -125,7 +140,7 @@ export default function DashboardPage() {
 
         {/* Trip card stays mounted so overlay/data state is preserved on tab switch */}
         <div className={view !== "trip" ? "hidden" : ""}>
-          <TripDashboard onSwitchView={setView} currency={currency} />
+          <TripDashboard onSwitchView={setView} currency={currency} meta={meta} />
         </div>
       </div>
     </main>

@@ -11,7 +11,7 @@ export interface TransactionFilterInput {
   /** Name of the payer to filter by (maps to transactions.payer). */
   traveller?: string;
   groupId?: string;
-  groupType?: string;
+  groupType?: string | string[];
   search?: string;
 }
 
@@ -46,9 +46,10 @@ export function buildTransactionFilterSQL(
   if (params.category) conditions.push(`t.category_id = ${addParam(params.category)}`);
   if (params.paymentMethod) conditions.push(`t.payment_method = ${addParam(params.paymentMethod)}`);
   if (params.groupId) conditions.push(`t.group_id = ${addParam(params.groupId)}`);
-  if (params.groupType) {
-    joins.push(`LEFT JOIN groups g ON g.id = t.group_id`);
-    conditions.push(`g.group_type = ${addParam(params.groupType)}`);
+  const groupTypes = [params.groupType ?? []].flat().filter(Boolean);
+  if (groupTypes.length > 0) {
+    joins.push(`JOIN groups g ON g.id = t.group_id`);
+    conditions.push(`g.group_type = ANY(${addParam(groupTypes)})`);
   }
 
   if (params.search) {
