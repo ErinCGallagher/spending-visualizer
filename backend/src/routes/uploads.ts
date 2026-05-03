@@ -8,6 +8,7 @@ import { requireAuth } from "../middleware/requireAuth";
 import { pool } from "../db";
 import { TravelSpendParser } from "../parsers/travelspend";
 import { WealthsimpleParser } from "../parsers/wealthsimple";
+import { AmexParser } from "../parsers/amex";
 import { buildCategorisePrompt, parseCategoriseResponse, CategoriseResult } from "../lib/categorisePrompt";
 import { toMerchantKey } from "../lib/merchantKey";
 import { CsvParser, ParsedTransaction } from "../parsers/types";
@@ -19,9 +20,10 @@ const travelspendParser = new TravelSpendParser();
 const SUPPORTED_PARSERS: Record<string, CsvParser> = {
   travelspend: travelspendParser,
   wealthsimple: new WealthsimpleParser(),
+  amex: new AmexParser(),
 };
 
-const CREDIT_CARD_FORMATS = new Set(["wealthsimple"]);
+const CREDIT_CARD_FORMATS = new Set(["wealthsimple", "amex"]);
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 MB
 const MAX_ROWS = 10_000;

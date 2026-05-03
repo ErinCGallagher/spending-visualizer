@@ -29,4 +29,12 @@ export const PARSER_STEPS: Record<string, StepDefinition[]> = {
     { id: "group",         label: "Assign group" },
     { id: "confirm",       label: "Confirm" },
   ],
+  amex: [
+    { id: "file",          label: "Select file" },
+    { id: "summary",       label: "Review summary" },
+    { id: "cc-review",     label: "AI suggestions" },
+    { id: "cc-categories", label: "Review categories", conditional: true },
+    { id: "group",         label: "Assign group" },
+    { id: "confirm",       label: "Confirm" },
+  ],
 };
