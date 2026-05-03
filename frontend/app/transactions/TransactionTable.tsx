@@ -16,6 +16,7 @@ interface Transaction {
   homeCurrency: string | null;
   parentCategoryName: string | null;
   subCategoryName: string | null;
+  paymentMethod: string | null;
   payer: string | null;
   groupName: string | null;
   groupType: string | null;
@@ -83,13 +84,13 @@ export default function TransactionTable({
                     Amount
                   </th>
                   <th className="px-4 py-3 text-xs font-semibold tracking-widest text-gray-400 uppercase">
+                    Method
+                  </th>
+                  <th className="px-4 py-3 text-xs font-semibold tracking-widest text-gray-400 uppercase">
                     Payer
                   </th>
                   <th className="px-4 py-3 text-xs font-semibold tracking-widest text-gray-400 uppercase">
                     Group
-                  </th>
-                  <th className="px-4 py-3 text-xs font-semibold tracking-widest text-gray-400 uppercase">
-                    Type
                   </th>
                 </tr>
               </thead>
@@ -113,13 +114,13 @@ export default function TransactionTable({
                       {t.homeCurrency ? ` ${t.homeCurrency}` : ""}
                     </td>
                     <td className="px-4 py-3 text-gray-600">
+                      {t.paymentMethod ?? <span className="text-gray-300">—</span>}
+                    </td>
+                    <td className="px-4 py-3 text-gray-600">
                       {t.payer ?? <span className="text-gray-300">—</span>}
                     </td>
                     <td className="px-4 py-3 text-gray-600">
                       {t.groupName ?? <span className="text-gray-300">—</span>}
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">
-                      {t.groupType ?? <span className="text-gray-300">—</span>}
                     </td>
                   </tr>
                 ))}

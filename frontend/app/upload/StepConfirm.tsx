@@ -8,6 +8,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { GroupType, ParsedTransaction, ParsedUploadResult } from "./types";
+import { isCreditCardFormat } from "./stepConfig";
 
 const GROUP_TYPE_LABELS: Record<GroupType, string> = {
   trip: "Trip",
@@ -37,6 +38,11 @@ export default function StepConfirm({
   const categorised = transactions.filter((t) => t.categoryName).length;
   const uncategorised = transactions.length - categorised;
   const totalAmount = transactions.reduce((sum, t) => sum + t.amountHome, 0);
+
+  const isCreditCard = isCreditCardFormat(transactions[0]?.sourceFormat);
+  const paymentMethods = [
+    ...new Set(transactions.map((t) => t.paymentMethod).filter(Boolean)),
+  ] as string[];
 
   // Count transactions assigned to the secondary group (if any)
   const secondaryCount = transactions.filter(
@@ -147,14 +153,23 @@ export default function StepConfirm({
           </div>
         )}
 
-        <div className="bg-gray-50 rounded-lg p-4">
-          <dt className="text-xs text-gray-500 uppercase tracking-wide mb-1">Travellers</dt>
-          <dd className="text-base font-medium text-gray-900">
-            {uploadResult.travellers.length > 0
-              ? uploadResult.travellers.join(", ")
-              : "—"}
-          </dd>
-        </div>
+        {isCreditCard ? (
+          <div className="bg-gray-50 rounded-lg p-4">
+            <dt className="text-xs text-gray-500 uppercase tracking-wide mb-1">Payment Methods</dt>
+            <dd className="text-base font-medium text-gray-900">
+              {paymentMethods.length > 0 ? paymentMethods.join(", ") : "—"}
+            </dd>
+          </div>
+        ) : (
+          <div className="bg-gray-50 rounded-lg p-4">
+            <dt className="text-xs text-gray-500 uppercase tracking-wide mb-1">Travellers</dt>
+            <dd className="text-base font-medium text-gray-900">
+              {uploadResult.travellers.length > 0
+                ? uploadResult.travellers.join(", ")
+                : "—"}
+            </dd>
+          </div>
+        )}
 
         <div className="bg-gray-50 rounded-lg p-4">
           <dt className="text-xs text-gray-500 uppercase tracking-wide mb-1">Home Currency</dt>

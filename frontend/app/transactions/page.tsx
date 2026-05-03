@@ -19,7 +19,6 @@ interface Meta {
   paymentMethods: string[];
   dateRange: { from: string; to: string } | null;
   groups: { id: string; name: string; groupType: string }[];
-  groupTypes: { value: string; label: string }[];
   overviewDefaultFilter: string | null;
   tripDefaultFilter: string | null;
 }
@@ -44,8 +43,8 @@ export default function TransactionsPage() {
           filters.to,
           filters.category,
           filters.group,
-          filters.groupTypeFilter,
           filters.payer,
+          filters.paymentMethod,
           debouncedSearch
         );
       }
@@ -89,8 +88,8 @@ export default function TransactionsPage() {
       if (f.to) params.set("to", f.to);
       if (f.category) params.set("category", f.category);
       if (f.group) params.set("groupId", f.group);
-      if (f.groupTypeFilter) params.set("groupType", f.groupTypeFilter);
       if (f.payer) params.set("traveller", f.payer);
+      if (f.paymentMethod) params.set("paymentMethod", f.paymentMethod);
       if (f.search) params.set("search", f.search);
       params.set("page", String(currentPage));
       params.set("limit", String(PAGE_LIMIT));
@@ -179,13 +178,13 @@ export default function TransactionsPage() {
               to={filters.to}
               category={filters.category}
               group={filters.group}
-              groupType={filters.groupTypeFilter}
               payer={filters.payer}
+              paymentMethod={filters.paymentMethod}
               search={debouncedSearch}
-              onChange={(from, to, category, group, groupType, payer, search) => {
+              onChange={(from, to, category, group, payer, paymentMethod, search) => {
                 setDebouncedSearch(search);
                 // Immediately apply other filters, but keep search debounced
-                handleFilterChange(from, to, category, group, groupType, payer, filters.search);
+                handleFilterChange(from, to, category, group, payer, paymentMethod, filters.search);
               }}
             />
           </div>
