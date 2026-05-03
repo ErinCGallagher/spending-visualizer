@@ -53,7 +53,7 @@ export interface DashboardData {
 }
 
 export function useDashboardData(
-  filters: FilterValues,
+  filters: FilterValues | null,
   monthlyGroupBy: "category" | "total",
   granularity: Granularity,
   categoryTimelineGranularity: Granularity
@@ -138,7 +138,7 @@ export function useDashboardData(
 
   // Re-fetch charts whenever meta has loaded and any dependency changes
   useEffect(() => {
-    if (meta?.dateRange !== undefined) {
+    if (filters && meta?.dateRange !== undefined) {
       fetchCharts(filters, monthlyGroupBy, granularity, categoryTimelineGranularity);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

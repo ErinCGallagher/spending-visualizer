@@ -31,11 +31,7 @@ interface Props {
 }
 
 export default function TripDashboard({ onSwitchView, currency, meta }: Props) {
-  const [filterState, setFilterState] = useState<FilterState>({
-    from: "",
-    to: "",
-    travellers: [],
-  });
+  const [filterState, setFilterState] = useState<FilterState | null>(null);
   const [selectedGroup, setSelectedGroup] = useState<{ id: string; name: string } | null>(null);
   const [categoryData, setCategoryData] = useState<CategoryTotal[]>([]);
   const [totalSpend, setTotalSpend] = useState<number | null>(null);
@@ -43,6 +39,19 @@ export default function TripDashboard({ onSwitchView, currency, meta }: Props) {
 
   const [overlayState, setOverlayState] = useState<"visible" | "fading" | "hidden">("hidden");
   const overlayStateRef = useRef<"visible" | "fading" | "hidden">("hidden");
+
+  // Seed filters once from meta defaults
+  const isSeeded = useRef(false);
+  useEffect(() => {
+    if (meta && !isSeeded.current) {
+      isSeeded.current = true;
+      setFilterState({
+        from: "",
+        to: "",
+        travellers: meta.tripDefaultFilter ? [meta.tripDefaultFilter] : [],
+      });
+    }
+  }, [meta]);
 
   function setOverlay(next: "visible" | "fading" | "hidden") {
     overlayStateRef.current = next;
@@ -60,6 +69,8 @@ export default function TripDashboard({ onSwitchView, currency, meta }: Props) {
   }, [categoryLoading]);
 
   useEffect(() => {
+    if (!filterState) return;
+
     setCategoryLoading(true);
     const params = new URLSearchParams();
     if (filterState.from) params.set("from", filterState.from);
@@ -84,12 +95,19 @@ export default function TripDashboard({ onSwitchView, currency, meta }: Props) {
     setTotalSpend(null);
   }, []);
 
+  if (!filterState) return null;
+
   return (
     <div className="bg-white rounded-3xl border border-white/10 shadow-2xl overflow-hidden">
       <DashboardTabBar activeView="trip" onSwitch={onSwitchView} />
       <div className="p-8 space-y-6">
         <div className="bg-slate-50/50 rounded-2xl border border-slate-100 p-6">
-          <Filters meta={meta} onChange={handleFiltersChange} showGroupType={false} />
+          <Filters
+            meta={meta}
+            onChange={handleFiltersChange}
+            showGroupType={false}
+            initialValues={filterState}
+          />
         </div>
 
         <div className="relative space-y-6">

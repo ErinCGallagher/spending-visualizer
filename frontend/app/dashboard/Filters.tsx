@@ -143,15 +143,9 @@ export default function Filters({ meta, onChange, initialValues, showTravellers 
     groupTypes.length > 0;
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isMounted = useRef(false);
 
-  // Emit debounced filter changes upward, skipping the initial mount so the
-  // parent's existing filter state isn't overwritten with a new object reference.
+  // Emit debounced filter changes upward.
   useEffect(() => {
-    if (!isMounted.current) {
-      isMounted.current = true;
-      return;
-    }
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       onChange({ from, to, travellers, countries, groupTypes });
