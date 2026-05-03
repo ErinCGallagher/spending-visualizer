@@ -57,7 +57,7 @@ export default function TransactionTable({
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
         </div>
       )}
-      {!loading && (!data || data.transactions.length === 0) ? (
+      {!loading && (!data || !data.transactions || data.transactions.length === 0) ? (
         <div className="flex items-center justify-center py-16">
           <p className="text-sm text-gray-400">No transactions found.</p>
         </div>

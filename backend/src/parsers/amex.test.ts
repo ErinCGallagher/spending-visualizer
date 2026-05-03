@@ -10,7 +10,10 @@ const rows = [
   { Date: "15 Feb 2024", Description: "UBER", Amount: "25.00", "Account #": "-12345" },
 ];
 
-const parser = new AmexParser();
+const parser = new AmexParser({
+  "42006": "Amex Gold",
+  "61005": "Amex Cobalt",
+});
 
 describe("AmexParser", () => {
   describe("fixedFields", () => {
@@ -42,7 +45,7 @@ describe("AmexParser", () => {
       expect(result.transactions[1].paymentMethod).toBe("Amex Cobalt");
     });
 
-    it("defaults unknown Account # to Amex (...12345)", () => {
+    it("defaults unknown Account # to Amex with suffix", () => {
       const result = parser.parse(rows, "upload-1", "user-1");
       // Index 2 is UBER because the payment was skipped
       expect(result.transactions[2].paymentMethod).toBe("Amex (...12345)");

@@ -152,6 +152,19 @@ async function migrate() {
       ALTER TABLE transactions ADD COLUMN IF NOT EXISTS group_id uuid references groups(id)
     `);
 
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS parser_settings (
+        id            uuid primary key default gen_random_uuid(),
+        user_id       text not null references "user"(id) on delete cascade,
+        parser_type   text not null,
+        setting_key   text not null,
+        setting_value text not null,
+        created_at    timestamptz not null default now(),
+        updated_at    timestamptz not null default now(),
+        unique(user_id, parser_type, setting_key)
+      )
+    `);
+
     // Indexes
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_transactions_user_date

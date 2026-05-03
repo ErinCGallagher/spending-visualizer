@@ -3,16 +3,12 @@
 import type { CsvParser, ParseResult, ParsedTransaction } from "./types";
 import { buildCreditCardTransaction, calculateDateRange } from "./utils";
 
-const CARD_MAPPING: Record<string, string> = {
-  "-42006": "Amex Gold",
-  "-61005": "Amex Cobalt",
-  "-12000": "Amex Marriott",
-};
-
 export class AmexParser implements CsvParser {
   name = "American Express";
 
   fixedFields = ["Date", "Description", "Amount", "Account #"];
+
+  constructor(private cardMapping: Record<string, string> = {}) {}
 
   parse(rows: Record<string, string>[], _uploadId: string, _userId: string): ParseResult {
     const transactions: ParsedTransaction[] = [];
@@ -26,7 +22,10 @@ export class AmexParser implements CsvParser {
       }
 
       const accountNum = row["Account #"] || "";
-      const paymentMethod = CARD_MAPPING[accountNum] || `Amex (...${accountNum.slice(-5)})`;
+      const normalizedAccount = accountNum.replace(/[^0-9]/g, "");
+      const paymentMethod =
+        this.cardMapping[normalizedAccount] ||
+        (normalizedAccount ? `Amex (...${normalizedAccount.slice(-5)})` : "Amex");
 
       transactions.push(
         buildCreditCardTransaction({
