@@ -12,8 +12,8 @@ export interface TransactionFilters {
   to: string;
   category: string;
   group: string;
-  groupTypeFilter: string;
   payer: string;
+  paymentMethod: string;
   search: string;
 }
 
@@ -26,8 +26,8 @@ interface UseTransactionFiltersResult {
     to: string,
     category: string,
     group: string,
-    groupType: string,
     payer: string,
+    paymentMethod: string,
     search: string
   ) => void;
 }
@@ -37,8 +37,8 @@ export function useTransactionFilters(): UseTransactionFiltersResult {
   const [to, setTo] = useState("");
   const [category, setCategory] = useState("");
   const [group, setGroup] = useState("");
-  const [groupTypeFilter, setGroupTypeFilter] = useState("");
   const [payer, setPayer] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
 
@@ -48,8 +48,8 @@ export function useTransactionFilters(): UseTransactionFiltersResult {
       newTo: string,
       newCategory: string,
       newGroup: string,
-      newGroupType: string,
       newPayer: string,
+      newPaymentMethod: string,
       newSearch: string
     ) => {
       setPage(1);
@@ -57,16 +57,16 @@ export function useTransactionFilters(): UseTransactionFiltersResult {
       setTo(newTo);
       setCategory(newCategory);
       setGroup(newGroup);
-      setGroupTypeFilter(newGroupType);
       setPayer(newPayer);
+      setPaymentMethod(newPaymentMethod);
       setSearch(newSearch);
     },
     []
   );
 
   const filters = useMemo(
-    () => ({ from, to, category, group, groupTypeFilter, payer, search }),
-    [from, to, category, group, groupTypeFilter, payer, search]
+    () => ({ from, to, category, group, payer, paymentMethod, search }),
+    [from, to, category, group, payer, paymentMethod, search]
   );
 
   return {

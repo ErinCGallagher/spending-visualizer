@@ -14,7 +14,6 @@ interface Meta {
   paymentMethods: string[];
   dateRange: { from: string; to: string } | null;
   groups: { id: string; name: string; groupType: string }[];
-  groupTypes: { value: string; label: string }[];
 }
 
 interface Props {
@@ -23,16 +22,16 @@ interface Props {
   to: string;
   category: string;
   group: string;
-  groupType: string;
   payer: string;
+  paymentMethod: string;
   search: string;
   onChange: (
     from: string,
     to: string,
     category: string,
     group: string,
-    groupType: string,
     payer: string,
+    paymentMethod: string,
     search: string
   ) => void;
 }
@@ -43,8 +42,8 @@ export default function TransactionFilters({
   to,
   category,
   group,
-  groupType,
   payer,
+  paymentMethod,
   search,
   onChange,
 }: Props) {
@@ -55,8 +54,8 @@ export default function TransactionFilters({
     to !== "" ||
     category !== "" ||
     group !== "" ||
-    groupType !== "" ||
     payer !== "" ||
+    paymentMethod !== "" ||
     search !== "";
 
   function resetFilters() {
@@ -74,7 +73,7 @@ export default function TransactionFilters({
             placeholder="Search transactions..."
             value={search}
             onChange={(e) =>
-              onChange(from, to, category, group, groupType, payer, e.target.value)
+              onChange(from, to, category, group, payer, paymentMethod, e.target.value)
             }
             className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20 text-slate-900"
           />
@@ -106,7 +105,7 @@ export default function TransactionFilters({
               type="date"
               value={from}
               onChange={(e) =>
-                onChange(e.target.value, to, category, group, groupType, payer, search)
+                onChange(e.target.value, to, category, group, payer, paymentMethod, search)
               }
               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
             />
@@ -119,7 +118,7 @@ export default function TransactionFilters({
               type="date"
               value={to}
               onChange={(e) =>
-                onChange(from, e.target.value, category, group, groupType, payer, search)
+                onChange(from, e.target.value, category, group, payer, paymentMethod, search)
               }
               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
             />
@@ -131,7 +130,7 @@ export default function TransactionFilters({
             <select
               value={category}
               onChange={(e) =>
-                onChange(from, to, e.target.value, group, groupType, payer, search)
+                onChange(from, to, e.target.value, group, payer, paymentMethod, search)
               }
               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
             >
@@ -150,7 +149,7 @@ export default function TransactionFilters({
             <select
               value={payer}
               onChange={(e) =>
-                onChange(from, to, category, group, groupType, e.target.value, search)
+                onChange(from, to, category, group, e.target.value, paymentMethod, search)
               }
               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
             >
@@ -164,39 +163,39 @@ export default function TransactionFilters({
           </div>
           <div className="space-y-1.5">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-              Group
+              Method
             </label>
             <select
-              value={group}
+              value={paymentMethod}
               onChange={(e) =>
-                onChange(from, to, category, e.target.value, groupType, payer, search)
+                onChange(from, to, category, group, payer, e.target.value, search)
               }
               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
             >
-              <option value="">All groups</option>
-              {(meta?.groups ?? []).map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.name}
+              <option value="">All methods</option>
+              {(meta?.paymentMethods ?? []).map((m) => (
+                <option key={m} value={m}>
+                  {m}
                 </option>
               ))}
             </select>
           </div>
           <div className="space-y-1.5">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-              Type
+              Group
             </label>
             <div className="flex items-center gap-2">
               <select
-                value={groupType}
+                value={group}
                 onChange={(e) =>
-                  onChange(from, to, category, group, e.target.value, payer, search)
+                  onChange(from, to, category, e.target.value, payer, paymentMethod, search)
                 }
                 className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
               >
-                <option value="">All types</option>
-                {Array.isArray(meta?.groupTypes) && meta.groupTypes.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
+                <option value="">All groups</option>
+                {(meta?.groups ?? []).map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.name}
                   </option>
                 ))}
               </select>

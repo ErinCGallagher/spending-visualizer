@@ -1,3 +1,9 @@
+const CREDIT_CARD_FORMATS = new Set(["wealthsimple", "amex"]);
+
+export function isCreditCardFormat(sourceFormat: string | undefined): boolean {
+  return CREDIT_CARD_FORMATS.has(sourceFormat ?? "");
+}
+
 export interface StepDefinition {
   id: string;
   label: string;

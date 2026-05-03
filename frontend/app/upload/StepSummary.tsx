@@ -7,6 +7,7 @@
 
 import { formatDate } from "@/lib/format";
 import type { ParsedUploadResult } from "./types";
+import { isCreditCardFormat } from "./stepConfig";
 
 interface Props {
   result: ParsedUploadResult;
@@ -23,9 +24,7 @@ export default function StepSummary({ result, onBack, onContinue }: Props) {
     ...new Set(result.transactions.map((t) => t.country).filter(Boolean)),
   ].sort() as string[];
 
-  const isCreditCard = ["wealthsimple", "amex"].includes(
-    result.transactions[0]?.sourceFormat
-  );
+  const isCreditCard = isCreditCardFormat(result.transactions[0]?.sourceFormat);
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-6">
