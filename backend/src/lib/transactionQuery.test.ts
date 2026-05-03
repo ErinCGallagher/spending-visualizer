@@ -45,6 +45,35 @@ describe("buildTransactionFilterSQL", () => {
     expect(joins).toHaveLength(0);
     expect(conditions.some((c) => c.includes("t.payer"))).toBe(false);
   });
+
+  it("groupType filter uses INNER JOIN so ungrouped transactions are excluded", () => {
+    const { joins } = buildTransactionFilterSQL("user1", { groupType: ["trip"] });
+    expect(joins).toHaveLength(1);
+    expect(joins[0]).toMatch(/^JOIN groups/i);
+    expect(joins[0]).not.toMatch(/LEFT JOIN/i);
+  });
+
+  it("groupType filter adds a g.group_type = ANY condition", () => {
+    const { conditions } = buildTransactionFilterSQL("user1", { groupType: ["trip"] });
+    expect(conditions.some((c) => c.includes("g.group_type = ANY"))).toBe(true);
+  });
+
+  it("groupType filter binds the types array as a single parameter", () => {
+    const { values } = buildTransactionFilterSQL("user1", { groupType: ["trip", "daily"] });
+    expect(values).toContainEqual(["trip", "daily"]);
+  });
+
+  it("single groupType string is coerced to an array", () => {
+    const { joins, values } = buildTransactionFilterSQL("user1", { groupType: "business" });
+    expect(joins).toHaveLength(1);
+    expect(values).toContainEqual(["business"]);
+  });
+
+  it("empty groupType array adds no join or group_type condition", () => {
+    const { joins, conditions } = buildTransactionFilterSQL("user1", { groupType: [] });
+    expect(joins).toHaveLength(0);
+    expect(conditions.some((c) => c.includes("g.group_type"))).toBe(false);
+  });
 });
 
 describe("buildGroupsMetaSQL", () => {
