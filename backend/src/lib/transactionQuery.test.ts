@@ -2,6 +2,7 @@
 
 import { describe, it, expect } from "vitest";
 import { buildTransactionFilterSQL, buildGroupsMetaSQL } from "./transactionQuery";
+import { parseTransactionQuery } from "./queryParams";
 
 describe("buildTransactionFilterSQL", () => {
   it("includes only user_id condition when no filters are provided", () => {
@@ -73,6 +74,24 @@ describe("buildTransactionFilterSQL", () => {
     const { joins, conditions } = buildTransactionFilterSQL("user1", { groupType: [] });
     expect(joins).toHaveLength(0);
     expect(conditions.some((c) => c.includes("g.group_type"))).toBe(false);
+  });
+});
+
+describe("parseTransactionQuery groupType", () => {
+  it("parses a multi-value groupType array with no errors", () => {
+    const { params, errors } = parseTransactionQuery({ groupType: ["trip", "daily"] });
+    expect(errors).toHaveLength(0);
+    expect(params.groupType).toEqual(["trip", "daily"]);
+  });
+
+  it("produces an error for an invalid value inside a multi-value array", () => {
+    const { errors } = parseTransactionQuery({ groupType: ["trip", "invalid"] });
+    expect(errors.some((e) => e.field === "groupType")).toBe(true);
+  });
+
+  it("produces exactly one error for a single invalid value", () => {
+    const { errors } = parseTransactionQuery({ groupType: "bad" });
+    expect(errors.filter((e) => e.field === "groupType")).toHaveLength(1);
   });
 });
 

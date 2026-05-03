@@ -31,8 +31,8 @@ router.get("/settings", async (_req, res) => {
 /** PATCH /api/account/settings — updates user settings. */
 router.patch("/settings", async (req, res) => {
   const userId: string = res.locals.userId;
-  const updates = req.body as Record<string, any>;
-  
+  const updates = req.body as Record<string, unknown>;
+
   const allowedUpdates = ["overviewDefaultFilter", "tripDefaultFilter"];
   const dbFields: Record<string, string> = {
     overviewDefaultFilter: "overview_default_filter",
@@ -45,7 +45,11 @@ router.patch("/settings", async (req, res) => {
     return;
   }
 
-  const values = fieldsToUpdate.map(k => updates[k] || null);
+  // Empty string means "clear the preference" — treat as null
+  const values: (string | null)[] = fieldsToUpdate.map(k => {
+    const v = updates[k];
+    return typeof v === "string" && v !== "" ? v : null;
+  });
   const invalidField = fieldsToUpdate.find((k, i) => {
     const v = values[i];
     return v !== null && !(VALID_GROUP_TYPE_VALUES as readonly string[]).includes(v);

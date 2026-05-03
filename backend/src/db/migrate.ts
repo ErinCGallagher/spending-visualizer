@@ -185,9 +185,17 @@ async function migrate() {
     `);
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_transactions_group
-        ON transactions(group_id);
-      ALTER TABLE "user" ADD COLUMN IF NOT EXISTS overview_default_filter text;
-      ALTER TABLE "user" ADD COLUMN IF NOT EXISTS trip_default_filter text;
+        ON transactions(group_id)
+    `);
+    await client.query(`
+      ALTER TABLE "user" ADD COLUMN IF NOT EXISTS overview_default_filter text
+    `);
+    await client.query(`
+      ALTER TABLE "user" ADD COLUMN IF NOT EXISTS trip_default_filter text
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_groups_user_type
+        ON groups(user_id, group_type)
     `);
 
     await client.query("COMMIT");
