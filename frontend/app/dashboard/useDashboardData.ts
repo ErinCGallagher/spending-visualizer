@@ -12,8 +12,16 @@ import type { CategoryTotal } from "@/app/dashboard/CategoryPieChart";
 import type { MonthlyTotal } from "@/app/dashboard/MonthlyBarChart";
 import type { CumulativePoint, Granularity } from "@/app/dashboard/CumulativeLineChart";
 
-interface Meta {
+export interface Meta {
+  categories: { id: string; name: string }[];
+  travellers: string[];
+  paymentMethods: string[];
+  countries: string[];
   dateRange: { from: string; to: string } | null;
+  groups: { id: string; name: string; groupType: string }[];
+  groupTypes: { value: string; label: string }[];
+  overviewDefaultFilter: string | null;
+  tripDefaultFilter: string | null;
   homeCurrency: string | null;
 }
 
@@ -26,6 +34,7 @@ function buildParams(
   if (filters.to) params.set("to", filters.to);
   for (const t of filters.travellers) params.append("traveller", t);
   for (const c of filters.countries) params.append("country", c);
+  for (const gt of filters.groupTypes) params.append("groupType", gt);
   for (const [k, v] of Object.entries(extra)) params.set(k, v);
   return params.toString();
 }
@@ -44,7 +53,7 @@ export interface DashboardData {
 }
 
 export function useDashboardData(
-  filters: FilterValues,
+  filters: FilterValues | null,
   monthlyGroupBy: "category" | "total",
   granularity: Granularity,
   categoryTimelineGranularity: Granularity
@@ -66,7 +75,20 @@ export function useDashboardData(
     fetch("/api/transactions/meta", { credentials: "include" })
       .then((r) => r.json())
       .then((data: Meta) => setMeta(data))
-      .catch(() => setMeta({ dateRange: null, homeCurrency: null }))
+      .catch(() =>
+        setMeta({
+          categories: [],
+          travellers: [],
+          paymentMethods: [],
+          countries: [],
+          dateRange: null,
+          groups: [],
+          groupTypes: [],
+          overviewDefaultFilter: null,
+          tripDefaultFilter: null,
+          homeCurrency: null,
+        })
+      )
       .finally(() => setMetaLoading(false));
   }, []);
 
@@ -116,7 +138,7 @@ export function useDashboardData(
 
   // Re-fetch charts whenever meta has loaded and any dependency changes
   useEffect(() => {
-    if (meta?.dateRange !== undefined) {
+    if (filters && meta?.dateRange !== undefined) {
       fetchCharts(filters, monthlyGroupBy, granularity, categoryTimelineGranularity);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -187,6 +187,29 @@ async function migrate() {
       CREATE INDEX IF NOT EXISTS idx_transactions_group
         ON transactions(group_id)
     `);
+    await client.query(`
+      ALTER TABLE "user" ADD COLUMN IF NOT EXISTS overview_default_filter text
+    `);
+    await client.query(`
+      ALTER TABLE "user" ADD COLUMN IF NOT EXISTS trip_default_filter text
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_groups_user_type
+        ON groups(user_id, group_type)
+    `);
+    await client.query(`
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'transactions'
+            AND column_name = 'group_id'
+            AND is_nullable = 'YES'
+        ) THEN
+          ALTER TABLE transactions ALTER COLUMN group_id SET NOT NULL;
+        END IF;
+      END $$
+    `);
 
     await client.query("COMMIT");
     console.log("Migration complete");
