@@ -47,6 +47,8 @@ export default function StepConfirm({
     setSaving(true);
     setError(null);
 
+    const sourceFormat = transactions[0]?.sourceFormat || "travelspend";
+
     try {
       const res = await fetch("/api/uploads/confirm", {
         method: "POST",
@@ -54,7 +56,7 @@ export default function StepConfirm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           homeCurrency: uploadResult.homeCurrency,
-          sourceFormat: "travelspend",
+          sourceFormat,
           filename,
           primaryGroupId: primaryGroup.id,
           transactions,
