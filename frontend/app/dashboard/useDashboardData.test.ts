@@ -25,7 +25,7 @@ describe("useDashboardData Hook", () => {
     vi.clearAllMocks();
   });
 
-  it("initially returns loading states and null meta", () => {
+  it("initially returns loading states and null meta", async () => {
     globalFetch.mockResolvedValue({
       ok: true,
       json: async () => mockMeta,
@@ -37,6 +37,9 @@ describe("useDashboardData Hook", () => {
 
     expect(result.current.metaLoading).toBe(true);
     expect(result.current.meta).toBe(null);
+
+    // Wait for the hook to finish its initial fetch cycle to avoid 'act' warnings
+    await waitFor(() => expect(result.current.metaLoading).toBe(false));
   });
 
   it("does not fetch charts when filters are null", async () => {
