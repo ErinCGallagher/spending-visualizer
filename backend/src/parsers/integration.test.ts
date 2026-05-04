@@ -44,6 +44,18 @@ describe("Parser Integration Tests (File-based)", () => {
       expect(result.transactions).toHaveLength(1);
       expect(result.errors).toHaveLength(2);
     });
+
+    it("handles empty or missing fields without crashing", () => {
+      const csv = `,,,,,`; // Completely empty columns
+      const data = Papa.parse<Record<string, string>>(parser.syntheticHeader!.join(",") + "\n" + csv, {
+        header: true,
+        skipEmptyLines: true,
+      }).data;
+      
+      const result = parser.parse(data, UPLOAD_ID, USER_ID);
+      expect(result.errors.length).toBeGreaterThan(0);
+      expect(result.transactions).toHaveLength(0);
+    });
   });
 
   describe("Scotiabank Parser", () => {

@@ -4,8 +4,11 @@ import type { CsvParser, ParseResult, ParsedTransaction, ParseError } from "./ty
 import { buildCreditCardTransaction, calculateDateRange, parseAmountSafe } from "./utils";
 import { isBankPayment } from "./bankKeywords";
 
-function parseTDDate(raw: string): Date {
-  const [month, day, year] = raw.split("/").map(Number);
+function parseTDDate(raw: string | undefined | null): Date {
+  if (!raw || typeof raw !== "string") return new Date(NaN);
+  const parts = raw.split("/");
+  if (parts.length !== 3) return new Date(NaN);
+  const [month, day, year] = parts.map(Number);
   return new Date(year, month - 1, day);
 }
 
@@ -25,7 +28,7 @@ export class TDParser implements CsvParser {
       const row = rows[i];
       const debit = row.debit?.trim();
       const credit = row.credit?.trim();
-      const description = row.description?.trim();
+      const description = row.description?.trim() || "";
 
       const date = parseTDDate(row.date);
       if (isNaN(date.getTime())) {
