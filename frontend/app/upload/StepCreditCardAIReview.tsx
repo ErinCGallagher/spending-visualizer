@@ -112,7 +112,7 @@ export default function StepCreditCardAIReview({
     .filter((r) => r.source === "ai");
 
   const allTaxonomyNames = new Set(
-    existingTaxonomy.flatMap((c) => [c.name, ...c.children.map((ch) => ch.name)])
+    existingTaxonomy.flatMap((c) => [c.name, ...c.children.map((ch) => ch.name)]).map((n) => n.toLowerCase())
   );
 
   const parentCategories = existingTaxonomy.map((c) => c.name);
@@ -137,7 +137,7 @@ export default function StepCreditCardAIReview({
       setInputError("Category name must not contain numbers.");
       return;
     }
-    if (allTaxonomyNames.has(name) || userAddedCategories.includes(name)) {
+    if (allTaxonomyNames.has(name.toLowerCase()) || userAddedCategories.some((c) => c.toLowerCase() === name.toLowerCase())) {
       setInputError(`"${name}" already exists.`);
       return;
     }
@@ -171,7 +171,7 @@ export default function StepCreditCardAIReview({
     const confirmedNames = new Set(
       updated.map((t) => t.categoryName).filter((n): n is string => !!n)
     );
-    const newCategoryNames = [...confirmedNames].filter((name) => !allTaxonomyNames.has(name));
+    const newCategoryNames = [...confirmedNames].filter((name) => !allTaxonomyNames.has(name.toLowerCase()));
 
     onContinue(updated, newCategoryNames);
   }
@@ -359,6 +359,12 @@ export default function StepCreditCardAIReview({
                     parentOptions.unshift(currentChoice);
                   }
 
+                  // When inferredParent is null but an AI-suggested unknown category is selected,
+                  // reflect that choice in the controlled select rather than showing "Uncategorised".
+                  const parentSelectValue =
+                    inferredParent ??
+                    (!userAddedCategories.includes(currentChoice) && currentChoice !== "" ? currentChoice : "");
+
                   const subOptions = inferredParent ? parentToChildren.get(inferredParent) || [] : [];
 
                   return (
@@ -382,7 +388,7 @@ export default function StepCreditCardAIReview({
                       </td>
                       <td className="py-3 pr-4">
                         <select
-                          value={inferredParent || ""}
+                          value={parentSelectValue}
                           onChange={(e) => {
                             const newParent = e.target.value;
                             setChoices((prev) => ({
@@ -395,7 +401,7 @@ export default function StepCreditCardAIReview({
                           <option value="">Uncategorised</option>
                           {parentOptions.map((p) => (
                             <option key={p} value={p}>
-                              {p} {!allTaxonomyNames.has(p) ? "(New)" : ""}
+                              {p} {!allTaxonomyNames.has(p.toLowerCase()) ? "(New)" : ""}
                             </option>
                           ))}
                         </select>

@@ -113,6 +113,7 @@ describe("StepCreditCardAIReview — API error banner", () => {
 
     expect(screen.getByRole("button", { name: "Back" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Continue" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/All transactions were tagged/)).not.toBeInTheDocument();
   });
 
   it("shows the error as an inline banner and keeps the UI when the API returns a 4xx status", async () => {
@@ -198,6 +199,14 @@ describe("StepCreditCardAIReview — add category input", () => {
     expect(screen.getByText(/"Food" already exists/)).toBeInTheDocument();
   });
 
+  it("shows error when name matches a taxonomy entry with different casing", async () => {
+    await renderAndWaitForLoad();
+    const input = screen.getByPlaceholderText("New category name");
+    fireEvent.change(input, { target: { value: "food" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add Category" }));
+    expect(screen.getByText(/"food" already exists/)).toBeInTheDocument();
+  });
+
   it("shows error when name is a duplicate user-added category", async () => {
     await renderAndWaitForLoad();
     const input = screen.getByPlaceholderText("New category name");
@@ -206,6 +215,16 @@ describe("StepCreditCardAIReview — add category input", () => {
     fireEvent.change(input, { target: { value: "Entertainment" } });
     fireEvent.click(screen.getByRole("button", { name: "Add Category" }));
     expect(screen.getByText(/"Entertainment" already exists/)).toBeInTheDocument();
+  });
+
+  it("shows error when name is a case-insensitive duplicate of a user-added category", async () => {
+    await renderAndWaitForLoad();
+    const input = screen.getByPlaceholderText("New category name");
+    fireEvent.change(input, { target: { value: "Entertainment" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add Category" } ));
+    fireEvent.change(input, { target: { value: "entertainment" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add Category" }));
+    expect(screen.getByText(/"entertainment" already exists/)).toBeInTheDocument();
   });
 
   it("clears error message when input changes", async () => {
@@ -224,13 +243,22 @@ describe("StepCreditCardAIReview — add category input", () => {
     fireEvent.change(input, { target: { value: "Entertainment" } });
     fireEvent.click(screen.getByRole("button", { name: "Add Category" }));
     fireEvent.click(screen.getByRole("button", { name: "Remove Entertainment" }));
-    expect(screen.queryByText(/Entertainment/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Remove Entertainment" })).not.toBeInTheDocument();
+    const parentSelect = screen.getAllByRole("combobox")[0] as HTMLSelectElement;
+    const options = Array.from(parentSelect.options).map((o) => o.value);
+    expect(options).not.toContain("Entertainment");
   });
 });
 
 describe("StepCreditCardAIReview — category dropdown integration", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("shows the AI-suggested category as selected when it is not in the taxonomy", async () => {
+    await renderAndWaitForLoad();
+    const parentSelect = screen.getAllByRole("combobox")[0] as HTMLSelectElement;
+    expect(parentSelect.value).toBe("Dining");
   });
 
   it("user-added category appears as an option in the parent dropdown", async () => {
