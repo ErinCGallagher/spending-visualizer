@@ -1,6 +1,7 @@
 /** TravelSpend CSV parser — maps TravelSpend export columns to canonical transaction fields. */
 
 import { CsvParser, ParsedSplit, ParsedTransaction, ParseError, ParseResult } from "./types";
+import { parseDateSafe } from "./utils";
 
 /** Parse a number string that may contain thousand separators (commas). */
 function parseNumber(value: string): number {
@@ -84,7 +85,11 @@ export class TravelSpendParser implements CsvParser {
         continue;
       }
 
-      const date = new Date(row["datePaid"]);
+      const date = parseDateSafe(row["datePaid"]);
+      if (!date) {
+        errors.push({ row: rowNum, field: "datePaid", message: `Invalid date "${row["datePaid"]}"` });
+        continue;
+      }
       const amountHome = parseNumber(row["amountInHomeCurrency"].trim());
       const amountLocal = row["amount"] ? parseNumber(row["amount"].trim()) : null;
       const categoryName = row["category"]?.trim() || null;

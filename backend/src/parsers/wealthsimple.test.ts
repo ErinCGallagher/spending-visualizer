@@ -105,6 +105,20 @@ describe("WealthsimpleParser", () => {
     });
   });
 
+  describe("invalid date", () => {
+    it("skips the row and records an error for a malformed date", () => {
+      const badRows = [
+        { ...rows[0], transaction_date: "not-a-date" },
+        rows[1],
+      ];
+      const result = parser.parse(badRows, "upload-1", "user-1");
+      expect(result.transactions).toHaveLength(1);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0]).toMatchObject({ row: 1, field: "transaction_date" });
+      expect(result.errors[0].message).toContain("not-a-date");
+    });
+  });
+
   describe("homeCurrency", () => {
     it("reads homeCurrency from the first row's currency field", () => {
       const result = parser.parse(rows, "upload-1", "user-1");
