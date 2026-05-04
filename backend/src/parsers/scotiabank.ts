@@ -16,7 +16,11 @@ export class ScotiabankParser implements CsvParser {
     "Amount",
   ];
 
-  parse(rows: Record<string, string>[], _uploadId: string, _userId: string): ParseResult {
+  parse(
+    rows: Record<string, string>[],
+    _uploadId: string,
+    _userId: string,
+  ): ParseResult {
     const transactions: ParsedTransaction[] = [];
     let skippedPayments = 0;
 
@@ -35,10 +39,10 @@ export class ScotiabankParser implements CsvParser {
           date: new Date(row.Date),
           description: row.Description,
           amount: parseFloat(row.Amount),
-          paymentMethod: "Scotiabank",
+          paymentMethod: "Scotiabank Visa",
           sourceFormat: "scotiabank",
           raw: row,
-        })
+        }),
       );
     }
 
