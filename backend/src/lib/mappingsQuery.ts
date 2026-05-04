@@ -1,8 +1,6 @@
 /** Pure helpers for parsing and validating credit card category mappings query parameters. */
 
-import type { ParamError } from "./queryParams";
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { type ParamError, UUID_REGEX, parsePageParam, parseLimitParam } from "./queryParams";
 
 export interface MappingsQueryParams {
   search: string | undefined;
@@ -22,32 +20,15 @@ export function parseMappingsQuery(raw: Record<string, unknown>): {
   const parentId = typeof raw.parentId === "string" ? raw.parentId : undefined;
   const subId = typeof raw.subId === "string" ? raw.subId : undefined;
 
-  if (parentId !== undefined && !UUID.test(parentId)) {
+  if (parentId !== undefined && !UUID_REGEX.test(parentId)) {
     errors.push({ field: "parentId", message: "Must be a valid UUID" });
   }
-  if (subId !== undefined && !UUID.test(subId)) {
+  if (subId !== undefined && !UUID_REGEX.test(subId)) {
     errors.push({ field: "subId", message: "Must be a valid UUID" });
   }
 
-  let page = 1;
-  if (raw.page !== undefined) {
-    const p = Number(raw.page);
-    if (!Number.isInteger(p) || p < 1) {
-      errors.push({ field: "page", message: "Must be a positive integer" });
-    } else {
-      page = p;
-    }
-  }
-
-  let limit = 25;
-  if (raw.limit !== undefined) {
-    const l = Number(raw.limit);
-    if (!Number.isInteger(l) || l < 1 || l > 200) {
-      errors.push({ field: "limit", message: "Must be an integer between 1 and 200" });
-    } else {
-      limit = l;
-    }
-  }
+  const page = parsePageParam(raw.page, errors);
+  const limit = parseLimitParam(raw.limit, 25, errors);
 
   return { params: { search, parentId, subId, page, limit }, errors };
 }
