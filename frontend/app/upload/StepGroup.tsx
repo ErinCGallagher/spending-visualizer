@@ -9,6 +9,7 @@
 import { useEffect, useState } from "react";
 import { formatDate } from "@/lib/format";
 import type { Group, GroupType, ParsedTransaction } from "./types";
+import { isCreditCardFormat } from "./stepConfig";
 
 const GROUP_TYPES: GroupType[] = ["trip", "daily", "business"];
 
@@ -67,6 +68,20 @@ export default function StepGroup({ transactions, onBack, onContinue }: Props) {
       .catch(() => {})
       .finally(() => setLoadingGroups(false));
   }, []);
+
+  useEffect(() => {
+    if (!loadingGroups && isCreditCardFormat(transactions[0]?.sourceFormat)) {
+      setPrimary((prev) => {
+        if (prev.type) return prev;
+        const dailyGroups = groups.filter((g) => g.groupType === "daily");
+        return {
+          type: "daily",
+          existingId: dailyGroups[0]?.id || null,
+          newName: "",
+        };
+      });
+    }
+  }, [loadingGroups, groups, transactions]);
 
   const hasSecondary = primarySet.size < transactions.length;
   const uncheckedCount = transactions.length - primarySet.size;

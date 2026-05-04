@@ -87,7 +87,10 @@ export default function StepCreditCardAIReview({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const cacheHitCount = results.filter((r) => r.source === "cache").length;
+  const cacheHits = results
+    .map((r, i) => ({ ...r, transactionIndex: i }))
+    .filter((r) => r.source === "cache");
+
   // All non-cache-hit results go into the review table
   const aiSuggestions = results
     .map((r, i) => ({ ...r, transactionIndex: i }))
@@ -157,10 +160,57 @@ export default function StepCreditCardAIReview({
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-6">
       <div>
         <h2 className="text-lg font-semibold text-gray-900 mb-1">AI Suggestions</h2>
-        {cacheHitCount > 0 && (
-          <p className="text-sm text-gray-500">
-            {cacheHitCount} transaction{cacheHitCount !== 1 ? "s" : ""} were automatically tagged from your history.
-          </p>
+        {cacheHits.length > 0 && (
+          <details className="group border border-gray-100 rounded-lg overflow-hidden mt-4">
+            <summary className="bg-gray-50/50 px-4 py-2 text-sm text-gray-600 cursor-pointer hover:bg-gray-50 flex items-center justify-between list-none">
+              <span>
+                {cacheHits.length} transaction{cacheHits.length !== 1 ? "s" : ""} automatically tagged from history
+              </span>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-4 w-4 transition-transform group-open:rotate-180"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </summary>
+            <div className="p-4 bg-white overflow-x-auto">
+              <table className="w-full text-sm opacity-50">
+                <thead>
+                  <tr className="text-left text-xs font-semibold tracking-widest text-gray-400 uppercase border-b border-gray-200">
+                    <th className="py-2 pr-4">Date</th>
+                    <th className="py-2 pr-4">Description</th>
+                    <th className="py-2 pr-4">Amount</th>
+                    <th className="py-2 pr-4">Parent Category</th>
+                    <th className="py-2">Sub Category</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {cacheHits.map((s) => {
+                    const tx = transactions[s.transactionIndex];
+                    const currentChoice = s.categoryName;
+                    const inferredParent = childToParent.get(currentChoice) || (parentCategories.includes(currentChoice) ? currentChoice : null);
+                    const inferredSub = inferredParent && inferredParent !== currentChoice ? currentChoice : null;
+
+                    return (
+                      <tr key={s.transactionIndex} className="border-b border-gray-100 last:border-0">
+                        <td className="py-2 pr-4 text-gray-500 whitespace-nowrap">{formatDate(tx.date)}</td>
+                        <td className="py-2 pr-4 text-gray-700">{tx.description}</td>
+                        <td className="py-2 pr-4 text-gray-700">{formatAmount(tx.amountHome)}</td>
+                        <td className="py-2 pr-4 text-gray-700">{inferredParent || "Uncategorised"}</td>
+                        <td className="py-2 text-gray-700">{inferredSub || "—"}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </details>
         )}
       </div>
 
