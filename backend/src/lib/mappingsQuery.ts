@@ -17,6 +17,10 @@ export function parseMappingsQuery(raw: Record<string, unknown>): {
   const errors: ParamError[] = [];
 
   const search = typeof raw.search === "string" ? raw.search : undefined;
+
+  if (search !== undefined && search.length > 100) {
+    errors.push({ field: "search", message: "Must be 100 characters or fewer" });
+  }
   const parentId = typeof raw.parentId === "string" ? raw.parentId : undefined;
   const subId = typeof raw.subId === "string" ? raw.subId : undefined;
 
