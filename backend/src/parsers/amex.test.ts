@@ -70,6 +70,20 @@ describe("AmexParser", () => {
     });
   });
 
+  describe("invalid date", () => {
+    it("skips the row and records an error for a malformed date", () => {
+      const badRows = [
+        { Date: "not-a-date", Description: "STARBUCKS", Amount: "10.50", "Account #": "-42006" },
+        rows[0],
+      ];
+      const result = parser.parse(badRows, "upload-1", "user-1");
+      expect(result.transactions).toHaveLength(1);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0]).toMatchObject({ row: 1, field: "Date" });
+      expect(result.errors[0].message).toContain("not-a-date");
+    });
+  });
+
   describe("dateRange", () => {
     it("reflects min and max dates", () => {
       const result = parser.parse(rows, "upload-1", "user-1");

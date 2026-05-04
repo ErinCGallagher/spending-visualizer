@@ -3,6 +3,15 @@
 import type { ParsedTransaction } from "./types";
 
 /**
+ * Parses a date string, returning null if the result is not a valid date.
+ * Prefer this over bare `new Date()` to avoid silent Invalid Date propagation.
+ */
+export function parseDateSafe(raw: string): Date | null {
+  const date = new Date(raw);
+  return isNaN(date.getTime()) ? null : date;
+}
+
+/**
  * Calculates the min and max date from a list of transactions.
  */
 export function calculateDateRange(transactions: { date: Date }[]) {
