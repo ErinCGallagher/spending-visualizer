@@ -230,6 +230,15 @@ describe("TravelSpendParser", () => {
       expect(result.transactions).toHaveLength(1);
     });
 
+    it("records an error for rows with a non-numeric amountInHomeCurrency", () => {
+      const row = { ...BASE_ROW, amountInHomeCurrency: "N/A" };
+      const result = parser.parse([row], "upload-1", "user-1");
+      expect(result.transactions).toHaveLength(0);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0]).toMatchObject({ field: "amountInHomeCurrency" });
+      expect(result.errors[0].message).toContain("N/A");
+    });
+
     it("records an error for rows with a malformed datePaid", () => {
       const row = { ...BASE_ROW, datePaid: "not-a-date" };
       const result = parser.parse([row], "upload-1", "user-1");
