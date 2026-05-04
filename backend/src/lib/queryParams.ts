@@ -32,7 +32,27 @@ export interface ParamError {
 }
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function parsePageParam(raw: unknown, errors: ParamError[]): number {
+  if (raw === undefined) return 1;
+  const p = Number(raw);
+  if (!Number.isInteger(p) || p < 1) {
+    errors.push({ field: "page", message: "Must be a positive integer" });
+    return 1;
+  }
+  return p;
+}
+
+export function parseLimitParam(raw: unknown, defaultLimit: number, errors: ParamError[]): number {
+  if (raw === undefined) return defaultLimit;
+  const l = Number(raw);
+  if (!Number.isInteger(l) || l < 1 || l > 200) {
+    errors.push({ field: "limit", message: "Must be an integer between 1 and 200" });
+    return defaultLimit;
+  }
+  return l;
+}
 
 export function validateGroupTypes(groupTypes: string[]): string | null {
   for (const gt of groupTypes) {
@@ -69,10 +89,10 @@ export function parseTransactionQuery(raw: Record<string, unknown>): {
   if (to !== undefined && !ISO_DATE.test(to)) {
     errors.push({ field: "to", message: "Must be ISO date (YYYY-MM-DD)" });
   }
-  if (category !== undefined && !UUID.test(category)) {
+  if (category !== undefined && !UUID_REGEX.test(category)) {
     errors.push({ field: "category", message: "Must be a valid UUID" });
   }
-  if (groupId !== undefined && !UUID.test(groupId)) {
+  if (groupId !== undefined && !UUID_REGEX.test(groupId)) {
     errors.push({ field: "groupId", message: "Must be a valid UUID" });
   }
   const groupTypeError = validateGroupTypes(groupType);
@@ -80,25 +100,8 @@ export function parseTransactionQuery(raw: Record<string, unknown>): {
     errors.push({ field: "groupType", message: `Must be one of: ${VALID_GROUP_TYPE_VALUES.join(", ")}` });
   }
 
-  let page = 1;
-  if (raw.page !== undefined) {
-    const p = Number(raw.page);
-    if (!Number.isInteger(p) || p < 1) {
-      errors.push({ field: "page", message: "Must be a positive integer" });
-    } else {
-      page = p;
-    }
-  }
-
-  let limit = 50;
-  if (raw.limit !== undefined) {
-    const l = Number(raw.limit);
-    if (!Number.isInteger(l) || l < 1 || l > 200) {
-      errors.push({ field: "limit", message: "Must be an integer between 1 and 200" });
-    } else {
-      limit = l;
-    }
-  }
+  const page = parsePageParam(raw.page, errors);
+  const limit = parseLimitParam(raw.limit, 50, errors);
 
   return {
     params: { from, to, category, paymentMethod, traveller, groupId, groupType, search, page, limit },

@@ -210,6 +210,10 @@ async function migrate() {
       CREATE INDEX IF NOT EXISTS idx_groups_user_type
         ON groups(user_id, group_type)
     `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_ccm_user_category
+        ON credit_card_category_mappings(user_id, category_id)
+    `);
 
     await client.query(`
       DO $$
