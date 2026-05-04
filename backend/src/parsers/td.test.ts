@@ -59,9 +59,9 @@ describe("TDParser", () => {
       expect(result.transactions[0].amountHome).toBe(5.25);
     });
 
-    it("sets paymentMethod to TD", () => {
+    it("sets paymentMethod to TD Visa", () => {
       const result = parser.parse([debitRow()], "upload-1", "user-1");
-      expect(result.transactions[0].paymentMethod).toBe("TD");
+      expect(result.transactions[0].paymentMethod).toBe("TD Visa");
     });
 
     it("sets sourceFormat to td", () => {
