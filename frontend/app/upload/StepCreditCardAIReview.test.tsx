@@ -91,10 +91,11 @@ describe("StepCreditCardAIReview — API error banner", () => {
     expect(screen.getByRole("button", { name: "Continue" })).toBeInTheDocument();
   });
 
-  it("shows the error message as a banner when the API itself returns an error status", async () => {
+  it("shows a fatal error page with only Back when the API returns a 5xx status", async () => {
     global.fetch = vi.fn().mockResolvedValueOnce({
       ok: false,
-      json: async () => ({ message: "Server error." }),
+      status: 500,
+      json: async () => ({ message: "Internal server error." }),
     });
 
     render(
@@ -107,8 +108,35 @@ describe("StepCreditCardAIReview — API error banner", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("Server error.")).toBeInTheDocument();
+      expect(screen.getByText("Internal server error.")).toBeInTheDocument();
     });
+
+    expect(screen.getByRole("button", { name: "Back" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Continue" })).not.toBeInTheDocument();
+  });
+
+  it("shows the error as an inline banner and keeps the UI when the API returns a 4xx status", async () => {
+    global.fetch = vi.fn().mockResolvedValueOnce({
+      ok: false,
+      status: 429,
+      json: async () => ({ message: "Rate limit exceeded. Try again later." }),
+    });
+
+    render(
+      <StepCreditCardAIReview
+        transactions={[mockTransaction]}
+        existingTaxonomy={mockTaxonomy}
+        onBack={vi.fn()}
+        onContinue={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Rate limit exceeded. Try again later.")).toBeInTheDocument();
+    });
+
+    expect(screen.getByRole("button", { name: "Back" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Continue" })).toBeInTheDocument();
   });
 });
 

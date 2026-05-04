@@ -41,6 +41,7 @@ export default function StepCreditCardAIReview({
 }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [fatalError, setFatalError] = useState<string | null>(null);
   const [results, setResults] = useState<CategoriseResult[]>([]);
   /** Final category choices keyed by transaction index */
   const [choices, setChoices] = useState<Record<number, string>>({});
@@ -69,6 +70,10 @@ export default function StepCreditCardAIReview({
         const data = await res.json();
 
         if (!res.ok) {
+          if (res.status >= 500) {
+            setFatalError(data.message ?? "Categorisation failed.");
+            return;
+          }
           setError(data.message ?? "Categorisation failed.");
           return;
         }
@@ -169,6 +174,22 @@ export default function StepCreditCardAIReview({
     const newCategoryNames = [...confirmedNames].filter((name) => !allTaxonomyNames.has(name));
 
     onContinue(updated, newCategoryNames);
+  }
+
+  if (fatalError) {
+    return (
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
+        <p className="text-sm text-red-600">{fatalError}</p>
+        <div className="flex gap-3">
+          <button
+            onClick={onBack}
+            className="border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg font-medium hover:bg-gray-50"
+          >
+            Back
+          </button>
+        </div>
+      </div>
+    );
   }
 
   if (loading) {
