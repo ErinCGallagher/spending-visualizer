@@ -1,4 +1,4 @@
-const CREDIT_CARD_FORMATS = new Set(["wealthsimple", "amex"]);
+const CREDIT_CARD_FORMATS = new Set(["wealthsimple", "amex", "scotiabank"]);
 
 export function isCreditCardFormat(sourceFormat: string | undefined): boolean {
   return CREDIT_CARD_FORMATS.has(sourceFormat ?? "");
@@ -36,6 +36,14 @@ export const PARSER_STEPS: Record<string, StepDefinition[]> = {
     { id: "confirm",       label: "Confirm" },
   ],
   amex: [
+    { id: "file",          label: "Select file" },
+    { id: "summary",       label: "Review summary" },
+    { id: "cc-review",     label: "AI suggestions" },
+    { id: "cc-categories", label: "Review categories", conditional: true },
+    { id: "group",         label: "Assign group" },
+    { id: "confirm",       label: "Confirm" },
+  ],
+  scotiabank: [
     { id: "file",          label: "Select file" },
     { id: "summary",       label: "Review summary" },
     { id: "cc-review",     label: "AI suggestions" },
