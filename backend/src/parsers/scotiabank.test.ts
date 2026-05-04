@@ -66,9 +66,9 @@ describe("ScotiabankParser", () => {
       expect(result.transactions[0].amountHome).toBe(5.25);
     });
 
-    it("sets paymentMethod to Scotiabank", () => {
+    it("sets paymentMethod to Scotiabank Visa", () => {
       const result = parser.parse([debitRow()], "upload-1", "user-1");
-      expect(result.transactions[0].paymentMethod).toBe("Scotiabank");
+      expect(result.transactions[0].paymentMethod).toBe("Scotiabank Visa");
     });
 
     it("sets sourceFormat to scotiabank", () => {
@@ -106,6 +106,28 @@ describe("ScotiabankParser", () => {
       expect(result.transactions).toHaveLength(1);
       expect(result.transactions[0].amountHome).toBe(-15);
       expect(result.transactions[0].description).toBe("AMAZON REFUND");
+    });
+  });
+
+  describe("invalid amount", () => {
+    it("skips the row and records an error for a non-numeric amount", () => {
+      const rows = [debitRow({ Amount: "N/A" }), debitRow()];
+      const result = parser.parse(rows, "upload-1", "user-1");
+      expect(result.transactions).toHaveLength(1);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0]).toMatchObject({ row: 1, field: "Amount" });
+      expect(result.errors[0].message).toContain("N/A");
+    });
+  });
+
+  describe("invalid date", () => {
+    it("skips the row and records an error for a malformed date", () => {
+      const rows = [debitRow({ Date: "not-a-date" }), debitRow()];
+      const result = parser.parse(rows, "upload-1", "user-1");
+      expect(result.transactions).toHaveLength(1);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0]).toMatchObject({ row: 1, field: "Date" });
+      expect(result.errors[0].message).toContain("not-a-date");
     });
   });
 

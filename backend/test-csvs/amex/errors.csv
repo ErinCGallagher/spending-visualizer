@@ -1,0 +1,4 @@
+Date,Description,Amount,Account #
+invalid-date,WRONG DATE,1.00,12345
+05/03/2026,WRONG AMOUNT,invalid,12345
+05/04/2026,VALID ROW,35.00,12345

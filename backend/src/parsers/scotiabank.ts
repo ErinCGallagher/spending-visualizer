@@ -1,7 +1,7 @@
 /** Parser for Scotiabank credit card CSV statement exports. */
 
-import type { CsvParser, ParseResult, ParsedTransaction } from "./types";
-import { buildCreditCardTransaction, calculateDateRange } from "./utils";
+import type { CsvParser, ParseResult, ParsedTransaction, ParseError } from "./types";
+import { buildCreditCardTransaction, calculateDateRange, parseDateSafe, parseAmountSafe } from "./utils";
 import { isBankPayment } from "./bankKeywords";
 
 export class ScotiabankParser implements CsvParser {
@@ -22,9 +22,11 @@ export class ScotiabankParser implements CsvParser {
     _userId: string,
   ): ParseResult {
     const transactions: ParsedTransaction[] = [];
+    const errors: ParseError[] = [];
     let skippedPayments = 0;
 
-    for (const row of rows) {
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
       const type = row["Type of Transaction"];
 
       if (type === "Credit") {
@@ -34,11 +36,23 @@ export class ScotiabankParser implements CsvParser {
         }
       }
 
+      const date = parseDateSafe(row.Date);
+      if (!date) {
+        errors.push({ row: i + 1, field: "Date", message: `Invalid date "${row.Date ?? ""}"` });
+        continue;
+      }
+
+      const amount = parseAmountSafe(row.Amount);
+      if (amount === null) {
+        errors.push({ row: i + 1, field: "Amount", message: `Invalid amount "${row.Amount ?? ""}"` });
+        continue;
+      }
+
       transactions.push(
         buildCreditCardTransaction({
-          date: new Date(row.Date),
+          date,
           description: row.Description,
-          amount: parseFloat(row.Amount),
+          amount,
           paymentMethod: "Scotiabank Visa",
           sourceFormat: "scotiabank",
           raw: row,
@@ -50,7 +64,7 @@ export class ScotiabankParser implements CsvParser {
       transactions,
       travellers: [],
       categories: [],
-      errors: [],
+      errors,
       homeCurrency: "CAD",
       dateRange: calculateDateRange(transactions),
       ...(skippedPayments > 0 ? { skippedPayments } : {}),

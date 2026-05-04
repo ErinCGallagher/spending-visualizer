@@ -14,7 +14,8 @@ export const BANK_KEYWORDS = [
   "ATB FINANCIAL",
 ];
 
-export function isBankPayment(description: string): boolean {
+export function isBankPayment(description: string | undefined | null): boolean {
+  if (!description) return false;
   const upper = description.toUpperCase();
   return BANK_KEYWORDS.some((k) => upper.includes(k));
 }

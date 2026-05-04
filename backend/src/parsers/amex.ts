@@ -1,7 +1,7 @@
 /** Parser for American Express credit card CSV statement exports. */
 
-import type { CsvParser, ParseResult, ParsedTransaction } from "./types";
-import { buildCreditCardTransaction, calculateDateRange } from "./utils";
+import type { CsvParser, ParseResult, ParsedTransaction, ParseError } from "./types";
+import { buildCreditCardTransaction, calculateDateRange, parseDateSafe, parseAmountSafe } from "./utils";
 
 export class AmexParser implements CsvParser {
   name = "American Express";
@@ -12,12 +12,27 @@ export class AmexParser implements CsvParser {
 
   parse(rows: Record<string, string>[], _uploadId: string, _userId: string): ParseResult {
     const transactions: ParsedTransaction[] = [];
+    const errors: ParseError[] = [];
     let skippedPayments = 0;
 
-    for (const row of rows) {
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+
       // Skip payments
-      if (row.Description.includes("PAYMENT RECEIVED")) {
+      if (row.Description?.includes("PAYMENT RECEIVED")) {
         skippedPayments++;
+        continue;
+      }
+
+      const date = parseDateSafe(row.Date);
+      if (!date) {
+        errors.push({ row: i + 1, field: "Date", message: `Invalid date "${row.Date ?? ""}"` });
+        continue;
+      }
+
+      const amount = parseAmountSafe(row.Amount);
+      if (amount === null) {
+        errors.push({ row: i + 1, field: "Amount", message: `Invalid amount "${row.Amount ?? ""}"` });
         continue;
       }
 
@@ -29,9 +44,9 @@ export class AmexParser implements CsvParser {
 
       transactions.push(
         buildCreditCardTransaction({
-          date: new Date(row.Date),
+          date,
           description: row.Description,
-          amount: parseFloat(row.Amount),
+          amount,
           paymentMethod,
           sourceFormat: "amex",
           raw: row,
@@ -43,7 +58,7 @@ export class AmexParser implements CsvParser {
       transactions,
       travellers: [],
       categories: [],
-      errors: [],
+      errors,
       homeCurrency: "CAD",
       dateRange: calculateDateRange(transactions),
       ...(skippedPayments > 0 ? { skippedPayments } : {}),

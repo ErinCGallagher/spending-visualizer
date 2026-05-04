@@ -1,0 +1,4 @@
+transaction_date,post_date,type,details,amount,currency
+2026-05-01,2026-05-02,Purchase,NETFLIX,15.99,CAD
+2026-05-02,2026-05-03,Purchase,APPLE,0.99,CAD
+2026-05-04,2026-05-05,Payment,BANK PAYMENT,100.00,CAD
