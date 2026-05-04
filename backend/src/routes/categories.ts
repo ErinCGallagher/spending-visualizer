@@ -4,6 +4,7 @@ import { Router } from "express";
 import { requireAuth } from "../middleware/requireAuth";
 import { pool } from "../db";
 import { buildTaxonomy, CategoryRow } from "../lib/categoryHelpers";
+import { parseMappingsQuery, buildMappingsFilterSQL } from "../lib/mappingsQuery";
 
 const router = Router();
 
@@ -25,11 +26,39 @@ router.get("/", async (_req, res) => {
   }
 });
 
-/** GET /api/categories/mappings — returns the user's credit card category mappings. */
-router.get("/mappings", async (_req, res) => {
+/** GET /api/categories/mappings — paginated, filterable list of credit card category mappings. */
+router.get("/mappings", async (req, res) => {
   const userId: string = res.locals.userId;
+  const { params, errors } = parseMappingsQuery(req.query as Record<string, unknown>);
+
+  if (errors.length > 0) {
+    res.status(400).json({ errors });
+    return;
+  }
+
+  const { search, parentId, subId, page, limit } = params;
+  const { conditions, values } = buildMappingsFilterSQL(userId, { search, parentId, subId });
+  const where = conditions.join(" AND ");
+  const offset = (page - 1) * limit;
+
+  const BASE_JOINS = `
+    JOIN categories c ON c.id = ccm.category_id
+    LEFT JOIN categories p ON p.id = c.parent_id`;
 
   try {
+    const countResult = await pool.query<{ count: string }>(
+      `SELECT COUNT(*) AS count
+       FROM credit_card_category_mappings ccm
+       ${BASE_JOINS}
+       WHERE ${where}`,
+      values
+    );
+    const total = parseInt(countResult.rows[0].count, 10);
+
+    values.push(limit, offset);
+    const limitParam = `$${values.length - 1}`;
+    const offsetParam = `$${values.length}`;
+
     const { rows } = await pool.query<{
       merchant_key: string;
       category_id: string;
@@ -37,20 +66,21 @@ router.get("/mappings", async (_req, res) => {
       parent_id: string | null;
       parent_name: string | null;
     }>(
-      `SELECT 
-         ccm.merchant_key, 
+      `SELECT
+         ccm.merchant_key,
          ccm.category_id,
          c.name AS category_name,
          c.parent_id,
          p.name AS parent_name
        FROM credit_card_category_mappings ccm
-       JOIN categories c ON c.id = ccm.category_id
-       LEFT JOIN categories p ON p.id = c.parent_id
-       WHERE ccm.user_id = $1
-       ORDER BY ccm.merchant_key`,
-      [userId]
+       ${BASE_JOINS}
+       WHERE ${where}
+       ORDER BY ccm.merchant_key
+       LIMIT ${limitParam} OFFSET ${offsetParam}`,
+      values
     );
-    res.json(rows);
+
+    res.json({ mappings: rows, total, page, limit });
   } catch (err) {
     console.error("GET /api/categories/mappings error:", err);
     res.status(500).json({ error: "Internal server error" });
