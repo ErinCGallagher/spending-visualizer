@@ -30,6 +30,9 @@ interface CategoriseResult {
   source: "cache" | "ai";
 }
 
+const CATEGORY_MAX_LENGTH = 50;
+const CATEGORY_NAME_RE = /^[^\d]+$/;
+
 export default function StepCreditCardAIReview({
   transactions,
   existingTaxonomy,
@@ -41,6 +44,9 @@ export default function StepCreditCardAIReview({
   const [results, setResults] = useState<CategoriseResult[]>([]);
   /** Final category choices keyed by transaction index */
   const [choices, setChoices] = useState<Record<number, string>>({});
+  const [newCategoryInput, setNewCategoryInput] = useState("");
+  const [inputError, setInputError] = useState<string | null>(null);
+  const [userAddedCategories, setUserAddedCategories] = useState<string[]>([]);
 
   useEffect(() => {
     async function runCategorisation() {
@@ -111,6 +117,40 @@ export default function StepCreditCardAIReview({
     }
   }
 
+  function addUserCategory() {
+    const name = newCategoryInput.trim();
+    if (!name) return;
+    if (name.length > CATEGORY_MAX_LENGTH) {
+      setInputError(`Category name must be ${CATEGORY_MAX_LENGTH} characters or fewer.`);
+      return;
+    }
+    if (!CATEGORY_NAME_RE.test(name)) {
+      setInputError("Category name must not contain numbers.");
+      return;
+    }
+    if (allTaxonomyNames.has(name) || userAddedCategories.includes(name)) {
+      setInputError(`"${name}" already exists.`);
+      return;
+    }
+    setUserAddedCategories((prev) => [...prev, name]);
+    setNewCategoryInput("");
+    setInputError(null);
+  }
+
+  function removeUserCategory(name: string) {
+    setUserAddedCategories((prev) => prev.filter((c) => c !== name));
+    // Reset any transaction choices that were using the removed category
+    setChoices((prev) => {
+      const next = { ...prev };
+      for (const [idx, chosen] of Object.entries(next)) {
+        if (chosen === name) {
+          next[Number(idx)] = results[Number(idx)]?.categoryName ?? "";
+        }
+      }
+      return next;
+    });
+  }
+
   function handleContinue() {
     const updated = transactions.map((t, i) => ({
       ...t,
@@ -160,6 +200,58 @@ export default function StepCreditCardAIReview({
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-6">
       <div>
         <h2 className="text-lg font-semibold text-gray-900 mb-1">AI Suggestions</h2>
+
+        <div className="mt-3 space-y-2">
+          <p className="text-sm text-gray-600">Need a category that isn't listed? Add it here and select it from the dropdowns below.</p>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={newCategoryInput}
+              onChange={(e) => {
+                setNewCategoryInput(e.target.value);
+                setInputError(null);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addUserCategory();
+                }
+              }}
+              maxLength={CATEGORY_MAX_LENGTH}
+              placeholder="New category name"
+              className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-800"
+            />
+            <button
+              type="button"
+              onClick={addUserCategory}
+              className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 whitespace-nowrap"
+            >
+              Add Category
+            </button>
+          </div>
+          {inputError && <p className="text-xs text-red-600">{inputError}</p>}
+          {userAddedCategories.length > 0 && (
+            <div className="flex flex-wrap gap-2 pt-1">
+              {userAddedCategories.map((cat) => (
+                <span
+                  key={cat}
+                  className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-full px-3 py-0.5 text-xs font-medium"
+                >
+                  {cat}
+                  <button
+                    type="button"
+                    onClick={() => removeUserCategory(cat)}
+                    aria-label={`Remove ${cat}`}
+                    className="hover:text-emerald-900 ml-0.5 leading-none"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
         {cacheHits.length > 0 && (
           <details className="group border border-gray-100 rounded-lg overflow-hidden mt-4">
             <summary className="bg-gray-50/50 px-4 py-2 text-sm text-gray-600 cursor-pointer hover:bg-gray-50 flex items-center justify-between list-none">
@@ -244,9 +336,9 @@ export default function StepCreditCardAIReview({
                   const inferredParent = childToParent.get(currentChoice) || (parentCategories.includes(currentChoice) ? currentChoice : null);
                   const inferredSub = inferredParent && inferredParent !== currentChoice ? currentChoice : null;
 
-                  const parentOptions = [...parentCategories];
-                  // If current choice is completely new, it acts as a new parent for now
-                  if (!inferredParent && currentChoice !== "") {
+                  const parentOptions = [...parentCategories, ...userAddedCategories];
+                  // If current choice is completely new (AI-suggested, not user-added), it acts as a new parent for now
+                  if (!inferredParent && currentChoice !== "" && !userAddedCategories.includes(currentChoice)) {
                     parentOptions.unshift(currentChoice);
                   }
 
