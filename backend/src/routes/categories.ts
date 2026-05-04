@@ -41,15 +41,15 @@ router.get("/mappings", async (req, res) => {
   const where = conditions.join(" AND ");
   const offset = (page - 1) * limit;
 
-  const BASE_JOINS = `
-    JOIN categories c ON c.id = ccm.category_id
+  const COUNT_JOINS = `JOIN categories c ON c.id = ccm.category_id`;
+  const SELECT_JOINS = `${COUNT_JOINS}
     LEFT JOIN categories p ON p.id = c.parent_id`;
 
   try {
     const countResult = await pool.query<{ count: string }>(
       `SELECT COUNT(*) AS count
        FROM credit_card_category_mappings ccm
-       ${BASE_JOINS}
+       ${COUNT_JOINS}
        WHERE ${where}`,
       values
     );
@@ -73,7 +73,7 @@ router.get("/mappings", async (req, res) => {
          c.parent_id,
          p.name AS parent_name
        FROM credit_card_category_mappings ccm
-       ${BASE_JOINS}
+       ${SELECT_JOINS}
        WHERE ${where}
        ORDER BY ccm.merchant_key
        LIMIT ${limitParam} OFFSET ${offsetParam}`,
