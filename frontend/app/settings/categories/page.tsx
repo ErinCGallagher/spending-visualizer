@@ -95,17 +95,10 @@ export default function CategoryMappingsPage() {
   // Debounce search input
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (debouncedSearch !== filters.search) {
-        setDebouncedSearch(filters.search);
-        setPage(1);
-      }
+      setDebouncedSearch(filters.search);
+      setPage(1);
     }, 400);
     return () => clearTimeout(timer);
-  }, [filters.search, debouncedSearch]);
-
-  // Sync debounced search when filters reset
-  useEffect(() => {
-    setDebouncedSearch(filters.search);
   }, [filters.search]);
 
   useEffect(() => {
