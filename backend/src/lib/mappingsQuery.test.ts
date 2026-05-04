@@ -68,6 +68,16 @@ describe("parseMappingsQuery", () => {
     const { params } = parseMappingsQuery({ search: 123 });
     expect(params.search).toBeUndefined();
   });
+
+  it("returns an error for search exceeding 100 characters", () => {
+    const { errors } = parseMappingsQuery({ search: "a".repeat(101) });
+    expect(errors.some((e) => e.field === "search")).toBe(true);
+  });
+
+  it("accepts search at exactly 100 characters", () => {
+    const { errors } = parseMappingsQuery({ search: "a".repeat(100) });
+    expect(errors).toHaveLength(0);
+  });
 });
 
 describe("buildMappingsFilterSQL", () => {
@@ -84,36 +94,31 @@ describe("buildMappingsFilterSQL", () => {
 
   it("adds ILIKE condition for search", () => {
     const { conditions, values } = buildMappingsFilterSQL("user-1", { search: "starbucks" });
-    expect(conditions.some((c) => c.includes("ILIKE"))).toBe(true);
-    expect(values).toContain("%starbucks%");
+    expect(conditions[1]).toBe("ccm.merchant_key ILIKE $2");
+    expect(values[1]).toBe("%starbucks%");
   });
 
   it("adds category_id equality condition for subId", () => {
     const { conditions, values } = buildMappingsFilterSQL("user-1", { subId: VALID_UUID });
-    expect(conditions.some((c) => c.includes("ccm.category_id ="))).toBe(true);
-    expect(values).toContain(VALID_UUID);
+    expect(conditions[1]).toBe("ccm.category_id = $2");
+    expect(values[1]).toBe(VALID_UUID);
   });
 
   it("does not add parent_id condition when subId is set", () => {
     const { conditions } = buildMappingsFilterSQL("user-1", { subId: VALID_UUID, parentId: OTHER_UUID });
-    expect(conditions.some((c) => c.includes("c.parent_id"))).toBe(false);
+    expect(conditions[1]).toBe("ccm.category_id = $2");
+    expect(conditions).toHaveLength(2);
   });
 
   it("adds OR condition covering direct and child mappings for parentId alone", () => {
     const { conditions, values } = buildMappingsFilterSQL("user-1", { parentId: VALID_UUID });
-    const parentCondition = conditions.find((c) => c.includes("c.parent_id"));
-    expect(parentCondition).toBeDefined();
-    expect(parentCondition).toContain("ccm.category_id =");
-    expect(values).toContain(VALID_UUID);
+    expect(conditions[1]).toBe("(ccm.category_id = $2 OR c.parent_id = $2)");
+    expect(values[1]).toBe(VALID_UUID);
   });
 
   it("uses the same parameter placeholder for both sides of the parentId OR", () => {
     const { conditions } = buildMappingsFilterSQL("user-1", { parentId: VALID_UUID });
-    const parentCondition = conditions.find((c) => c.includes("c.parent_id"))!;
-    // Both sides should reference the same $n placeholder
-    const placeholders = parentCondition.match(/\$\d+/g) ?? [];
-    expect(placeholders).toHaveLength(2);
-    expect(placeholders[0]).toBe(placeholders[1]);
+    expect(conditions[1]).toBe("(ccm.category_id = $2 OR c.parent_id = $2)");
   });
 
   it("combines search and category conditions", () => {
