@@ -51,7 +51,7 @@ describe("StepSummary", () => {
       />
     );
 
-    expect(screen.getByText(/Some of these dates overlap/i)).toBeInTheDocument();
+    expect(screen.getByText(/appear to duplicate existing transactions/i)).toBeInTheDocument();
   });
 
   it("disables continue button when there are errors", () => {
