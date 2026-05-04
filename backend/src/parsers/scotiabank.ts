@@ -1,7 +1,7 @@
 /** Parser for Scotiabank credit card CSV statement exports. */
 
 import type { CsvParser, ParseResult, ParsedTransaction, ParseError } from "./types";
-import { buildCreditCardTransaction, calculateDateRange, parseDateSafe } from "./utils";
+import { buildCreditCardTransaction, calculateDateRange, parseDateSafe, parseAmountSafe } from "./utils";
 import { isBankPayment } from "./bankKeywords";
 
 export class ScotiabankParser implements CsvParser {
@@ -42,11 +42,17 @@ export class ScotiabankParser implements CsvParser {
         continue;
       }
 
+      const amount = parseAmountSafe(row.Amount);
+      if (amount === null) {
+        errors.push({ row: i + 1, field: "Amount", message: `Invalid amount "${row.Amount ?? ""}"` });
+        continue;
+      }
+
       transactions.push(
         buildCreditCardTransaction({
           date,
           description: row.Description,
-          amount: parseFloat(row.Amount),
+          amount,
           paymentMethod: "Scotiabank Visa",
           sourceFormat: "scotiabank",
           raw: row,

@@ -70,6 +70,20 @@ describe("AmexParser", () => {
     });
   });
 
+  describe("invalid amount", () => {
+    it("skips the row and records an error for a non-numeric amount", () => {
+      const badRows = [
+        { Date: "01 Feb 2024", Description: "STARBUCKS", Amount: "N/A", "Account #": "-42006" },
+        rows[0],
+      ];
+      const result = parser.parse(badRows, "upload-1", "user-1");
+      expect(result.transactions).toHaveLength(1);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0]).toMatchObject({ row: 1, field: "Amount" });
+      expect(result.errors[0].message).toContain("N/A");
+    });
+  });
+
   describe("invalid date", () => {
     it("skips the row and records an error for a malformed date", () => {
       const badRows = [

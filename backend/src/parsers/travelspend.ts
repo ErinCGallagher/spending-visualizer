@@ -3,9 +3,10 @@
 import { CsvParser, ParsedSplit, ParsedTransaction, ParseError, ParseResult } from "./types";
 import { parseDateSafe } from "./utils";
 
-/** Parse a number string that may contain thousand separators (commas). */
-function parseNumber(value: string): number {
-  return parseFloat(value.replace(/,/g, ""));
+/** Parse a number string that may contain thousand separators (commas). Returns null if not numeric. */
+function parseNumber(value: string): number | null {
+  const n = parseFloat(value.replace(/,/g, ""));
+  return isNaN(n) ? null : n;
 }
 
 /** All column names that TravelSpend always exports. Columns not in this list are traveller names. */
@@ -91,6 +92,10 @@ export class TravelSpendParser implements CsvParser {
         continue;
       }
       const amountHome = parseNumber(row["amountInHomeCurrency"].trim());
+      if (amountHome === null) {
+        errors.push({ row: rowNum, field: "amountInHomeCurrency", message: `Invalid amount "${row["amountInHomeCurrency"]}"` });
+        continue;
+      }
       const amountLocal = row["amount"] ? parseNumber(row["amount"].trim()) : null;
       const categoryName = row["category"]?.trim() || null;
 

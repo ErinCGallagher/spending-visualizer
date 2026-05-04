@@ -1,7 +1,7 @@
 /** Parser for Wealthsimple Visa credit card CSV statement exports. */
 
 import type { CsvParser, ParseResult, ParsedTransaction, ParseError } from "./types";
-import { buildCreditCardTransaction, calculateDateRange, parseDateSafe } from "./utils";
+import { buildCreditCardTransaction, calculateDateRange, parseDateSafe, parseAmountSafe } from "./utils";
 
 export class WealthsimpleParser implements CsvParser {
   name = "Wealthsimple";
@@ -27,11 +27,17 @@ export class WealthsimpleParser implements CsvParser {
         continue;
       }
 
+      const amount = parseAmountSafe(row.amount);
+      if (amount === null) {
+        errors.push({ row: i + 1, field: "amount", message: `Invalid amount "${row.amount ?? ""}"` });
+        continue;
+      }
+
       transactions.push(
         buildCreditCardTransaction({
           date,
           description: row.details,
-          amount: parseFloat(row.amount),
+          amount,
           paymentMethod: "Wealthsimple Visa",
           sourceFormat: "wealthsimple",
           raw: row,

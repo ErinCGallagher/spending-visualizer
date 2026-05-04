@@ -1,7 +1,7 @@
 /** Parser for TD credit card CSV statement exports (no header row). */
 
 import type { CsvParser, ParseResult, ParsedTransaction, ParseError } from "./types";
-import { buildCreditCardTransaction, calculateDateRange } from "./utils";
+import { buildCreditCardTransaction, calculateDateRange, parseAmountSafe } from "./utils";
 import { isBankPayment } from "./bankKeywords";
 
 function parseTDDate(raw: string): Date {
@@ -38,22 +38,32 @@ export class TDParser implements CsvParser {
           skippedPayments++;
           continue;
         }
+        const creditAmount = parseAmountSafe(credit);
+        if (creditAmount === null) {
+          errors.push({ row: i, field: "credit", message: `Invalid amount "${credit}"` });
+          continue;
+        }
         transactions.push(
           buildCreditCardTransaction({
             date,
             description,
-            amount: -parseFloat(credit),
+            amount: -creditAmount,
             paymentMethod: "TD Visa",
             sourceFormat: "td",
             raw: row,
           })
         );
       } else if (debit) {
+        const debitAmount = parseAmountSafe(debit);
+        if (debitAmount === null) {
+          errors.push({ row: i, field: "debit", message: `Invalid amount "${debit}"` });
+          continue;
+        }
         transactions.push(
           buildCreditCardTransaction({
             date,
             description,
-            amount: parseFloat(debit),
+            amount: debitAmount,
             paymentMethod: "TD Visa",
             sourceFormat: "td",
             raw: row,

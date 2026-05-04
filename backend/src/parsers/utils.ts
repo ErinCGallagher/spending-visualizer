@@ -12,6 +12,15 @@ export function parseDateSafe(raw: string): Date | null {
 }
 
 /**
+ * Parses a numeric string, returning null if the result is NaN.
+ * Prefer this over bare `parseFloat()` to avoid silent NaN propagation.
+ */
+export function parseAmountSafe(raw: string): number | null {
+  const value = parseFloat(raw);
+  return isNaN(value) ? null : value;
+}
+
+/**
  * Calculates the min and max date from a list of transactions.
  */
 export function calculateDateRange(transactions: { date: Date }[]) {

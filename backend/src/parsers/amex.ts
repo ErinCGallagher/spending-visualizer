@@ -1,7 +1,7 @@
 /** Parser for American Express credit card CSV statement exports. */
 
 import type { CsvParser, ParseResult, ParsedTransaction, ParseError } from "./types";
-import { buildCreditCardTransaction, calculateDateRange, parseDateSafe } from "./utils";
+import { buildCreditCardTransaction, calculateDateRange, parseDateSafe, parseAmountSafe } from "./utils";
 
 export class AmexParser implements CsvParser {
   name = "American Express";
@@ -30,6 +30,12 @@ export class AmexParser implements CsvParser {
         continue;
       }
 
+      const amount = parseAmountSafe(row.Amount);
+      if (amount === null) {
+        errors.push({ row: i + 1, field: "Amount", message: `Invalid amount "${row.Amount ?? ""}"` });
+        continue;
+      }
+
       const accountNum = row["Account #"] || "";
       const normalizedAccount = accountNum.replace(/[^0-9]/g, "");
       const paymentMethod =
@@ -40,7 +46,7 @@ export class AmexParser implements CsvParser {
         buildCreditCardTransaction({
           date,
           description: row.Description,
-          amount: parseFloat(row.Amount),
+          amount,
           paymentMethod,
           sourceFormat: "amex",
           raw: row,

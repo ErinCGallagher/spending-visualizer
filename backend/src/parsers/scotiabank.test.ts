@@ -109,6 +109,17 @@ describe("ScotiabankParser", () => {
     });
   });
 
+  describe("invalid amount", () => {
+    it("skips the row and records an error for a non-numeric amount", () => {
+      const rows = [debitRow({ Amount: "N/A" }), debitRow()];
+      const result = parser.parse(rows, "upload-1", "user-1");
+      expect(result.transactions).toHaveLength(1);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0]).toMatchObject({ row: 1, field: "Amount" });
+      expect(result.errors[0].message).toContain("N/A");
+    });
+  });
+
   describe("invalid date", () => {
     it("skips the row and records an error for a malformed date", () => {
       const rows = [debitRow({ Date: "not-a-date" }), debitRow()];
