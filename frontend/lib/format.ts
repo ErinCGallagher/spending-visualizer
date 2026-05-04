@@ -29,11 +29,19 @@ export function formatCurrency(amount: number, currency: string, decimals = 0): 
   }).format(amount)} ${currency}`;
 }
 
-export function formatDate(dateString: string): string {
-  const [year, month, day] = dateString.split("-");
-  const months = [
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-  ];
-  return `${months[parseInt(month, 10) - 1]} ${parseInt(day, 10)}, ${year}`;
+export function formatDate(dateString: string | undefined | null): string {
+  if (!dateString) return "N/A";
+  
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return "Invalid Date";
+    
+    return new Intl.DateTimeFormat("en-CA", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }).format(date);
+  } catch {
+    return "Invalid Date";
+  }
 }

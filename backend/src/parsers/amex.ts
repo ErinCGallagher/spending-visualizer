@@ -19,7 +19,7 @@ export class AmexParser implements CsvParser {
       const row = rows[i];
 
       // Skip payments
-      if (row.Description.includes("PAYMENT RECEIVED")) {
+      if (row.Description?.includes("PAYMENT RECEIVED")) {
         skippedPayments++;
         continue;
       }
