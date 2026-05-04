@@ -83,7 +83,8 @@ export default function StepCreditCardAIReview({
 
         const initialChoices: Record<number, string> = {};
         categoriseResults.forEach((r, i) => {
-          initialChoices[i] = r.categoryName;
+          // "Uncategorized" is the backend sentinel for "AI had no answer" — treat as unselected
+          initialChoices[i] = r.categoryName === "Uncategorized" ? "" : r.categoryName;
         });
         setChoices(initialChoices);
 

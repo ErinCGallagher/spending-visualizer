@@ -89,6 +89,14 @@ describe("StepCreditCardAIReview — API error banner", () => {
 
     expect(screen.getByRole("button", { name: "Back" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Continue" })).toBeInTheDocument();
+
+    // "Uncategorized" sentinel must not appear as a spurious (New) option in the dropdown
+    const parentSelect = screen.getAllByRole("combobox")[0] as HTMLSelectElement;
+    const uncategorizedOptions = Array.from(parentSelect.options).filter((o) =>
+      o.text.toLowerCase().includes("uncategori")
+    );
+    expect(uncategorizedOptions).toHaveLength(1);
+    expect(uncategorizedOptions[0].value).toBe("");
   });
 
   it("shows a fatal error page with only Back when the API returns a 5xx status", async () => {
