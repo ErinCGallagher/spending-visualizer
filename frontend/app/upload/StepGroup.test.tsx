@@ -72,6 +72,9 @@ describe("StepGroup", () => {
       />
     );
 
+    // Wait for groups to load to avoid 'act' warning
+    await screen.findByText("Trip");
+
     fireEvent.click(screen.getByText("Continue"));
     expect(screen.getByText("Select a group type")).toBeInTheDocument();
 
