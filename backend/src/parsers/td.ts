@@ -1,6 +1,6 @@
 /** Parser for TD credit card CSV statement exports (no header row). */
 
-import type { CsvParser, ParseResult, ParsedTransaction } from "./types";
+import type { CsvParser, ParseResult, ParsedTransaction, ParseError } from "./types";
 import { buildCreditCardTransaction, calculateDateRange } from "./utils";
 import { isBankPayment } from "./bankKeywords";
 
@@ -18,21 +18,30 @@ export class TDParser implements CsvParser {
 
   parse(rows: Record<string, string>[], _uploadId: string, _userId: string): ParseResult {
     const transactions: ParsedTransaction[] = [];
+    const errors: ParseError[] = [];
     let skippedPayments = 0;
 
-    for (const row of rows) {
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
       const debit = row.debit?.trim();
       const credit = row.credit?.trim();
+      const description = row.description?.trim();
+
+      const date = parseTDDate(row.date);
+      if (isNaN(date.getTime())) {
+        errors.push({ row: i, field: "date", message: `Invalid date "${row.date ?? ""}"` });
+        continue;
+      }
 
       if (credit && !debit) {
-        if (isBankPayment(row.description)) {
+        if (isBankPayment(description)) {
           skippedPayments++;
           continue;
         }
         transactions.push(
           buildCreditCardTransaction({
-            date: parseTDDate(row.date),
-            description: row.description,
+            date,
+            description,
             amount: -parseFloat(credit),
             paymentMethod: "TD Visa",
             sourceFormat: "td",
@@ -42,8 +51,8 @@ export class TDParser implements CsvParser {
       } else if (debit) {
         transactions.push(
           buildCreditCardTransaction({
-            date: parseTDDate(row.date),
-            description: row.description,
+            date,
+            description,
             amount: parseFloat(debit),
             paymentMethod: "TD Visa",
             sourceFormat: "td",
@@ -57,7 +66,7 @@ export class TDParser implements CsvParser {
       transactions,
       travellers: [],
       categories: [],
-      errors: [],
+      errors,
       homeCurrency: "CAD",
       dateRange: calculateDateRange(transactions),
       ...(skippedPayments > 0 ? { skippedPayments } : {}),

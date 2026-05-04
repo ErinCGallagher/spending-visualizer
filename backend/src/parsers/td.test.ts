@@ -134,6 +134,24 @@ describe("TDParser", () => {
     });
   });
 
+  describe("invalid date", () => {
+    it("skips the row and records an error for a malformed date", () => {
+      const rows = [debitRow({ date: "not-a-date" }), debitRow()];
+      const result = parser.parse(rows, "upload-1", "user-1");
+      expect(result.transactions).toHaveLength(1);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0]).toMatchObject({ row: 0, field: "date" });
+      expect(result.errors[0].message).toContain("not-a-date");
+    });
+
+    it("skips the row and records an error for an empty date", () => {
+      const result = parser.parse([debitRow({ date: "" })], "upload-1", "user-1");
+      expect(result.transactions).toHaveLength(0);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0]).toMatchObject({ row: 0, field: "date" });
+    });
+  });
+
   describe("empty columns", () => {
     it("skips rows where both debit and credit are empty", () => {
       const row = debitRow({ debit: "", credit: "" });
