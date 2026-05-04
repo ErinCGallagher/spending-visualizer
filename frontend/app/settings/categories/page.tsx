@@ -154,6 +154,7 @@ export default function CategoryMappingsPage() {
     try {
       const res = await fetch("/api/categories/mappings", {
         method: "PUT",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ merchantKey, categoryId }),
       });
