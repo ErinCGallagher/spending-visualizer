@@ -180,6 +180,9 @@ export default function StepCreditCardAIReview({
               </svg>
             </summary>
             <div className="p-4 bg-white overflow-x-auto">
+              <p className="text-xs text-gray-500 mb-4 bg-gray-50 px-3 py-2 rounded-lg inline-block">
+                Tip: You can modify cached categorizations in the settings.
+              </p>
               <table className="w-full text-sm opacity-50">
                 <thead>
                   <tr className="text-left text-xs font-semibold tracking-widest text-gray-400 uppercase border-b border-gray-200">
