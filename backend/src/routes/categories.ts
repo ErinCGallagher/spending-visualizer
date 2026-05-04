@@ -138,6 +138,7 @@ router.put("/mappings", async (req, res) => {
 });
 
 const CATEGORY_NAME_MAX_LENGTH = 100;
+export const CATEGORIES_MAX_COUNT = 30;
 
 /** Returns an error message if the name is invalid, otherwise null. */
 export function validateCategoryName(name: unknown): string | null {
@@ -163,6 +164,11 @@ router.post("/organise", async (req, res) => {
 
   if (!Array.isArray(categories)) {
     res.status(400).json({ error: "categories must be an array" });
+    return;
+  }
+
+  if (categories.length > CATEGORIES_MAX_COUNT) {
+    res.status(400).json({ error: `Too many categories — maximum ${CATEGORIES_MAX_COUNT} per request.` });
     return;
   }
 

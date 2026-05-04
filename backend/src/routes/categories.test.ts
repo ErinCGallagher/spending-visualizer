@@ -1,7 +1,7 @@
 /** Unit tests for category name validation. */
 
 import { describe, it, expect } from "vitest";
-import { validateCategoryName } from "./categories";
+import { validateCategoryName, CATEGORIES_MAX_COUNT } from "./categories";
 
 describe("validateCategoryName", () => {
   it("returns null for a valid name", () => {
@@ -28,5 +28,11 @@ describe("validateCategoryName", () => {
 
   it("returns an error for a name exceeding 100 characters", () => {
     expect(validateCategoryName("A".repeat(101))).not.toBeNull();
+  });
+});
+
+describe("CATEGORIES_MAX_COUNT", () => {
+  it("is 60", () => {
+    expect(CATEGORIES_MAX_COUNT).toBe(30);
   });
 });
