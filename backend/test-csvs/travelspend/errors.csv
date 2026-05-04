@@ -1,0 +1,4 @@
+amount,amountInHomeCurrency,category,conversionRate,country,countryCode,datePaid,homeCurrency,localCurrency,notes,paidBy,paidFor,paymentMethod,photo,place,latitude,longitude,type,numberOfDays,excludeFromAvg,addToBudget,categoryId,categoryIcon,categoryColor,paymentMethodId,paymentMethodIcon,paymentMethodColor,paidById,paidToId,splitObjects,Erin,John
+5.0,5.0,Misc,1.0,Canada,CA,invalid-date,CAD,CAD,WRONG DATE,Erin,Erin,Cash,,,,,Expense,1,false,true,3,icon,color,1,icon,color,1,2,{},5.0,0.0
+6.0,invalid,Misc,1.0,Canada,CA,2026-05-03,CAD,CAD,WRONG AMOUNT,Erin,Erin,Cash,,,,,Expense,1,false,true,3,icon,color,1,icon,color,1,2,{},6.0,0.0
+55.0,55.0,Misc,1.0,Canada,CA,2026-05-04,CAD,CAD,VALID ROW,Erin,Erin,Cash,,,,,Expense,1,false,true,3,icon,color,1,icon,color,1,2,{},55.0,0.0

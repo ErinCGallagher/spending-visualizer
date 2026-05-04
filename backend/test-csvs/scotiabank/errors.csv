@@ -1,0 +1,4 @@
+Date,Description,Sub-description,Status,Type of Transaction,Amount
+invalid-date,WRONG DATE,,Cleared,Debit,5.00
+2026-05-03,WRONG AMOUNT,,Cleared,Debit,invalid
+2026-05-04,VALID ROW,,Cleared,Debit,25.00

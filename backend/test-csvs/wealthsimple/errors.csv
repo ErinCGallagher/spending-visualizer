@@ -1,0 +1,4 @@
+transaction_date,post_date,type,details,amount,currency
+invalid-date,2026-05-04,Purchase,WRONG DATE,5.00,CAD
+2026-05-03,2026-05-04,Purchase,WRONG AMOUNT,invalid,CAD
+2026-05-04,2026-05-05,Purchase,VALID ROW,45.00,CAD
