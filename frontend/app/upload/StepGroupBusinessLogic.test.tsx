@@ -54,7 +54,8 @@ describe("StepGroup Business Logic", () => {
 
     // Check if "Daily Living" is selected (should have specific classes)
     const dailyButton = screen.getByText("Daily Living");
-    expect(dailyButton).toHaveClass("bg-emerald-800", "text-white");
+    expect(dailyButton).toHaveClass("bg-emerald-800");
+    expect(dailyButton).toHaveClass("text-white");
 
     // Check if the first daily group "Main Budget" is selected in the dropdown
     const select = screen.getByRole("combobox");
