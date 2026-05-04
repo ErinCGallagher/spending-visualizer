@@ -91,6 +91,7 @@ export default function StepFilePicker({ onSuccess }: Props) {
             <option value="travelspend">TravelSpend</option>
             <option value="wealthsimple">Wealthsimple Visa (CSV)</option>
             <option value="amex">American Express (CSV)</option>
+            <option value="scotiabank">Scotiabank (CSV)</option>
           </select>
         </div>
 
