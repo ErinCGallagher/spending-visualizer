@@ -81,6 +81,11 @@ describe("parseMappingsQuery", () => {
 });
 
 describe("buildMappingsFilterSQL", () => {
+  it("always includes the categories c join", () => {
+    const { joins } = buildMappingsFilterSQL("user-1", {});
+    expect(joins).toContain("JOIN categories c ON c.id = ccm.category_id");
+  });
+
   it("always includes user_id condition as $1", () => {
     const { conditions, values } = buildMappingsFilterSQL("user-1", {});
     expect(conditions[0]).toBe("ccm.user_id = $1");

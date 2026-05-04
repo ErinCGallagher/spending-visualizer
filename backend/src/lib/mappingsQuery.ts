@@ -38,6 +38,8 @@ export function parseMappingsQuery(raw: Record<string, unknown>): {
 }
 
 export interface MappingsFilterSQL {
+  /** JOIN clauses required by the conditions (must be included in any query using these conditions). */
+  joins: string[];
   /** WHERE conditions — always starts with "ccm.user_id = $1". */
   conditions: string[];
   /** Bound parameter values. */
@@ -48,6 +50,7 @@ export function buildMappingsFilterSQL(
   userId: string,
   params: { search?: string; parentId?: string; subId?: string }
 ): MappingsFilterSQL {
+  const joins: string[] = ["JOIN categories c ON c.id = ccm.category_id"];
   const conditions: string[] = ["ccm.user_id = $1"];
   const values: unknown[] = [userId];
 
@@ -67,5 +70,5 @@ export function buildMappingsFilterSQL(
     conditions.push(`(ccm.category_id = ${p} OR c.parent_id = ${p})`);
   }
 
-  return { conditions, values };
+  return { joins, conditions, values };
 }
