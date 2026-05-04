@@ -137,6 +137,20 @@ router.put("/mappings", async (req, res) => {
   }
 });
 
+const CATEGORY_NAME_MAX_LENGTH = 100;
+export const CATEGORIES_MAX_COUNT = 30;
+
+/** Returns an error message if the name is invalid, otherwise null. */
+export function validateCategoryName(name: unknown): string | null {
+  if (typeof name !== "string" || name.trim().length === 0) {
+    return "Category name must be a non-empty string.";
+  }
+  if (name.trim().length > CATEGORY_NAME_MAX_LENGTH) {
+    return `Category name must be ${CATEGORY_NAME_MAX_LENGTH} characters or fewer.`;
+  }
+  return null;
+}
+
 /**
  * POST /api/categories/organise — upserts categories and sets parent relationships.
  * Accepts `{ categories: { name, parentName | null }[] }` and returns the
@@ -151,6 +165,26 @@ router.post("/organise", async (req, res) => {
   if (!Array.isArray(categories)) {
     res.status(400).json({ error: "categories must be an array" });
     return;
+  }
+
+  if (categories.length > CATEGORIES_MAX_COUNT) {
+    res.status(400).json({ error: `Too many categories — maximum ${CATEGORIES_MAX_COUNT} per request.` });
+    return;
+  }
+
+  for (const cat of categories) {
+    const nameError = validateCategoryName(cat.name);
+    if (nameError) {
+      res.status(400).json({ error: nameError });
+      return;
+    }
+    if (cat.parentName !== null && cat.parentName !== undefined) {
+      const parentError = validateCategoryName(cat.parentName);
+      if (parentError) {
+        res.status(400).json({ error: `parentName: ${parentError}` });
+        return;
+      }
+    }
   }
 
   const client = await pool.connect();
