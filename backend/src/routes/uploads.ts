@@ -10,6 +10,7 @@ import { TravelSpendParser } from "../parsers/travelspend";
 import { WealthsimpleParser } from "../parsers/wealthsimple";
 import { AmexParser } from "../parsers/amex";
 import { ScotiabankParser } from "../parsers/scotiabank";
+import { TDParser } from "../parsers/td";
 import { buildCategorisePrompt, parseCategoriseResponse, CategoriseResult } from "../lib/categorisePrompt";
 import { toMerchantKey } from "../lib/merchantKey";
 import { CsvParser, ParsedTransaction } from "../parsers/types";
@@ -23,9 +24,10 @@ const SUPPORTED_PARSERS: Record<string, CsvParser> = {
   wealthsimple: new WealthsimpleParser(),
   amex: new AmexParser(),
   scotiabank: new ScotiabankParser(),
+  td: new TDParser(),
 };
 
-const CREDIT_CARD_FORMATS = new Set(["wealthsimple", "amex", "scotiabank"]);
+const CREDIT_CARD_FORMATS = new Set(["wealthsimple", "amex", "scotiabank", "td"]);
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 MB
 const MAX_ROWS = 10_000;
@@ -63,7 +65,13 @@ router.post("/", upload.single("file"), async (req, res) => {
       )
     : null;
 
-  const csvText = req.file.buffer.toString("utf-8");
+  let parser = SUPPORTED_PARSERS[parserName];
+
+  const rawCsvText = req.file.buffer.toString("utf-8");
+  const csvText = parser.syntheticHeader
+    ? parser.syntheticHeader.join(",") + "\n" + rawCsvText
+    : rawCsvText;
+
   const parsed = Papa.parse<Record<string, string>>(csvText, {
     header: true,
     skipEmptyLines: true,
@@ -73,8 +81,6 @@ router.post("/", upload.single("file"), async (req, res) => {
     res.status(400).json({ error: `File exceeds ${MAX_ROWS} row limit` });
     return;
   }
-
-  let parser = SUPPORTED_PARSERS[parserName];
 
   if (settingsPromise) {
     const { rows: settingsRows } = await settingsPromise;

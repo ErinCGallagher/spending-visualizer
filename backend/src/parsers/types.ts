@@ -42,5 +42,7 @@ export interface ParseResult {
 export interface CsvParser {
   name: string;
   fixedFields: string[];
+  /** If set, prepended as a header row before PapaParse runs (for CSVs with no header). */
+  syntheticHeader?: string[];
   parse(rows: Record<string, string>[], uploadId: string, userId: string): ParseResult;
 }
