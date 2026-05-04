@@ -45,7 +45,7 @@ export class TDParser implements CsvParser {
             date: parseTDDate(row.date),
             description: row.description,
             amount: parseFloat(debit),
-            paymentMethod: "TD",
+            paymentMethod: "TD Visa",
             sourceFormat: "td",
             raw: row,
           })
