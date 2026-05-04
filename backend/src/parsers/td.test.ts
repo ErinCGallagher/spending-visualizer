@@ -134,6 +134,26 @@ describe("TDParser", () => {
     });
   });
 
+  describe("invalid amount", () => {
+    it("skips a debit row with a non-numeric amount and records an error", () => {
+      const rows = [debitRow({ debit: "N/A" }), debitRow()];
+      const result = parser.parse(rows, "upload-1", "user-1");
+      expect(result.transactions).toHaveLength(1);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0]).toMatchObject({ field: "debit" });
+      expect(result.errors[0].message).toContain("N/A");
+    });
+
+    it("skips a credit refund row with a non-numeric amount and records an error", () => {
+      const rows = [{ ...creditRefundRow(), credit: "N/A" }, debitRow()];
+      const result = parser.parse(rows, "upload-1", "user-1");
+      expect(result.transactions).toHaveLength(1);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0]).toMatchObject({ field: "credit" });
+      expect(result.errors[0].message).toContain("N/A");
+    });
+  });
+
   describe("invalid date", () => {
     it("skips the row and records an error for a malformed date", () => {
       const rows = [debitRow({ date: "not-a-date" }), debitRow()];
