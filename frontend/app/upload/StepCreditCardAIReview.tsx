@@ -328,8 +328,8 @@ export default function StepCreditCardAIReview({
                   const isLowConfidence = s.confidence < 0.8;
                   const currentChoice = choices[s.transactionIndex] ?? "";
                   
-                  // Determine current parent and sub based on taxonomy
-                  const inferredParent = childToParent.get(currentChoice) || (parentCategories.includes(currentChoice) ? currentChoice : null);
+                  // Determine current parent and sub based on taxonomy and user-added categories
+                  const inferredParent = childToParent.get(currentChoice) || (parentCategories.includes(currentChoice) ? currentChoice : null) || (userAddedCategories.includes(currentChoice) ? currentChoice : null);
                   const inferredSub = inferredParent && inferredParent !== currentChoice ? currentChoice : null;
 
                   const parentOptions = [...parentCategories, ...userAddedCategories];
