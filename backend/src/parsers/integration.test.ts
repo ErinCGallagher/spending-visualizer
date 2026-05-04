@@ -35,6 +35,7 @@ describe("Parser Integration Tests (File-based)", () => {
       const data = parseCsvFile(parser, "td/valid.csv");
       const result = parser.parse(data, UPLOAD_ID, USER_ID);
       expect(result.transactions).toHaveLength(3);
+      expect(result.skippedPayments).toBe(1);
       expect(result.errors).toHaveLength(0);
     });
 
@@ -65,6 +66,7 @@ describe("Parser Integration Tests (File-based)", () => {
       const data = parseCsvFile(parser, "scotiabank/valid.csv");
       const result = parser.parse(data, UPLOAD_ID, USER_ID);
       expect(result.transactions).toHaveLength(3);
+      expect(result.skippedPayments).toBe(1);
       expect(result.errors).toHaveLength(0);
     });
 
@@ -83,6 +85,7 @@ describe("Parser Integration Tests (File-based)", () => {
       const data = parseCsvFile(parser, "amex/valid.csv");
       const result = parser.parse(data, UPLOAD_ID, USER_ID);
       expect(result.transactions).toHaveLength(2);
+      expect(result.skippedPayments).toBe(1);
       expect(result.errors).toHaveLength(0);
     });
 
@@ -101,6 +104,7 @@ describe("Parser Integration Tests (File-based)", () => {
       const data = parseCsvFile(parser, "wealthsimple/valid.csv");
       const result = parser.parse(data, UPLOAD_ID, USER_ID);
       expect(result.transactions).toHaveLength(2);
+      expect(result.skippedPayments).toBe(1);
       expect(result.errors).toHaveLength(0);
     });
 
