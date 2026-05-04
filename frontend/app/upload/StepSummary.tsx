@@ -49,19 +49,29 @@ export default function StepSummary({ result, onBack, onContinue }: Props) {
             <line x1="12" y1="17" x2="12.01" y2="17" />
           </svg>
           <span>
-            <strong>Warning:</strong> Some of these dates overlap with previously
-            uploaded data. Duplicate transactions may result.
+            <strong>Warning:</strong> Some or all of the uploaded transactions
+            appear to duplicate existing transactions. This may be a duplicate
+            upload.
           </span>
         </div>
       )}
 
       <div>
         <div className="flex justify-between border-b border-gray-100 py-2">
-          <span className="text-sm text-gray-500">Transactions</span>
+          <span className="text-sm text-gray-500">Number of transactions</span>
           <span className="text-sm font-medium text-gray-900">
             {result.transactions.length.toLocaleString()}
           </span>
         </div>
+
+        {!!result.skippedPayments && result.skippedPayments > 0 && (
+          <div className="flex justify-between border-b border-gray-100 py-2">
+            <span className="text-sm text-gray-500">Number of skipped rows (Bill Payments)</span>
+            <span className="text-sm font-medium text-gray-900">
+              {result.skippedPayments.toLocaleString()}
+            </span>
+          </div>
+        )}
 
         <div className="flex justify-between border-b border-gray-100 py-2">
           <span className="text-sm text-gray-500">Home currency</span>
@@ -98,12 +108,6 @@ export default function StepSummary({ result, onBack, onContinue }: Props) {
           </>
         )}
       </div>
-
-      {!!result.skippedPayments && result.skippedPayments > 0 && (
-        <p className="text-sm text-gray-500">
-          {result.skippedPayments} payment row{result.skippedPayments > 1 ? "s" : ""} were skipped
-        </p>
-      )}
 
       {hasNoTransactions && (
         <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-800">

@@ -90,17 +90,23 @@ router.post("/", upload.single("file"), async (req, res) => {
 
   const result = parser.parse(parsed.data, "", userId);
 
-  // Check for date range overlap with existing transactions
+  // Check if the first transaction already exists
   let overlapWarning = false;
   if (result.transactions.length > 0) {
-    const { from, to } = result.dateRange;
+    const firstTx = result.transactions[0];
     const overlap = await pool.query(
       `SELECT 1 FROM transactions
        WHERE user_id = $1
-         AND date <= $2
-         AND date >= $3
+         AND date = $2
+         AND description = $3
+         AND amount_home = $4
        LIMIT 1`,
-      [userId, to.toISOString(), from.toISOString()]
+      [
+        userId,
+        firstTx.date.toISOString().split("T")[0],
+        firstTx.description,
+        firstTx.amountHome,
+      ]
     );
     overlapWarning = (overlap.rowCount ?? 0) > 0;
   }
