@@ -60,6 +60,58 @@ async function renderAndWaitForLoad(props?: Partial<Parameters<typeof StepCredit
   return { onContinue, onBack };
 }
 
+describe("StepCreditCardAIReview — API error banner", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("shows the aiError banner when Gemini fails but still renders the UI", async () => {
+    global.fetch = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        results: [{ categoryName: "Uncategorized", confidence: 0, source: "ai" }],
+        aiError: "AI categorisation is temporarily unavailable. You can still categorise transactions manually below.",
+      }),
+    });
+
+    render(
+      <StepCreditCardAIReview
+        transactions={[mockTransaction]}
+        existingTaxonomy={mockTaxonomy}
+        onBack={vi.fn()}
+        onContinue={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/AI categorisation is temporarily unavailable/)).toBeInTheDocument();
+    });
+
+    expect(screen.getByRole("button", { name: "Back" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Continue" })).toBeInTheDocument();
+  });
+
+  it("shows the error message as a banner when the API itself returns an error status", async () => {
+    global.fetch = vi.fn().mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ message: "Server error." }),
+    });
+
+    render(
+      <StepCreditCardAIReview
+        transactions={[mockTransaction]}
+        existingTaxonomy={mockTaxonomy}
+        onBack={vi.fn()}
+        onContinue={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Server error.")).toBeInTheDocument();
+    });
+  });
+});
+
 describe("StepCreditCardAIReview — add category input", () => {
   beforeEach(() => {
     vi.clearAllMocks();

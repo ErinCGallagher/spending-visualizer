@@ -220,12 +220,12 @@ router.post("/categorise", async (req, res) => {
     }
     res.json({ results });
   } catch (err) {
-    // Degrade gracefully — the client can let the user categorise manually
+    // Degrade gracefully — return uncategorised placeholders so the user can categorise manually
     console.error("AI categorisation error:", err);
     for (const idx of uncachedIndices) {
       results[idx] = { categoryName: "Uncategorized", confidence: 0, source: "ai" };
     }
-    res.json({ results });
+    res.json({ results, aiError: "AI categorisation is temporarily unavailable. You can still categorise transactions manually below." });
   }
 });
 

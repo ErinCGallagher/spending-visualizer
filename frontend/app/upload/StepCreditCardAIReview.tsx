@@ -81,6 +81,10 @@ export default function StepCreditCardAIReview({
           initialChoices[i] = r.categoryName;
         });
         setChoices(initialChoices);
+
+        if (data.aiError) {
+          setError(data.aiError);
+        }
       } catch {
         setError("An unexpected error occurred during categorisation.");
       } finally {
@@ -180,24 +184,16 @@ export default function StepCreditCardAIReview({
     );
   }
 
-  if (error) {
-    return (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
-        <p className="text-sm text-red-600">{error}</p>
-        <div className="flex gap-3">
-          <button
-            onClick={onBack}
-            className="border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg font-medium hover:bg-gray-50"
-          >
-            Back
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-6">
+      {error && (
+        <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5">
+            <path fillRule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM8.28 7.22a.75.75 0 0 0-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 1 0 1.06 1.06L10 11.06l1.72 1.72a.75.75 0 1 0 1.06-1.06L11.06 10l1.72-1.72a.75.75 0 0 0-1.06-1.06L10 8.94 8.28 7.22z" clipRule="evenodd" />
+          </svg>
+          <p className="text-sm text-red-700">{error}</p>
+        </div>
+      )}
       <div>
         <h2 className="text-lg font-semibold text-gray-900 mb-1">AI Suggestions</h2>
 
