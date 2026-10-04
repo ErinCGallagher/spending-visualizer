@@ -166,6 +166,27 @@ router.get("/meta", async (_req, res) => {
   }
 });
 
+/** DELETE /api/transactions/:id — deletes a single transaction. */
+router.delete("/:id", async (req, res) => {
+  const userId: string = res.locals.userId;
+  const { id } = req.params;
+
+  try {
+    const result = await pool.query(
+      "DELETE FROM transactions WHERE id = $1 AND user_id = $2",
+      [id, userId],
+    );
+    if ((result.rowCount ?? 0) === 0) {
+      res.status(404).json({ error: "Transaction not found" });
+      return;
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("DELETE /api/transactions/:id error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 /**
  * DELETE /api/transactions — deletes transactions by date range or by group.
  * Supply either { from, to } or { groupId }. Cascade handles transaction_splits.

@@ -66,6 +66,8 @@ export default function TransactionsPage() {
   const [showGroupDeleteModal, setShowGroupDeleteModal] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteResult, setDeleteResult] = useState<number | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const fetchMeta = useCallback(() => {
     fetch("/api/transactions/meta", { credentials: "include" })
@@ -155,6 +157,34 @@ export default function TransactionsPage() {
       .finally(() => setDeleteLoading(false));
   }
 
+  function openRowDeleteModal(id: string) {
+    setDeleteError(null);
+    setDeleteTarget(id);
+  }
+
+  function closeRowDeleteModal() {
+    setDeleteTarget(null);
+    setDeleteError(null);
+  }
+
+  function handleRowDeleteConfirm() {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
+    setDeleteError(null);
+    fetch(`/api/transactions/${deleteTarget}`, {
+      method: "DELETE",
+      credentials: "include",
+    })
+      .then((r) => {
+        if (!r.ok) throw new Error("Failed to delete transaction");
+        closeRowDeleteModal();
+        fetchMeta();
+        fetchTransactions(page, filters);
+      })
+      .catch(() => setDeleteError("Failed to delete transaction. Please try again."))
+      .finally(() => setDeleteLoading(false));
+  }
+
   const totalPages = data ? Math.max(1, Math.ceil(data.total / PAGE_LIMIT)) : 1;
 
   return (
@@ -194,6 +224,7 @@ export default function TransactionsPage() {
             page={page}
             totalPages={totalPages}
             onPageChange={setPage}
+            onDelete={openRowDeleteModal}
           />
         </div>
 
@@ -298,6 +329,20 @@ export default function TransactionsPage() {
           onConfirm={handleGroupDeleteConfirm}
           onCancel={() => setShowGroupDeleteModal(false)}
           loading={deleteLoading}
+          danger
+        />
+      )}
+
+      {deleteTarget && (
+        <ConfirmModal
+          title="Delete transaction"
+          description="Are you sure you want to delete this transaction? This cannot be undone."
+          confirmLabel="Delete"
+          loadingLabel="Deleting…"
+          onConfirm={handleRowDeleteConfirm}
+          onCancel={closeRowDeleteModal}
+          loading={deleteLoading}
+          error={deleteError ?? undefined}
           danger
         />
       )}
