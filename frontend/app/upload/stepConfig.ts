@@ -1,4 +1,4 @@
-const CREDIT_CARD_FORMATS = new Set(["wealthsimple", "amex", "scotiabank", "td"]);
+const CREDIT_CARD_FORMATS = new Set(["wealthsimple", "wealthsimple-chequing", "rbc-chequing", "amex", "scotiabank", "td", "rogers", "rbc-avion"]);
 
 export function isCreditCardFormat(sourceFormat: string | undefined): boolean {
   return CREDIT_CARD_FORMATS.has(sourceFormat ?? "");
@@ -52,6 +52,38 @@ export const PARSER_STEPS: Record<string, StepDefinition[]> = {
     { id: "confirm",       label: "Confirm" },
   ],
   td: [
+    { id: "file",          label: "Select file" },
+    { id: "summary",       label: "Review summary" },
+    { id: "cc-review",     label: "AI suggestions" },
+    { id: "cc-categories", label: "Review categories", conditional: true },
+    { id: "group",         label: "Assign group" },
+    { id: "confirm",       label: "Confirm" },
+  ],
+  "wealthsimple-chequing": [
+    { id: "file",          label: "Select file" },
+    { id: "summary",       label: "Review summary" },
+    { id: "cc-review",     label: "AI suggestions" },
+    { id: "cc-categories", label: "Review categories", conditional: true },
+    { id: "group",         label: "Assign group" },
+    { id: "confirm",       label: "Confirm" },
+  ],
+  "rbc-chequing": [
+    { id: "file",          label: "Select file" },
+    { id: "summary",       label: "Review summary" },
+    { id: "cc-review",     label: "AI suggestions" },
+    { id: "cc-categories", label: "Review categories", conditional: true },
+    { id: "group",         label: "Assign group" },
+    { id: "confirm",       label: "Confirm" },
+  ],
+  rogers: [
+    { id: "file",          label: "Select file" },
+    { id: "summary",       label: "Review summary" },
+    { id: "cc-review",     label: "AI suggestions" },
+    { id: "cc-categories", label: "Review categories", conditional: true },
+    { id: "group",         label: "Assign group" },
+    { id: "confirm",       label: "Confirm" },
+  ],
+  "rbc-avion": [
     { id: "file",          label: "Select file" },
     { id: "summary",       label: "Review summary" },
     { id: "cc-review",     label: "AI suggestions" },

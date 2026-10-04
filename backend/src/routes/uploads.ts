@@ -8,9 +8,13 @@ import { requireAuth } from "../middleware/requireAuth";
 import { pool } from "../db";
 import { TravelSpendParser } from "../parsers/travelspend";
 import { WealthsimpleParser } from "../parsers/wealthsimple";
+import { WealthsimpleChequingParser } from "../parsers/wealthsimple-chequing";
+import { RBCChequingParser } from "../parsers/rbc-chequing";
+import { RBCAvionParser } from "../parsers/rbc-avion";
 import { AmexParser } from "../parsers/amex";
 import { ScotiabankParser } from "../parsers/scotiabank";
 import { TDParser } from "../parsers/td";
+import { RogersParser } from "../parsers/rogers";
 import { buildCategorisePrompt, parseCategoriseResponse, CategoriseResult } from "../lib/categorisePrompt";
 import { toMerchantKey } from "../lib/merchantKey";
 import { CsvParser, ParsedTransaction } from "../parsers/types";
@@ -22,12 +26,16 @@ const travelspendParser = new TravelSpendParser();
 const SUPPORTED_PARSERS: Record<string, CsvParser> = {
   travelspend: travelspendParser,
   wealthsimple: new WealthsimpleParser(),
+  "wealthsimple-chequing": new WealthsimpleChequingParser(),
+  "rbc-chequing": new RBCChequingParser(),
   amex: new AmexParser(),
   scotiabank: new ScotiabankParser(),
   td: new TDParser(),
+  rogers: new RogersParser(),
+  "rbc-avion": new RBCAvionParser(),
 };
 
-const CREDIT_CARD_FORMATS = new Set(["wealthsimple", "amex", "scotiabank", "td"]);
+const CREDIT_CARD_FORMATS = new Set(["wealthsimple", "wealthsimple-chequing", "rbc-chequing", "amex", "scotiabank", "td", "rogers", "rbc-avion"]);
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 MB
 const MAX_ROWS = 10_000;
