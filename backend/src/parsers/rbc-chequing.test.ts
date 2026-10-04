@@ -102,6 +102,13 @@ describe("RBCChequingParser", () => {
       expect(result.transactions.every((tx) => tx.description !== "MISC PAYMENT RBC CREDIT CARD")).toBe(true);
     });
 
+    it("excludes MISC PAYMENT MFRP rows", () => {
+      const rows = [row({ "Description 1": "MISC PAYMENT MFRP", "CAD$": "-500.00" }), row()];
+      const result = parser.parse(rows, "upload-1", "user-1");
+      expect(result.transactions).toHaveLength(1);
+      expect(result.transactions.every((tx) => tx.description !== "MISC PAYMENT MFRP")).toBe(true);
+    });
+
     it("includes CASH WITHDRAWAL BR TO BR rows as spend", () => {
       const rows = [row({ "Description 1": "CASH WITHDRAWAL BR TO BR - 6702", "CAD$": "-8709.95" })];
       const result = parser.parse(rows, "upload-1", "user-1");
@@ -121,10 +128,11 @@ describe("RBCChequingParser", () => {
         row({ "Description 1": "ONLINE BANKING TRANSFER - 8546", "CAD$": "-266.52" }),
         row({ "Description 1": "INVESTMENT WS INVESTMENTS", "CAD$": "40000" }),
         row({ "Description 1": "MISC PAYMENT RBC CREDIT CARD", "CAD$": "-9.73" }),
+        row({ "Description 1": "MISC PAYMENT MFRP", "CAD$": "-500.00" }),
         row(),
       ];
       const result = parser.parse(rows, "upload-1", "user-1");
-      expect(result.skippedPayments).toBe(4);
+      expect(result.skippedPayments).toBe(5);
     });
 
     it("omits skippedPayments when there are no excluded rows", () => {

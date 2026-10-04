@@ -8,7 +8,8 @@ function isExcludedDescription(description: string): boolean {
     description.startsWith("ONLINE BANKING PAYMENT") ||
     description.startsWith("ONLINE BANKING TRANSFER") ||
     description.startsWith("INVESTMENT WS INVESTMENTS") ||
-    description === "MISC PAYMENT RBC CREDIT CARD"
+    description === "MISC PAYMENT RBC CREDIT CARD" ||
+    description === "MISC PAYMENT MFRP"
   );
 }
 
@@ -38,8 +39,8 @@ export class RBCChequingParser implements CsvParser {
       // ONLINE BANKING PAYMENT rows are bill payments (RBC's equivalent of
       // Wealthsimple's OBP_OUT); ONLINE BANKING TRANSFER and INVESTMENT WS
       // INVESTMENTS are transfers between the user's own accounts; MISC
-      // PAYMENT RBC CREDIT CARD is a credit card payment already counted as
-      // spend by the credit card parser. None of these are chequing spend.
+      // PAYMENT RBC CREDIT CARD and MISC PAYMENT MFRP are excluded as
+      // non-chequing-spend bill payments.
       if (isExcludedDescription(description)) {
         skippedPayments++;
         continue;
