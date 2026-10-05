@@ -240,26 +240,32 @@ router.post("/organise", async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    // Upsert all categories first (without parent_id) so parent lookups work
+    // Upsert top-level categories first so parent lookups below can find them.
+    // Category names can repeat across different parents (see the partial
+    // indexes in migrate.ts), so top-level and child rows are deduplicated
+    // against separate arbiters rather than by name alone.
     for (const cat of categories) {
-      await client.query(
-        `INSERT INTO categories (id, user_id, name)
-         VALUES (gen_random_uuid(), $1, $2)
-         ON CONFLICT (user_id, name) DO NOTHING`,
-        [userId, cat.name]
-      );
+      if (cat.parentName === null || cat.parentName === undefined) {
+        await client.query(
+          `INSERT INTO categories (id, user_id, name)
+           VALUES (gen_random_uuid(), $1, $2)
+           ON CONFLICT (user_id, name) WHERE parent_id IS NULL DO NOTHING`,
+          [userId, cat.name]
+        );
+      }
     }
 
-    // Now set parent_id for entries that have a parentName
+    // Now upsert child categories directly under their resolved parent.
     for (const cat of categories) {
       if (cat.parentName !== null && cat.parentName !== undefined) {
         await client.query(
-          `UPDATE categories
-           SET parent_id = (
-             SELECT id FROM categories WHERE user_id = $1 AND name = $2 LIMIT 1
+          `INSERT INTO categories (id, user_id, name, parent_id)
+           VALUES (
+             gen_random_uuid(), $1, $2,
+             (SELECT id FROM categories WHERE user_id = $1 AND name = $3 AND parent_id IS NULL LIMIT 1)
            )
-           WHERE user_id = $1 AND name = $3`,
-          [userId, cat.parentName, cat.name]
+           ON CONFLICT (user_id, parent_id, name) WHERE parent_id IS NOT NULL DO NOTHING`,
+          [userId, cat.name, cat.parentName]
         );
       }
     }
