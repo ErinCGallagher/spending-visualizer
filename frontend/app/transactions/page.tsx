@@ -65,8 +65,8 @@ export default function TransactionsPage() {
   // Category selection + edit state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectAllMatching, setSelectAllMatching] = useState(false);
-  const [editingCategoryTxId, setEditingCategoryTxId] = useState<string | null>(null);
   const [showBulkCategoryModal, setShowBulkCategoryModal] = useState(false);
+  const [editingCategoryTxId, setEditingCategoryTxId] = useState<string | null>(null);
   const [categorySaving, setCategorySaving] = useState(false);
   const [categoryError, setCategoryError] = useState<string | null>(null);
 
@@ -131,6 +131,16 @@ export default function TransactionsPage() {
     fetchTransactions(page, filters);
   }, [page, filters, fetchTransactions]);
 
+  function findCategorySelection(categoryId: string | null) {
+    if (!categoryId || !taxonomy) return { parentId: undefined, subId: undefined };
+    for (const parent of taxonomy) {
+      if (parent.id === categoryId) return { parentId: parent.id, subId: undefined };
+      const child = parent.children.find((c) => c.id === categoryId);
+      if (child) return { parentId: parent.id, subId: child.id };
+    }
+    return { parentId: undefined, subId: undefined };
+  }
+
   function buildFilterPayload(f: typeof filters) {
     const payload: Record<string, string> = {};
     if (f.from) payload.from = f.from;
@@ -141,18 +151,6 @@ export default function TransactionsPage() {
     if (f.paymentMethod) payload.paymentMethod = f.paymentMethod;
     if (f.search) payload.search = f.search;
     return payload;
-  }
-
-  function findCategorySelection(categoryId: string | null) {
-    if (!categoryId || !taxonomy) return {};
-    const asParent = taxonomy.find((c) => c.id === categoryId);
-    if (asParent) return { parentId: asParent.id };
-    for (const parent of taxonomy) {
-      if (parent.children.some((child) => child.id === categoryId)) {
-        return { parentId: parent.id, subId: categoryId };
-      }
-    }
-    return {};
   }
 
   function toggleRow(id: string) {
@@ -182,26 +180,6 @@ export default function TransactionsPage() {
     setSelectAllMatching(false);
   }
 
-  function handleSingleCategorySave(categoryId: string) {
-    if (!editingCategoryTxId) return;
-    setCategorySaving(true);
-    setCategoryError(null);
-    fetch(`/api/transactions/${editingCategoryTxId}`, {
-      method: "PATCH",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ categoryId }),
-    })
-      .then((r) => {
-        if (!r.ok) throw new Error("Failed to update category");
-        setEditingCategoryTxId(null);
-        fetchMeta();
-        fetchTransactions(page, filters);
-      })
-      .catch(() => setCategoryError("Failed to update category. Please try again."))
-      .finally(() => setCategorySaving(false));
-  }
-
   function handleBulkCategorySave(categoryId: string) {
     setCategorySaving(true);
     setCategoryError(null);
@@ -223,6 +201,27 @@ export default function TransactionsPage() {
         fetchTransactions(page, filters);
       })
       .catch(() => setCategoryError("Failed to update categories. Please try again."))
+      .finally(() => setCategorySaving(false));
+  }
+
+  function handleSingleCategorySave(categoryId: string) {
+    if (!editingCategoryTxId) return;
+    setCategorySaving(true);
+    setCategoryError(null);
+
+    fetch(`/api/transactions/${editingCategoryTxId}`, {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ categoryId }),
+    })
+      .then((r) => {
+        if (!r.ok) throw new Error("Failed to update category");
+        setEditingCategoryTxId(null);
+        fetchMeta();
+        fetchTransactions(page, filters);
+      })
+      .catch(() => setCategoryError("Failed to update category. Please try again."))
       .finally(() => setCategorySaving(false));
   }
 
@@ -304,7 +303,6 @@ export default function TransactionsPage() {
   const selectedCount = selectAllMatching ? (data?.total ?? 0) : selectedIds.size;
   const canSelectAllMatching =
     !selectAllMatching && allOnPageSelected && !!data && data.total > data.transactions.length;
-
   const editingTx = data?.transactions.find((t) => t.id === editingCategoryTxId) ?? null;
   const editingSelection = findCategorySelection(editingTx?.categoryId ?? null);
 
@@ -357,7 +355,7 @@ export default function TransactionsPage() {
                 onClick={() => setShowBulkCategoryModal(true)}
                 className="ml-auto bg-emerald-800 hover:bg-emerald-900 text-white px-4 py-1.5 rounded-lg font-medium text-xs"
               >
-                Change category
+                Edit
               </button>
               <button
                 onClick={clearSelection}
@@ -502,23 +500,6 @@ export default function TransactionsPage() {
         />
       )}
 
-      {editingCategoryTxId && (
-        <CategoryPickerModal
-          title="Edit category"
-          description="Choose a new category for this transaction."
-          taxonomy={taxonomy ?? []}
-          initialParentId={editingSelection.parentId}
-          initialSubId={editingSelection.subId}
-          saving={categorySaving}
-          error={categoryError ?? undefined}
-          onSave={handleSingleCategorySave}
-          onCancel={() => {
-            setEditingCategoryTxId(null);
-            setCategoryError(null);
-          }}
-        />
-      )}
-
       {showBulkCategoryModal && (
         <CategoryPickerModal
           title="Change category"
@@ -529,6 +510,23 @@ export default function TransactionsPage() {
           onSave={handleBulkCategorySave}
           onCancel={() => {
             setShowBulkCategoryModal(false);
+            setCategoryError(null);
+          }}
+        />
+      )}
+
+      {editingTx && (
+        <CategoryPickerModal
+          title="Edit category"
+          description={`Choose a new category for ${editingTx.description}.`}
+          taxonomy={taxonomy ?? []}
+          initialParentId={editingSelection.parentId}
+          initialSubId={editingSelection.subId}
+          saving={categorySaving}
+          error={categoryError ?? undefined}
+          onSave={handleSingleCategorySave}
+          onCancel={() => {
+            setEditingCategoryTxId(null);
             setCategoryError(null);
           }}
         />

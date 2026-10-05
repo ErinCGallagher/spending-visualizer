@@ -160,7 +160,7 @@ export default function TransactionTable({
                         aria-label={`Edit category for ${t.description}`}
                         className="text-emerald-600 hover:text-emerald-700 text-xs font-medium mr-3"
                       >
-                        Edit category
+                        Edit
                       </button>
                       <button
                         onClick={() => onDelete(t.id)}

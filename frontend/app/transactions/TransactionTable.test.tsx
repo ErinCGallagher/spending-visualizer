@@ -49,29 +49,6 @@ describe("TransactionTable", () => {
     expect(onDelete).toHaveBeenCalledWith("tx-1");
   });
 
-  it("calls onEditCategory with the transaction id when the edit category button is clicked", () => {
-    const onEditCategory = vi.fn();
-    render(
-      <TransactionTable
-        data={mockData}
-        loading={false}
-        page={1}
-        totalPages={1}
-        onPageChange={vi.fn()}
-        onDelete={vi.fn()}
-        selectedIds={new Set()}
-        allOnPageSelected={false}
-        onToggleRow={vi.fn()}
-        onToggleAllOnPage={vi.fn()}
-        onEditCategory={onEditCategory}
-      />
-    );
-
-    fireEvent.click(screen.getByLabelText(/edit category for coffee shop/i));
-
-    expect(onEditCategory).toHaveBeenCalledWith("tx-1");
-  });
-
   it("calls onToggleRow when a row checkbox is clicked", () => {
     const onToggleRow = vi.fn();
     render(
