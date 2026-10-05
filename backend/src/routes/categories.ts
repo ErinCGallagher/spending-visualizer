@@ -5,6 +5,7 @@ import { requireAuth } from "../middleware/requireAuth";
 import { pool } from "../db";
 import { buildTaxonomy, CategoryRow } from "../lib/categoryHelpers";
 import { parseMappingsQuery, buildMappingsFilterSQL } from "../lib/mappingsQuery";
+import { validateCategoryName, validateParentForCreate, isUniqueViolation } from "../lib/categoryMutations";
 
 const router = Router();
 
@@ -22,6 +23,88 @@ router.get("/", async (_req, res) => {
     res.json(buildTaxonomy(rows));
   } catch (err) {
     console.error("GET /api/categories error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+/** POST /api/categories — creates a single category, optionally nested under a parent. */
+router.post("/", async (req, res) => {
+  const userId: string = res.locals.userId;
+  const { name, parentId } = req.body as { name: unknown; parentId?: string | null };
+
+  const nameResult = validateCategoryName(name);
+  if (!nameResult.valid) {
+    res.status(400).json({ error: nameResult.error });
+    return;
+  }
+
+  try {
+    let parent: CategoryRow | null = null;
+    if (parentId !== null && parentId !== undefined) {
+      const { rows } = await pool.query<CategoryRow>(
+        "SELECT id, name, parent_id FROM categories WHERE id = $1 AND user_id = $2",
+        [parentId, userId]
+      );
+      parent = rows[0] ?? null;
+    }
+
+    const parentResult = validateParentForCreate(parent, parentId);
+    if (!parentResult.ok) {
+      res.status(parentResult.status).json({ error: parentResult.error });
+      return;
+    }
+
+    const { rows } = await pool.query<CategoryRow>(
+      `INSERT INTO categories (id, user_id, name, parent_id)
+       VALUES (gen_random_uuid(), $1, $2, $3)
+       RETURNING id, name, parent_id`,
+      [userId, nameResult.name, parentId ?? null]
+    );
+    const created = rows[0];
+    res.status(201).json({ id: created.id, name: created.name, parentId: created.parent_id });
+  } catch (err) {
+    if (isUniqueViolation(err)) {
+      res.status(409).json({ error: `A category named "${nameResult.name}" already exists there` });
+      return;
+    }
+    console.error("POST /api/categories error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+/**
+ * DELETE /api/categories/:id — deletes a category. Blocked if the category
+ * still has sub-categories. Transactions referencing the deleted category
+ * fall back to category_id = NULL (ON DELETE SET NULL); any credit card
+ * mapping pointing at it is removed (ON DELETE CASCADE).
+ */
+router.delete("/:id", async (req, res) => {
+  const userId: string = res.locals.userId;
+  const { id } = req.params;
+
+  try {
+    const { rows: existing } = await pool.query(
+      "SELECT id FROM categories WHERE id = $1 AND user_id = $2",
+      [id, userId]
+    );
+    if (existing.length === 0) {
+      res.status(404).json({ error: "Category not found" });
+      return;
+    }
+
+    const { rows: children } = await pool.query(
+      "SELECT 1 FROM categories WHERE parent_id = $1 LIMIT 1",
+      [id]
+    );
+    if (children.length > 0) {
+      res.status(409).json({ error: "Delete or move its sub-categories first" });
+      return;
+    }
+
+    await pool.query("DELETE FROM categories WHERE id = $1 AND user_id = $2", [id, userId]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("DELETE /api/categories/:id error:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 });

@@ -229,6 +229,31 @@ async function migrate() {
       END $$
     `);
 
+    // Allow the same category name to exist under different parents (e.g. a
+    // top-level "Accommodation" and a "Travel > Accommodation"). Names must
+    // still be unique among siblings, so this is expressed as two partial
+    // indexes rather than one unique(user_id, parent_id, name) constraint —
+    // Postgres treats NULLs as distinct, which would otherwise let two
+    // top-level categories share a name.
+    await client.query(`
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM pg_constraint WHERE conname = 'categories_user_id_name_key'
+        ) THEN
+          ALTER TABLE categories DROP CONSTRAINT categories_user_id_name_key;
+        END IF;
+      END $$
+    `);
+    await client.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_categories_user_name_top_level
+        ON categories(user_id, name) WHERE parent_id IS NULL
+    `);
+    await client.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_categories_user_parent_name
+        ON categories(user_id, parent_id, name) WHERE parent_id IS NOT NULL
+    `);
+
     await client.query("COMMIT");
     console.log("Migration complete");
   } catch (err) {
