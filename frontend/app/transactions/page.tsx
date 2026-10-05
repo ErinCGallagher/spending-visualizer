@@ -11,7 +11,10 @@ import TransactionTable, {
 } from "@/app/transactions/TransactionTable";
 import TransactionFilters from "@/app/transactions/TransactionFilters";
 import ConfirmModal from "@/app/components/ui/ConfirmModal";
+import CategoryPickerModal from "@/app/transactions/CategoryPickerModal";
 import { useTransactionFilters } from "@/app/hooks/useTransactionFilters";
+import { useFetch } from "@/app/hooks/useFetch";
+import type { Category } from "@/app/upload/types";
 
 interface Meta {
   categories: { id: string; name: string }[];
@@ -31,6 +34,7 @@ export default function TransactionsPage() {
   const [loading, setLoading] = useState(true);
 
   const { filters, page, setPage, handleFilterChange } = useTransactionFilters();
+  const { data: taxonomy } = useFetch<Category[]>("/api/categories", []);
 
   const [debouncedSearch, setDebouncedSearch] = useState(filters.search);
 
@@ -57,6 +61,20 @@ export default function TransactionsPage() {
   useEffect(() => {
     setDebouncedSearch(filters.search);
   }, [filters.search]);
+
+  // Category selection + edit state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectAllMatching, setSelectAllMatching] = useState(false);
+  const [showBulkCategoryModal, setShowBulkCategoryModal] = useState(false);
+  const [editingCategoryTxId, setEditingCategoryTxId] = useState<string | null>(null);
+  const [categorySaving, setCategorySaving] = useState(false);
+  const [categoryError, setCategoryError] = useState<string | null>(null);
+
+  // Reset selection whenever the filtered result set changes
+  useEffect(() => {
+    setSelectedIds(new Set());
+    setSelectAllMatching(false);
+  }, [filters]);
 
   // Delete section state
   const [deleteFrom, setDeleteFrom] = useState("");
@@ -112,6 +130,100 @@ export default function TransactionsPage() {
   useEffect(() => {
     fetchTransactions(page, filters);
   }, [page, filters, fetchTransactions]);
+
+  function findCategorySelection(categoryId: string | null) {
+    if (!categoryId || !taxonomy) return { parentId: undefined, subId: undefined };
+    for (const parent of taxonomy) {
+      if (parent.id === categoryId) return { parentId: parent.id, subId: undefined };
+      const child = parent.children.find((c) => c.id === categoryId);
+      if (child) return { parentId: parent.id, subId: child.id };
+    }
+    return { parentId: undefined, subId: undefined };
+  }
+
+  function buildFilterPayload(f: typeof filters) {
+    const payload: Record<string, string> = {};
+    if (f.from) payload.from = f.from;
+    if (f.to) payload.to = f.to;
+    if (f.category) payload.category = f.category;
+    if (f.group) payload.groupId = f.group;
+    if (f.payer) payload.traveller = f.payer;
+    if (f.paymentMethod) payload.paymentMethod = f.paymentMethod;
+    if (f.search) payload.search = f.search;
+    return payload;
+  }
+
+  function toggleRow(id: string) {
+    setSelectAllMatching(false);
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAllOnPage() {
+    if (!data) return;
+    const pageIds = data.transactions.map((t) => t.id);
+    const allSelected = pageIds.every((id) => selectedIds.has(id));
+    setSelectAllMatching(false);
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      pageIds.forEach((id) => (allSelected ? next.delete(id) : next.add(id)));
+      return next;
+    });
+  }
+
+  function clearSelection() {
+    setSelectedIds(new Set());
+    setSelectAllMatching(false);
+  }
+
+  function handleBulkCategorySave(categoryId: string) {
+    setCategorySaving(true);
+    setCategoryError(null);
+    const body = selectAllMatching
+      ? { categoryId, filter: buildFilterPayload(filters) }
+      : { categoryId, ids: [...selectedIds] };
+
+    fetch("/api/transactions/category", {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    })
+      .then((r) => {
+        if (!r.ok) throw new Error("Failed to update categories");
+        setShowBulkCategoryModal(false);
+        clearSelection();
+        fetchMeta();
+        fetchTransactions(page, filters);
+      })
+      .catch(() => setCategoryError("Failed to update categories. Please try again."))
+      .finally(() => setCategorySaving(false));
+  }
+
+  function handleSingleCategorySave(categoryId: string) {
+    if (!editingCategoryTxId) return;
+    setCategorySaving(true);
+    setCategoryError(null);
+
+    fetch(`/api/transactions/${editingCategoryTxId}`, {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ categoryId }),
+    })
+      .then((r) => {
+        if (!r.ok) throw new Error("Failed to update category");
+        setEditingCategoryTxId(null);
+        fetchMeta();
+        fetchTransactions(page, filters);
+      })
+      .catch(() => setCategoryError("Failed to update category. Please try again."))
+      .finally(() => setCategorySaving(false));
+  }
 
   function handleGroupDeleteConfirm() {
     setDeleteLoading(true);
@@ -186,6 +298,13 @@ export default function TransactionsPage() {
   }
 
   const totalPages = data ? Math.max(1, Math.ceil(data.total / PAGE_LIMIT)) : 1;
+  const allOnPageSelected =
+    !!data && data.transactions.length > 0 && data.transactions.every((t) => selectedIds.has(t.id));
+  const selectedCount = selectAllMatching ? (data?.total ?? 0) : selectedIds.size;
+  const canSelectAllMatching =
+    !selectAllMatching && allOnPageSelected && !!data && data.total > data.transactions.length;
+  const editingTx = data?.transactions.find((t) => t.id === editingCategoryTxId) ?? null;
+  const editingSelection = findCategorySelection(editingTx?.categoryId ?? null);
 
   return (
     <main className="min-h-screen animate-fade-in">
@@ -218,6 +337,35 @@ export default function TransactionsPage() {
               }}
             />
           </div>
+
+          {(selectedCount > 0) && (
+            <div className="flex flex-wrap items-center gap-3 px-4 py-3 border-t border-b border-gray-100 bg-emerald-50/50 text-sm">
+              <span className="font-medium text-gray-700">
+                {selectedCount.toLocaleString()} selected
+              </span>
+              {canSelectAllMatching && (
+                <button
+                  onClick={() => setSelectAllMatching(true)}
+                  className="text-emerald-700 hover:text-emerald-800 font-medium"
+                >
+                  Select all {data?.total.toLocaleString()} matching
+                </button>
+              )}
+              <button
+                onClick={() => setShowBulkCategoryModal(true)}
+                className="ml-auto bg-emerald-800 hover:bg-emerald-900 text-white px-4 py-1.5 rounded-lg font-medium text-xs"
+              >
+                Edit
+              </button>
+              <button
+                onClick={clearSelection}
+                className="text-gray-500 hover:text-gray-700 font-medium"
+              >
+                Clear
+              </button>
+            </div>
+          )}
+
           <TransactionTable
             data={data}
             loading={loading}
@@ -225,6 +373,11 @@ export default function TransactionsPage() {
             totalPages={totalPages}
             onPageChange={setPage}
             onDelete={openRowDeleteModal}
+            selectedIds={selectedIds}
+            allOnPageSelected={allOnPageSelected}
+            onToggleRow={toggleRow}
+            onToggleAllOnPage={toggleAllOnPage}
+            onEditCategory={setEditingCategoryTxId}
           />
         </div>
 
@@ -344,6 +497,38 @@ export default function TransactionsPage() {
           loading={deleteLoading}
           error={deleteError ?? undefined}
           danger
+        />
+      )}
+
+      {showBulkCategoryModal && (
+        <CategoryPickerModal
+          title="Change category"
+          description={`Choose a new category for ${selectedCount.toLocaleString()} transaction${selectedCount !== 1 ? "s" : ""}.`}
+          taxonomy={taxonomy ?? []}
+          saving={categorySaving}
+          error={categoryError ?? undefined}
+          onSave={handleBulkCategorySave}
+          onCancel={() => {
+            setShowBulkCategoryModal(false);
+            setCategoryError(null);
+          }}
+        />
+      )}
+
+      {editingTx && (
+        <CategoryPickerModal
+          title="Edit category"
+          description={`Choose a new category for ${editingTx.description}.`}
+          taxonomy={taxonomy ?? []}
+          initialParentId={editingSelection.parentId}
+          initialSubId={editingSelection.subId}
+          saving={categorySaving}
+          error={categoryError ?? undefined}
+          onSave={handleSingleCategorySave}
+          onCancel={() => {
+            setEditingCategoryTxId(null);
+            setCategoryError(null);
+          }}
         />
       )}
     </main>

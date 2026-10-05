@@ -11,6 +11,7 @@ const mockData: TransactionsResponse = {
       amountHome: 4.5,
       localCurrency: "CAD",
       homeCurrency: "CAD",
+      categoryId: null,
       parentCategoryName: "Food",
       subCategoryName: "Coffee",
       paymentMethod: "Credit",
@@ -35,11 +36,62 @@ describe("TransactionTable", () => {
         totalPages={1}
         onPageChange={vi.fn()}
         onDelete={onDelete}
+        selectedIds={new Set()}
+        allOnPageSelected={false}
+        onToggleRow={vi.fn()}
+        onToggleAllOnPage={vi.fn()}
+        onEditCategory={vi.fn()}
       />
     );
 
     fireEvent.click(screen.getByLabelText(/delete transaction coffee shop/i));
 
     expect(onDelete).toHaveBeenCalledWith("tx-1");
+  });
+
+  it("calls onToggleRow when a row checkbox is clicked", () => {
+    const onToggleRow = vi.fn();
+    render(
+      <TransactionTable
+        data={mockData}
+        loading={false}
+        page={1}
+        totalPages={1}
+        onPageChange={vi.fn()}
+        onDelete={vi.fn()}
+        selectedIds={new Set()}
+        allOnPageSelected={false}
+        onToggleRow={onToggleRow}
+        onToggleAllOnPage={vi.fn()}
+        onEditCategory={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByLabelText(/select transaction coffee shop/i));
+
+    expect(onToggleRow).toHaveBeenCalledWith("tx-1");
+  });
+
+  it("calls onToggleAllOnPage when the header checkbox is clicked", () => {
+    const onToggleAllOnPage = vi.fn();
+    render(
+      <TransactionTable
+        data={mockData}
+        loading={false}
+        page={1}
+        totalPages={1}
+        onPageChange={vi.fn()}
+        onDelete={vi.fn()}
+        selectedIds={new Set()}
+        allOnPageSelected={false}
+        onToggleRow={vi.fn()}
+        onToggleAllOnPage={onToggleAllOnPage}
+        onEditCategory={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByLabelText(/select all transactions on this page/i));
+
+    expect(onToggleAllOnPage).toHaveBeenCalled();
   });
 });
