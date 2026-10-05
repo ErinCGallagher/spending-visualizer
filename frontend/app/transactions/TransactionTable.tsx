@@ -14,6 +14,7 @@ interface Transaction {
   amountHome: number;
   localCurrency: string | null;
   homeCurrency: string | null;
+  categoryId: string | null;
   parentCategoryName: string | null;
   subCategoryName: string | null;
   paymentMethod: string | null;
@@ -36,6 +37,11 @@ interface Props {
   totalPages: number;
   onPageChange: (page: number) => void;
   onDelete: (id: string) => void;
+  selectedIds: Set<string>;
+  allOnPageSelected: boolean;
+  onToggleRow: (id: string) => void;
+  onToggleAllOnPage: () => void;
+  onEditCategory: (id: string) => void;
 }
 
 function formatAmount(amount: number) {
@@ -52,6 +58,11 @@ export default function TransactionTable({
   totalPages,
   onPageChange,
   onDelete,
+  selectedIds,
+  allOnPageSelected,
+  onToggleRow,
+  onToggleAllOnPage,
+  onEditCategory,
 }: Props) {
   return (
     <div className="relative min-h-[480px]">
@@ -70,6 +81,15 @@ export default function TransactionTable({
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50 text-left">
+                  <th className="px-4 py-3 w-8">
+                    <input
+                      type="checkbox"
+                      checked={allOnPageSelected}
+                      onChange={onToggleAllOnPage}
+                      aria-label="Select all transactions on this page"
+                      className="rounded border-gray-300"
+                    />
+                  </th>
                   <th className="px-4 py-3 text-xs font-semibold tracking-widest text-gray-400 uppercase">
                     Date
                   </th>
@@ -100,6 +120,15 @@ export default function TransactionTable({
               <tbody className="divide-y divide-gray-100">
                 {data.transactions.map((t) => (
                   <tr key={t.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(t.id)}
+                        onChange={() => onToggleRow(t.id)}
+                        aria-label={`Select transaction ${t.description}`}
+                        className="rounded border-gray-300"
+                      />
+                    </td>
                     <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
                       {formatDate(t.date)}
                     </td>
@@ -125,7 +154,14 @@ export default function TransactionTable({
                     <td className="px-4 py-3 text-gray-600">
                       {t.groupName ?? <span className="text-gray-300">—</span>}
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
+                      <button
+                        onClick={() => onEditCategory(t.id)}
+                        aria-label={`Edit category for ${t.description}`}
+                        className="text-emerald-600 hover:text-emerald-700 text-xs font-medium mr-3"
+                      >
+                        Edit category
+                      </button>
                       <button
                         onClick={() => onDelete(t.id)}
                         aria-label={`Delete transaction ${t.description}`}

@@ -3,8 +3,9 @@
 import { Router } from "express";
 import { requireAuth } from "../middleware/requireAuth";
 import { pool } from "../db";
-import { parseTransactionQuery, GROUP_TYPE_OPTIONS } from "../lib/queryParams";
+import { parseTransactionQuery, GROUP_TYPE_OPTIONS, UUID_REGEX } from "../lib/queryParams";
 import { buildTransactionFilterSQL, buildGroupsMetaSQL } from "../lib/transactionQuery";
+import { parseBulkCategoryUpdateBody } from "../lib/categoryUpdateValidation";
 
 const router = Router();
 
@@ -162,6 +163,104 @@ router.get("/meta", async (_req, res) => {
     });
   } catch (err) {
     console.error("GET /api/transactions/meta error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+/**
+ * PATCH /api/transactions/category — bulk-updates the category for a set of
+ * transactions, either an explicit list of ids or every transaction matching
+ * the current list filters. Sets category_source = 'user' on every row touched.
+ */
+router.patch("/category", async (req, res) => {
+  const userId: string = res.locals.userId;
+  const { params, errors } = parseBulkCategoryUpdateBody(req.body);
+
+  if (errors.length > 0) {
+    res.status(400).json({ errors });
+    return;
+  }
+
+  const { categoryId, ids, filter } = params;
+
+  try {
+    if (categoryId !== null) {
+      const { rows } = await pool.query(
+        "SELECT 1 FROM categories WHERE id = $1 AND user_id = $2",
+        [categoryId, userId]
+      );
+      if (rows.length === 0) {
+        res.status(404).json({ error: "Category not found" });
+        return;
+      }
+    }
+
+    if (ids) {
+      const result = await pool.query(
+        "UPDATE transactions SET category_id = $1, category_source = 'user' WHERE user_id = $2 AND id = ANY($3)",
+        [categoryId, userId, ids]
+      );
+      res.json({ updated: result.rowCount ?? 0 });
+      return;
+    }
+
+    const { joins, conditions, values } = buildTransactionFilterSQL(userId, filter!);
+    const filterJoins = [...new Set(joins)].join("\n");
+    const where = conditions.join(" AND ");
+    values.push(categoryId);
+    const categoryParam = `$${values.length}`;
+
+    const result = await pool.query(
+      `UPDATE transactions t
+       SET category_id = ${categoryParam}, category_source = 'user'
+       WHERE t.id IN (
+         SELECT t.id FROM transactions t
+         ${filterJoins}
+         WHERE ${where}
+       )`,
+      values
+    );
+    res.json({ updated: result.rowCount ?? 0 });
+  } catch (err) {
+    console.error("PATCH /api/transactions/category error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+/** PATCH /api/transactions/:id — updates a single transaction's category. */
+router.patch("/:id", async (req, res) => {
+  const userId: string = res.locals.userId;
+  const { id } = req.params;
+  const { categoryId } = req.body as { categoryId: string | null };
+
+  if (categoryId !== null && (typeof categoryId !== "string" || !UUID_REGEX.test(categoryId))) {
+    res.status(400).json({ error: "categoryId must be a valid UUID or null" });
+    return;
+  }
+
+  try {
+    if (categoryId !== null) {
+      const { rows } = await pool.query(
+        "SELECT 1 FROM categories WHERE id = $1 AND user_id = $2",
+        [categoryId, userId]
+      );
+      if (rows.length === 0) {
+        res.status(404).json({ error: "Category not found" });
+        return;
+      }
+    }
+
+    const result = await pool.query(
+      "UPDATE transactions SET category_id = $1, category_source = 'user' WHERE id = $2 AND user_id = $3",
+      [categoryId, id, userId]
+    );
+    if ((result.rowCount ?? 0) === 0) {
+      res.status(404).json({ error: "Transaction not found" });
+      return;
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("PATCH /api/transactions/:id error:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 });
