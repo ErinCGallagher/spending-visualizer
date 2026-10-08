@@ -6,7 +6,7 @@
 
 "use client";
 
-type View = "overview" | "trip";
+type View = "overview" | "trip" | "budget";
 
 interface Props {
   activeView: View;
@@ -16,6 +16,7 @@ interface Props {
 const TABS: { key: View; label: string }[] = [
   { key: "overview", label: "Overview" },
   { key: "trip", label: "Trips" },
+  { key: "budget", label: "Budget" },
 ];
 
 export default function DashboardTabBar({ activeView, onSwitch }: Props) {

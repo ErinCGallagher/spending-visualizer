@@ -12,6 +12,7 @@ import Filters, { type FilterValues } from "@/app/dashboard/Filters";
 import TripDashboard from "@/app/dashboard/TripDashboard";
 import DashboardTabBar from "@/app/dashboard/DashboardTabBar";
 import DashboardOverview from "@/app/dashboard/DashboardOverview";
+import BudgetTab from "@/app/dashboard/BudgetTab";
 import { useDashboardData } from "@/app/dashboard/useDashboardData";
 import type { Granularity } from "@/app/dashboard/CumulativeLineChart";
 
@@ -26,7 +27,7 @@ function getGreeting(): string {
 export default function DashboardPage() {
   const { data: session } = authClient.useSession();
   const firstName = session?.user?.name?.split(" ")[0] ?? "";
-  const [view, setView] = useState<"overview" | "trip">("overview");
+  const [view, setView] = useState<"overview" | "trip" | "budget">("overview");
 
   const [filters, setFilters] = useState<FilterValues | null>(null);
   const [monthlyGroupBy, setMonthlyGroupBy] = useState<"category" | "total">(
@@ -141,6 +142,14 @@ export default function DashboardPage() {
         {/* Trip card stays mounted so overlay/data state is preserved on tab switch */}
         <div className={view !== "trip" ? "hidden" : ""}>
           <TripDashboard onSwitchView={setView} currency={currency} meta={meta} />
+        </div>
+
+        {/* Budget card */}
+        <div className={`bg-white rounded-3xl border border-white/10 shadow-2xl overflow-hidden ${view !== "budget" ? "hidden" : ""}`}>
+          <DashboardTabBar activeView={view} onSwitch={setView} />
+          <div className="p-8">
+            <BudgetTab groups={meta?.groups ?? []} />
+          </div>
         </div>
       </div>
     </main>
