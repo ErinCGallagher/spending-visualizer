@@ -1,4 +1,4 @@
-/** Budget routes: list and bulk-save per-category monthly budget amounts. */
+/** Budget routes: list, bulk-save, and delete per-category monthly budget amounts. */
 
 import { Router } from "express";
 import { requireAuth } from "../middleware/requireAuth";
@@ -65,6 +65,22 @@ router.post("/", async (req, res) => {
     [userId]
   );
   res.status(201).json({ budgets: rows });
+});
+
+/** DELETE /api/budgets/:categoryId — removes a single per-category budget. */
+router.delete("/:categoryId", async (req, res) => {
+  const userId: string = res.locals.userId;
+  const { categoryId } = req.params;
+  try {
+    await pool.query("DELETE FROM budgets WHERE user_id = $1 AND category_id = $2", [
+      userId,
+      categoryId,
+    ]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("DELETE /api/budgets/:categoryId error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 export default router;
