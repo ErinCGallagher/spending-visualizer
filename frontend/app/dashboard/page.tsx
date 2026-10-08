@@ -148,7 +148,7 @@ export default function DashboardPage() {
         <div className={`bg-white rounded-3xl border border-white/10 shadow-2xl overflow-hidden ${view !== "budget" ? "hidden" : ""}`}>
           <DashboardTabBar activeView={view} onSwitch={setView} />
           <div className="p-8">
-            <BudgetTab groups={meta?.groups ?? []} />
+            <BudgetTab meta={meta} />
           </div>
         </div>
       </div>
