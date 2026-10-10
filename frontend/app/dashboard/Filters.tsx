@@ -6,7 +6,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { format, subDays } from "date-fns";
+import { endOfMonth, format, subDays } from "date-fns";
 import { ChevronDown, SlidersHorizontal } from "lucide-react";
 
 export interface FilterValues {
@@ -15,6 +15,7 @@ export interface FilterValues {
   travellers: string[];
   countries: string[];
   groupTypes: string[];
+  month?: string;
 }
 
 export interface Meta {
@@ -36,12 +37,38 @@ interface Props {
   initialValues?: Partial<FilterValues>;
   showTravellers?: boolean;
   showGroupType?: boolean;
+  showDateRange?: boolean;
+  showCountry?: boolean;
+  showMonth?: boolean;
 }
 
 type Preset = "30d" | "all";
 
 function isoDate(d: Date) {
   return format(d, "yyyy-MM-dd");
+}
+
+// Builds the list of "yyyy-MM" month keys spanning two ISO dates, inclusive.
+function monthRange(fromStr: string, toStr: string): string[] {
+  const [fy, fm] = fromStr.split("-").map(Number);
+  const [ty, tm] = toStr.split("-").map(Number);
+  const months: string[] = [];
+  let y = fy;
+  let m = fm;
+  while (y < ty || (y === ty && m <= tm)) {
+    months.push(`${y}-${String(m).padStart(2, "0")}`);
+    m += 1;
+    if (m > 12) {
+      m = 1;
+      y += 1;
+    }
+  }
+  return months;
+}
+
+function monthLabel(monthKey: string): string {
+  const [y, m] = monthKey.split("-").map(Number);
+  return format(new Date(y, m - 1, 1), "MMM yyyy");
 }
 
 function MultiSelect({
@@ -126,14 +153,36 @@ function MultiSelect({
   );
 }
 
-export default function Filters({ meta, onChange, initialValues, showTravellers = true, showGroupType = true }: Props) {
+export default function Filters({
+  meta,
+  onChange,
+  initialValues,
+  showTravellers = true,
+  showGroupType = true,
+  showDateRange = true,
+  showCountry = true,
+  showMonth = false,
+}: Props) {
   const [from, setFrom] = useState(initialValues?.from ?? "");
   const [to, setTo] = useState(initialValues?.to ?? "");
+  const [month, setMonth] = useState("");
+  const [selectedYear, setSelectedYear] = useState("");
   const [travellers, setTravellers] = useState<string[]>(initialValues?.travellers ?? []);
   const [countries, setCountries] = useState<string[]>(initialValues?.countries ?? []);
   const [groupTypes, setGroupTypes] = useState<string[]>(initialValues?.groupTypes ?? []);
   const [activePreset, setActivePreset] = useState<Preset | null>(initialValues?.from || initialValues?.to ? null : "all");
   const [filtersOpen, setFiltersOpen] = useState(false);
+
+  const monthOptions = meta?.dateRange ? monthRange(meta.dateRange.from, meta.dateRange.to) : [];
+  const years = Array.from(new Set(monthOptions.map((key) => key.slice(0, 4))));
+  const monthsForYear = monthOptions.filter((key) => key.startsWith(selectedYear));
+
+  // Default the year dropdown to the most recent year once the data range loads.
+  useEffect(() => {
+    if (selectedYear === "" && years.length > 0) {
+      setSelectedYear(years[years.length - 1]);
+    }
+  }, [years, selectedYear]);
 
   const hasActiveFilters =
     from !== "" ||
@@ -148,12 +197,25 @@ export default function Filters({ meta, onChange, initialValues, showTravellers 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      onChange({ from, to, travellers, countries, groupTypes });
+      onChange({ from, to, travellers, countries, groupTypes, month });
     }, 300);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [from, to, travellers, countries, groupTypes, onChange]);
+  }, [from, to, travellers, countries, groupTypes, month, onChange]);
+
+  function handleMonthChange(value: string) {
+    setMonth(value);
+    if (!value) {
+      setFrom("");
+      setTo("");
+      return;
+    }
+    const [year, monthNum] = value.split("-").map(Number);
+    const start = new Date(year, monthNum - 1, 1);
+    setFrom(isoDate(start));
+    setTo(isoDate(endOfMonth(start)));
+  }
 
   function applyPreset(preset: Preset) {
     const today = new Date();
@@ -191,65 +253,129 @@ export default function Filters({ meta, onChange, initialValues, showTravellers 
 
     <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-11 gap-4 ${filtersOpen ? "mt-3" : "hidden md:grid"}`}>
       {/* Date presets */}
-      <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
-        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-          Quick range
-        </label>
-        <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-slate-200">
-          {(
-            [
-              { key: "all", label: "All time" },
-              { key: "30d", label: "Last 30d" },
-            ] as { key: Preset; label: string }[]
-          ).map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => applyPreset(key)}
-              className={`flex-1 px-3 py-1.5 text-sm font-semibold rounded-md transition-all whitespace-nowrap ${
-                activePreset === key
-                  ? "bg-brand-primary text-white shadow-sm"
-                  : "text-slate-500 hover:bg-slate-100"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+      {showDateRange && (
+        <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
+          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+            Quick range
+          </label>
+          <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-slate-200">
+            {(
+              [
+                { key: "all", label: "All time" },
+                { key: "30d", label: "Last 30d" },
+              ] as { key: Preset; label: string }[]
+            ).map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => applyPreset(key)}
+                className={`flex-1 px-3 py-1.5 text-sm font-semibold rounded-md transition-all whitespace-nowrap ${
+                  activePreset === key
+                    ? "bg-brand-primary text-white shadow-sm"
+                    : "text-slate-500 hover:bg-slate-100"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* From date */}
-      <div className="space-y-1.5 lg:col-span-2">
-        <label htmlFor="filter-from" className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-          From
-        </label>
-        <input
-          id="filter-from"
-          type="date"
-          value={from}
-          onChange={(e) => {
-            setFrom(e.target.value);
-            setActivePreset(null);
-          }}
-          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
-        />
-      </div>
+      {showDateRange && (
+        <div className="space-y-1.5 lg:col-span-2">
+          <label htmlFor="filter-from" className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+            From
+          </label>
+          <input
+            id="filter-from"
+            type="date"
+            value={from}
+            onChange={(e) => {
+              setFrom(e.target.value);
+              setActivePreset(null);
+            }}
+            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
+          />
+        </div>
+      )}
 
       {/* To date */}
-      <div className="space-y-1.5 lg:col-span-2">
-        <label htmlFor="filter-to" className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-          To
-        </label>
-        <input
-          id="filter-to"
-          type="date"
-          value={to}
-          onChange={(e) => {
-            setTo(e.target.value);
-            setActivePreset(null);
-          }}
-          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
-        />
-      </div>
+      {showDateRange && (
+        <div className="space-y-1.5 lg:col-span-2">
+          <label htmlFor="filter-to" className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+            To
+          </label>
+          <input
+            id="filter-to"
+            type="date"
+            value={to}
+            onChange={(e) => {
+              setTo(e.target.value);
+              setActivePreset(null);
+            }}
+            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
+          />
+        </div>
+      )}
+
+      {/* Year + month chips */}
+      {showMonth && (
+        <div className="flex flex-wrap gap-4 lg:col-span-5">
+          <div className="space-y-1.5">
+            <label htmlFor="filter-year" className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+              Year
+            </label>
+            <div>
+              <select
+                id="filter-year"
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(e.target.value)}
+                className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
+              >
+                {years.map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+              Month
+            </label>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => handleMonthChange("")}
+                className={`px-3 py-1.5 text-sm font-semibold rounded-full transition-colors ${
+                  month === ""
+                    ? "bg-brand-primary text-white"
+                    : "bg-slate-50 border border-slate-200 text-slate-500 hover:bg-slate-100"
+                }`}
+              >
+                All Months
+              </button>
+              {monthsForYear.map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => handleMonthChange(key)}
+                  className={`px-3 py-1.5 text-sm font-semibold rounded-full transition-colors ${
+                    month === key
+                      ? "bg-brand-primary text-white"
+                      : "bg-slate-50 border border-slate-200 text-slate-500 hover:bg-slate-100"
+                  }`}
+                >
+                  {monthLabel(key)}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Traveller multi-select */}
       {showTravellers && (
@@ -267,17 +393,19 @@ export default function Filters({ meta, onChange, initialValues, showTravellers 
       )}
 
       {/* Country multi-select */}
-      <div className="space-y-1.5 lg:col-span-2">
-        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-          Country
-        </label>
-        <MultiSelect
-          label="Country"
-          options={meta?.countries ?? []}
-          selected={countries}
-          onChange={setCountries}
-        />
-      </div>
+      {showCountry && (
+        <div className="space-y-1.5 lg:col-span-2">
+          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+            Country
+          </label>
+          <MultiSelect
+            label="Country"
+            options={meta?.countries ?? []}
+            selected={countries}
+            onChange={setCountries}
+          />
+        </div>
+      )}
 
       {/* Group Type multi-select */}
       {showGroupType && (

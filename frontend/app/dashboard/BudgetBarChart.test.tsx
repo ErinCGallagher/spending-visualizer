@@ -4,7 +4,7 @@ import BudgetBarChart from "./BudgetBarChart";
 
 describe("BudgetBarChart", () => {
   it("shows the empty state when there is no data", () => {
-    render(<BudgetBarChart data={[]} totalMonthlyBudget={500} currency="CAD" />);
+    render(<BudgetBarChart data={[]} currency="CAD" />);
     expect(screen.getByText("No data")).toBeInTheDocument();
   });
 
@@ -12,10 +12,9 @@ describe("BudgetBarChart", () => {
     const { container } = render(
       <BudgetBarChart
         data={[
-          { month: "2026-01", categoryName: "Groceries", actual: 300 },
-          { month: "2026-02", categoryName: "Groceries", actual: 250 },
+          { categoryId: "c1", categoryName: "Groceries", parentId: null, parentName: null, budgeted: 1500, actual: 1250 },
+          { categoryId: "c2", categoryName: "Dining", parentId: null, parentName: null, budgeted: 600, actual: 720 },
         ]}
-        totalMonthlyBudget={500}
         currency="CAD"
       />
     );

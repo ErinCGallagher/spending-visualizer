@@ -7,9 +7,16 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { Info } from "lucide-react";
 import Filters, { type FilterValues, type Meta } from "@/app/dashboard/Filters";
 import BudgetBarChart from "@/app/dashboard/BudgetBarChart";
-import { aggregateMonthlyActuals, computeBudgetStats } from "@/lib/budgetStats";
+import BudgetCategoryTable from "@/app/dashboard/BudgetCategoryTable";
+import {
+  aggregateMonthlyActuals,
+  computeBudgetStats,
+  computeCategoryBudgetVsActual,
+  groupCategoryBreakdown,
+} from "@/lib/budgetStats";
 import { formatAmount } from "@/lib/format";
 
 interface BudgetSettings {
@@ -21,6 +28,8 @@ interface BudgetSettings {
 interface BudgetSummaryCategory {
   categoryId: string;
   categoryName: string;
+  parentId: string | null;
+  parentName: string | null;
   monthlyAmount: number;
 }
 
@@ -179,7 +188,21 @@ export default function BudgetTab({ meta }: Props) {
   }
 
   const monthlyTotals = aggregateMonthlyActuals(summary.monthly);
-  const stats = computeBudgetStats(monthlyTotals, summary.totalMonthlyBudget);
+  const stats = computeBudgetStats(monthlyTotals, summary.totalMonthlyBudget, new Date(), filters?.month);
+  const categoryData = computeCategoryBudgetVsActual(
+    summary.categories,
+    summary.monthly,
+    new Date(),
+    filters?.month
+  );
+  const parentCategoryData = groupCategoryBreakdown(categoryData).map((group) => ({
+    categoryId: group.key,
+    categoryName: group.label,
+    parentId: null,
+    parentName: null,
+    budgeted: group.budgeted,
+    actual: group.actual,
+  }));
 
   return (
     <div className="space-y-6">
@@ -193,29 +216,50 @@ export default function BudgetTab({ meta }: Props) {
       </div>
 
       <div className="bg-slate-50/50 rounded-2xl border border-slate-100 p-6">
-        <Filters meta={meta} onChange={handleFiltersChange} showTravellers={false} showGroupType={false} />
+        <Filters
+          meta={meta}
+          onChange={handleFiltersChange}
+          showTravellers={false}
+          showGroupType={false}
+          showDateRange={false}
+          showCountry={false}
+          showMonth
+        />
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <StatTile label="YTD actual" value={formatAmount(stats.ytdActual, currency)} />
-        <StatTile label="YTD budget" value={formatAmount(stats.ytdBudget, currency)} />
-        <StatTile label="Avg monthly actual" value={formatAmount(stats.avgMonthlyActual, currency)} />
+        <StatTile label="Actual spending" value={formatAmount(stats.ytdActual, currency)} />
+        <StatTile
+          label="Budget"
+          value={formatAmount(stats.ytdBudget, currency)}
+          tooltip={
+            filters?.month
+              ? undefined
+              : "Based only on the months elapsed so far this year"
+          }
+        />
+        <StatTile label="Avg monthly spending" value={formatAmount(stats.avgMonthlyActual, currency)} />
         <StatTile label="Avg monthly budget" value={formatAmount(stats.avgMonthlyBudget, currency)} />
       </div>
 
-      <BudgetBarChart
-        data={summary.monthly}
-        totalMonthlyBudget={summary.totalMonthlyBudget}
-        currency={currency}
-      />
+      <BudgetBarChart data={parentCategoryData} currency={currency} />
+
+      <BudgetCategoryTable data={categoryData} currency={currency} />
     </div>
   );
 }
 
-function StatTile({ label, value }: { label: string; value: string }) {
+function StatTile({ label, value, tooltip }: { label: string; value: string; tooltip?: string }) {
   return (
     <div className="bg-slate-50/50 rounded-2xl border border-slate-100 p-4">
-      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{label}</p>
+      <div className="flex items-center gap-1">
+        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{label}</p>
+        {tooltip && (
+          <span title={tooltip}>
+            <Info size={12} className="text-slate-400" aria-label={tooltip} />
+          </span>
+        )}
+      </div>
       <p className="mt-1 text-lg font-semibold text-gray-900">{value}</p>
     </div>
   );

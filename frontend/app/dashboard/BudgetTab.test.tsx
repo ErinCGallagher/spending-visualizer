@@ -110,7 +110,9 @@ describe("BudgetTab", () => {
           groupId: "g1",
           groupName: "Daily Living",
           totalMonthlyBudget: 500,
-          categories: [{ categoryId: "c1", categoryName: "Groceries", monthlyAmount: 500 }],
+          categories: [
+            { categoryId: "c1", categoryName: "Groceries", parentId: "p1", parentName: "Food", monthlyAmount: 500 },
+          ],
           monthly: [
             { month: "2026-01", categoryId: "c1", categoryName: "Groceries", actual: 300 },
             { month: "2026-02", categoryId: "c1", categoryName: "Groceries", actual: 450 },
@@ -120,9 +122,10 @@ describe("BudgetTab", () => {
 
     render(<BudgetTab meta={makeMeta()} />);
 
-    expect(await screen.findByText("YTD actual")).toBeInTheDocument();
-    expect(screen.getByText("YTD budget")).toBeInTheDocument();
-    expect(screen.getByText("Avg monthly actual")).toBeInTheDocument();
+    expect(await screen.findByText("Actual spending")).toBeInTheDocument();
+    expect(screen.getByText("Budget")).toBeInTheDocument();
+    expect(screen.getByText("Avg monthly spending")).toBeInTheDocument();
     expect(screen.getByText("Avg monthly budget")).toBeInTheDocument();
+    expect(screen.getByText("Food")).toBeInTheDocument();
   });
 });

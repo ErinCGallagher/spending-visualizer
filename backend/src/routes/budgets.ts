@@ -19,6 +19,22 @@ export function mapBudgetMonthlyRow(r: {
   };
 }
 
+export function mapBudgetCategoryRow(r: {
+  category_id: string;
+  category_name: string;
+  parent_id: string | null;
+  parent_name: string | null;
+  monthly_amount: string;
+}) {
+  return {
+    categoryId: r.category_id,
+    categoryName: r.category_name,
+    parentId: r.parent_id,
+    parentName: r.parent_name,
+    monthlyAmount: parseFloat(r.monthly_amount),
+  };
+}
+
 const router = Router();
 router.use(requireAuth);
 
@@ -66,21 +82,20 @@ router.get("/summary", async (req, res) => {
     const { rows: budgetRows } = await pool.query<{
       category_id: string;
       category_name: string;
+      parent_id: string | null;
+      parent_name: string | null;
       monthly_amount: string;
     }>(
-      `SELECT b.category_id, c.name AS category_name, b.monthly_amount
+      `SELECT b.category_id, c.name AS category_name, c.parent_id, p.name AS parent_name, b.monthly_amount
        FROM budgets b
        JOIN categories c ON c.id = b.category_id
+       LEFT JOIN categories p ON p.id = c.parent_id
        WHERE b.user_id = $1
        ORDER BY c.name`,
       [userId]
     );
 
-    const categories = budgetRows.map((r) => ({
-      categoryId: r.category_id,
-      categoryName: r.category_name,
-      monthlyAmount: parseFloat(r.monthly_amount),
-    }));
+    const categories = budgetRows.map(mapBudgetCategoryRow);
     const totalMonthlyBudget = categories.reduce((sum, c) => sum + c.monthlyAmount, 0);
 
     if (categories.length === 0) {

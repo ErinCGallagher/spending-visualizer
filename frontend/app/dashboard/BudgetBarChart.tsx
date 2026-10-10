@@ -1,13 +1,12 @@
 /**
- * Bar chart showing actual spend per category per month, with a reference
- * line marking the total monthly budget.
+ * Bar chart showing YTD budgeted vs. actual spend per category.
  */
 
 "use client";
 
-import { format, parseISO } from "date-fns";
 import { formatAmount, formatCurrency } from "@/lib/format";
-import { CHART_COLORS, pivotData } from "@/lib/chart-utils";
+import { CHART_COLORS } from "@/lib/chart-utils";
+import type { CategoryBudgetActual } from "@/lib/budgetStats";
 import {
   BarChart,
   Bar,
@@ -16,23 +15,15 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
-  ReferenceLine,
   ResponsiveContainer,
 } from "recharts";
 
-export interface BudgetMonthlyActual {
-  month: string;
-  categoryName: string;
-  actual: number;
-}
-
 interface Props {
-  data: BudgetMonthlyActual[];
-  totalMonthlyBudget: number;
+  data: CategoryBudgetActual[];
   currency: string;
 }
 
-export default function BudgetBarChart({ data, totalMonthlyBudget, currency }: Props) {
+export default function BudgetBarChart({ data, currency }: Props) {
   if (data.length === 0) {
     return (
       <div className="h-56 flex items-center justify-center text-sm text-gray-400">
@@ -41,22 +32,12 @@ export default function BudgetBarChart({ data, totalMonthlyBudget, currency }: P
     );
   }
 
-  const { pivoted, categories } = pivotData(
-    data.map((d) => ({ month: d.month, category: d.categoryName, total: d.actual }))
-  );
-
   return (
     <div className="h-56">
       <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 1, height: 1 }}>
-        <BarChart data={pivoted}>
+        <BarChart data={data}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-          <XAxis
-            dataKey="month"
-            tick={{ fontSize: 11 }}
-            tickFormatter={(val: string) => {
-              try { return format(parseISO(val + "-01"), "MMM yyyy"); } catch { return val; }
-            }}
-          />
+          <XAxis dataKey="categoryName" tick={{ fontSize: 11 }} />
           <YAxis
             tick={{ fontSize: 11 }}
             tickFormatter={(val: number) => formatAmount(val, currency)}
@@ -68,15 +49,8 @@ export default function BudgetBarChart({ data, totalMonthlyBudget, currency }: P
               <span className="text-xs text-gray-700">{value}</span>
             )}
           />
-          {categories.map((cat, i) => (
-            <Bar key={cat} dataKey={cat} stackId="a" fill={CHART_COLORS[i % CHART_COLORS.length]} />
-          ))}
-          <ReferenceLine
-            y={totalMonthlyBudget}
-            stroke="#ef4444"
-            strokeDasharray="4 4"
-            label={{ value: "Budget", position: "right", fontSize: 11, fill: "#ef4444" }}
-          />
+          <Bar dataKey="budgeted" name="Budgeted" fill={CHART_COLORS[0]} />
+          <Bar dataKey="actual" name="Actual" fill={CHART_COLORS[1]} />
         </BarChart>
       </ResponsiveContainer>
     </div>
