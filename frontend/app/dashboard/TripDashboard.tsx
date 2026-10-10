@@ -25,7 +25,7 @@ interface FilterState {
 }
 
 interface Props {
-  onSwitchView: (view: "overview" | "trip") => void;
+  onSwitchView: (view: "overview" | "trip" | "budget") => void;
   currency: string;
   meta: Meta | null;
 }

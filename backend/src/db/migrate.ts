@@ -254,6 +254,32 @@ async function migrate() {
         ON categories(user_id, parent_id, name) WHERE parent_id IS NOT NULL
     `);
 
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS budget_settings (
+        id          uuid primary key default gen_random_uuid(),
+        user_id     text not null unique,
+        group_id    uuid not null references groups(id) on delete cascade,
+        created_at  timestamptz not null default now()
+      )
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS budgets (
+        id              uuid primary key default gen_random_uuid(),
+        user_id         text not null,
+        category_id     uuid not null references categories(id) on delete cascade,
+        monthly_amount  numeric(12,2) not null,
+        created_at      timestamptz not null default now(),
+        updated_at      timestamptz not null default now(),
+        unique(user_id, category_id)
+      )
+    `);
+
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_budgets_user
+        ON budgets(user_id)
+    `);
+
     await client.query("COMMIT");
     console.log("Migration complete");
   } catch (err) {
