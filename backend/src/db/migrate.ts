@@ -280,6 +280,24 @@ async function migrate() {
         ON budgets(user_id)
     `);
 
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS pension_contributions (
+        id          uuid primary key default gen_random_uuid(),
+        user_id     text not null,
+        year        int  not null,
+        month       int  not null check (month between 1 and 12),
+        amount      numeric(12,2) not null,
+        created_at  timestamptz not null default now(),
+        updated_at  timestamptz not null default now(),
+        unique(user_id, year, month)
+      )
+    `);
+
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_pension_user_year
+        ON pension_contributions(user_id, year)
+    `);
+
     await client.query("COMMIT");
     console.log("Migration complete");
   } catch (err) {

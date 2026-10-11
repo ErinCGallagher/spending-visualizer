@@ -13,6 +13,8 @@ import categoryRoutes from "./routes/categories";
 import groupRoutes from "./routes/groups";
 import budgetSettingsRoutes from "./routes/budgetSettings";
 import budgetRoutes from "./routes/budgets";
+import incomeRoutes from "./routes/income";
+import pensionRoutes from "./routes/pension";
 
 const app = express();
 const port = process.env.PORT ?? 4000;
@@ -41,6 +43,8 @@ app.use("/api/categories", categoryRoutes);
 app.use("/api/groups", groupRoutes);
 app.use("/api/budget-settings", budgetSettingsRoutes);
 app.use("/api/budgets", budgetRoutes);
+app.use("/api/income", incomeRoutes);
+app.use("/api/pension", pensionRoutes);
 
 app.listen(port, () => {
   console.log(`Backend running on port ${port}`);
