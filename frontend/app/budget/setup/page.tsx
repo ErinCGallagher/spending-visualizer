@@ -359,7 +359,7 @@ export default function BudgetSetupPage() {
   return (
     <main className="min-h-screen animate-fade-in">
       <div className="max-w-3xl mx-auto px-6 py-8">
-        <h1 className="text-2xl font-bold text-white">Create your monthly budget</h1>
+        <h1 className="text-2xl font-bold text-white">Configure Monthly Budget</h1>
         <p className="mt-1 text-emerald-200 text-sm">
           Setup your monthly budget for spending, define income categories and pension
           contributions.
