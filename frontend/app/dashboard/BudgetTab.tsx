@@ -9,13 +9,23 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { Info } from "lucide-react";
 import Filters, { type FilterValues, type Meta } from "@/app/dashboard/Filters";
-import BudgetBarChart from "@/app/dashboard/BudgetBarChart";
+import SpendingByCategoryChart from "@/app/dashboard/SpendingByCategoryChart";
+import SpendingBreakdownChart from "@/app/dashboard/SpendingBreakdownChart";
+import IncomeBreakdownChart from "@/app/dashboard/IncomeBreakdownChart";
+import IncomeBreakdownTable from "@/app/dashboard/IncomeBreakdownTable";
+import SpendingVsIncomeChart from "@/app/dashboard/SpendingVsIncomeChart";
 import BudgetCategoryTable from "@/app/dashboard/BudgetCategoryTable";
 import {
   aggregateMonthlyActuals,
   computeBudgetStats,
   computeCategoryBudgetVsActual,
   groupCategoryBreakdown,
+  appendUnbudgetedGroup,
+  computeUnbudgetedActual,
+  computeIncomeTotal,
+  computeIncomeBreakdown,
+  computePensionTotal,
+  computeSurplus,
 } from "@/lib/budgetStats";
 import { formatAmount } from "@/lib/format";
 
@@ -40,12 +50,32 @@ interface BudgetSummaryMonthly {
   actual: number;
 }
 
+interface BudgetSummaryIncomeMonthly {
+  month: string;
+  categoryId: string;
+  categoryName: string;
+  actual: number;
+}
+
+interface BudgetSummaryUnbudgetedMonthly {
+  month: string;
+  actual: number;
+}
+
+interface BudgetSummaryPensionMonthly {
+  month: string;
+  amount: number;
+}
+
 interface BudgetSummary {
   groupId: string;
   groupName: string;
   totalMonthlyBudget: number;
   categories: BudgetSummaryCategory[];
   monthly: BudgetSummaryMonthly[];
+  incomeMonthly: BudgetSummaryIncomeMonthly[];
+  unbudgetedMonthly: BudgetSummaryUnbudgetedMonthly[];
+  pensionMonthly: BudgetSummaryPensionMonthly[];
 }
 
 interface Props {
@@ -187,15 +217,19 @@ export default function BudgetTab({ meta }: Props) {
     );
   }
 
+  const now = new Date();
   const monthlyTotals = aggregateMonthlyActuals(summary.monthly);
-  const stats = computeBudgetStats(monthlyTotals, summary.totalMonthlyBudget, new Date(), filters?.month);
+  const stats = computeBudgetStats(monthlyTotals, summary.totalMonthlyBudget, now, filters?.month);
   const categoryData = computeCategoryBudgetVsActual(
     summary.categories,
     summary.monthly,
-    new Date(),
+    now,
     filters?.month
   );
-  const parentCategoryData = groupCategoryBreakdown(categoryData).map((group) => ({
+
+  const unbudgetedActual = computeUnbudgetedActual(summary.unbudgetedMonthly, now, filters?.month);
+  const spendingGroups = appendUnbudgetedGroup(groupCategoryBreakdown(categoryData), unbudgetedActual);
+  const spendingChartData = spendingGroups.map((group) => ({
     categoryId: group.key,
     categoryName: group.label,
     parentId: null,
@@ -203,6 +237,13 @@ export default function BudgetTab({ meta }: Props) {
     budgeted: group.budgeted,
     actual: group.actual,
   }));
+
+  const incomeTotal = computeIncomeTotal(summary.incomeMonthly, summary.pensionMonthly, now, filters?.month);
+  const incomeBreakdown = computeIncomeBreakdown(summary.incomeMonthly, now, filters?.month);
+  const pensionTotal = computePensionTotal(summary.pensionMonthly, now, filters?.month);
+
+  const actualSpend = stats.ytdActual + unbudgetedActual;
+  const surplus = computeSurplus(incomeTotal, actualSpend);
 
   return (
     <div className="space-y-6">
@@ -228,9 +269,8 @@ export default function BudgetTab({ meta }: Props) {
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <StatTile label="Actual spending" value={formatAmount(stats.ytdActual, currency)} />
         <StatTile
-          label="Budget"
+          label="Target spend"
           value={formatAmount(stats.ytdBudget, currency)}
           tooltip={
             filters?.month
@@ -238,18 +278,43 @@ export default function BudgetTab({ meta }: Props) {
               : "Based only on the months elapsed so far this year"
           }
         />
-        <StatTile label="Avg monthly spending" value={formatAmount(stats.avgMonthlyActual, currency)} />
-        <StatTile label="Avg monthly budget" value={formatAmount(stats.avgMonthlyBudget, currency)} />
+        <StatTile label="Actual spend" value={formatAmount(actualSpend, currency)} />
+        <StatTile label="Actual income" value={formatAmount(incomeTotal, currency)} />
+        <StatTile
+          label={surplus >= 0 ? "Surplus" : "Deficit"}
+          value={formatAmount(Math.abs(surplus), currency)}
+          valueClassName={surplus >= 0 ? "text-emerald-700" : "text-red-600"}
+        />
       </div>
 
-      <BudgetBarChart data={parentCategoryData} currency={currency} />
+      <SpendingByCategoryChart data={spendingChartData} currency={currency} />
 
-      <BudgetCategoryTable data={categoryData} currency={currency} />
+      <SpendingVsIncomeChart income={incomeTotal} spendingGroups={spendingGroups} currency={currency} />
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <SpendingBreakdownChart data={spendingGroups} currency={currency} />
+        <IncomeBreakdownChart data={incomeBreakdown} pensionTotal={pensionTotal} currency={currency} />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <BudgetCategoryTable data={spendingGroups} currency={currency} />
+        <IncomeBreakdownTable data={incomeBreakdown} pensionTotal={pensionTotal} currency={currency} />
+      </div>
     </div>
   );
 }
 
-function StatTile({ label, value, tooltip }: { label: string; value: string; tooltip?: string }) {
+function StatTile({
+  label,
+  value,
+  tooltip,
+  valueClassName,
+}: {
+  label: string;
+  value: string;
+  tooltip?: string;
+  valueClassName?: string;
+}) {
   return (
     <div className="bg-slate-50/50 rounded-2xl border border-slate-100 p-4">
       <div className="flex items-center gap-1">
@@ -260,7 +325,7 @@ function StatTile({ label, value, tooltip }: { label: string; value: string; too
           </span>
         )}
       </div>
-      <p className="mt-1 text-lg font-semibold text-gray-900">{value}</p>
+      <p className={`mt-1 text-lg font-semibold ${valueClassName ?? "text-gray-900"}`}>{value}</p>
     </div>
   );
 }
