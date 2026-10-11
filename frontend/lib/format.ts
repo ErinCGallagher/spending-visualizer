@@ -40,6 +40,7 @@ export function formatDate(dateString: string | undefined | null): string {
       month: "short",
       day: "numeric",
       year: "numeric",
+      timeZone: "UTC",
     }).format(date);
   } catch {
     return "Invalid Date";
