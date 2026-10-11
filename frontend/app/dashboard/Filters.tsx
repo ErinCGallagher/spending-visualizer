@@ -321,7 +321,7 @@ export default function Filters({
 
       {/* Year + month chips */}
       {showMonth && (
-        <div className="flex flex-wrap gap-4 lg:col-span-5">
+        <div className="flex flex-wrap gap-4 lg:col-span-11">
           <div className="space-y-1.5">
             <label htmlFor="filter-year" className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
               Year
@@ -342,7 +342,7 @@ export default function Filters({
             </div>
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-1.5 flex-1 min-w-0">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
               Month
             </label>

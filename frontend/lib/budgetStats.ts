@@ -9,6 +9,26 @@ export interface MonthlyActual {
   actual: number;
 }
 
+/** True when month falls within the selected month, or (absent a selection) the current year up to now. */
+function isInPeriod(month: string, now: Date, selectedMonth?: string): boolean {
+  if (selectedMonth) return month === selectedMonth;
+  const year = String(now.getFullYear());
+  const currentMonth = `${year}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  return month.startsWith(year) && month <= currentMonth;
+}
+
+function sumInPeriod<T>(
+  items: T[],
+  getMonth: (item: T) => string,
+  getValue: (item: T) => number,
+  now: Date,
+  selectedMonth?: string
+): number {
+  return items
+    .filter((item) => isInPeriod(getMonth(item), now, selectedMonth))
+    .reduce((sum, item) => sum + getValue(item), 0);
+}
+
 export interface BudgetStats {
   ytdActual: number;
   ytdBudget: number;
@@ -169,4 +189,88 @@ export function groupCategoryBreakdown(data: CategoryBudgetActual[]): CategoryGr
   }
 
   return Array.from(groups.values()).sort((a, b) => a.label.localeCompare(b.label));
+}
+
+export interface IncomeMonthly {
+  month: string;
+  categoryId: string;
+  categoryName: string;
+  actual: number;
+}
+
+export interface PensionMonthly {
+  month: string;
+  amount: number;
+}
+
+/** Actual income for the period: Income-category transactions plus pension contributions. */
+export function computeIncomeTotal(
+  incomeMonthly: IncomeMonthly[],
+  pensionMonthly: PensionMonthly[],
+  now: Date = new Date(),
+  selectedMonth?: string
+): number {
+  return (
+    sumInPeriod(incomeMonthly, (m) => m.month, (m) => m.actual, now, selectedMonth) +
+    sumInPeriod(pensionMonthly, (m) => m.month, (m) => m.amount, now, selectedMonth)
+  );
+}
+
+export interface IncomeBreakdownRow {
+  categoryId: string;
+  categoryName: string;
+  amount: number;
+}
+
+/** Sums income actuals per category for the period, sorted by category name. */
+export function computeIncomeBreakdown(
+  incomeMonthly: IncomeMonthly[],
+  now: Date = new Date(),
+  selectedMonth?: string
+): IncomeBreakdownRow[] {
+  const totals = new Map<string, IncomeBreakdownRow>();
+  for (const m of incomeMonthly) {
+    if (!isInPeriod(m.month, now, selectedMonth)) continue;
+    const existing = totals.get(m.categoryId);
+    if (existing) {
+      existing.amount += m.actual;
+    } else {
+      totals.set(m.categoryId, { categoryId: m.categoryId, categoryName: m.categoryName, amount: m.actual });
+    }
+  }
+  return Array.from(totals.values()).sort((a, b) => a.categoryName.localeCompare(b.categoryName));
+}
+
+/** Total non-income spend outside any budgeted category, for the period. */
+export function computeUnbudgetedActual(
+  unbudgetedMonthly: MonthlyActual[],
+  now: Date = new Date(),
+  selectedMonth?: string
+): number {
+  return sumInPeriod(unbudgetedMonthly, (m) => m.month, (m) => m.actual, now, selectedMonth);
+}
+
+export function computePensionTotal(
+  pensionMonthly: PensionMonthly[],
+  now: Date = new Date(),
+  selectedMonth?: string
+): number {
+  return sumInPeriod(pensionMonthly, (m) => m.month, (m) => m.amount, now, selectedMonth);
+}
+
+/** Positive = surplus, negative = deficit. */
+export function computeSurplus(income: number, spend: number): number {
+  return income - spend;
+}
+
+/**
+ * Appends a "Not in budget" pseudo-group to a spend breakdown so unbudgeted
+ * spend shows up alongside budgeted categories in charts. Omitted when zero.
+ */
+export function appendUnbudgetedGroup(groups: CategoryGroup[], unbudgetedActual: number): CategoryGroup[] {
+  if (unbudgetedActual <= 0) return groups;
+  return [
+    ...groups,
+    { key: "not-in-budget", label: "Not in budget", budgeted: 0, actual: unbudgetedActual, children: [] },
+  ];
 }

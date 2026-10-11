@@ -4,6 +4,12 @@ import {
   computeBudgetStats,
   computeCategoryBudgetVsActual,
   groupCategoryBreakdown,
+  computeIncomeTotal,
+  computeIncomeBreakdown,
+  computeUnbudgetedActual,
+  computePensionTotal,
+  computeSurplus,
+  appendUnbudgetedGroup,
 } from "./budgetStats";
 
 describe("aggregateMonthlyActuals", () => {
@@ -229,5 +235,126 @@ describe("groupCategoryBreakdown", () => {
 
   it("returns an empty array for no input", () => {
     expect(groupCategoryBreakdown([])).toEqual([]);
+  });
+});
+
+describe("computeIncomeTotal", () => {
+  const now = new Date(2026, 2, 15); // March — YTD covers Jan-Mar
+
+  it("sums income actuals and pension amounts within the YTD period", () => {
+    const incomeMonthly = [
+      { month: "2026-01", categoryId: "i1", categoryName: "Salary", actual: 5000 },
+      { month: "2026-02", categoryId: "i1", categoryName: "Salary", actual: 5000 },
+      { month: "2025-12", categoryId: "i1", categoryName: "Salary", actual: 999 },
+    ];
+    const pensionMonthly = [
+      { month: "2026-01", amount: 200 },
+      { month: "2026-02", amount: 200 },
+    ];
+    expect(computeIncomeTotal(incomeMonthly, pensionMonthly, now)).toBe(10400);
+  });
+
+  it("scopes to a single selected month", () => {
+    const incomeMonthly = [
+      { month: "2026-01", categoryId: "i1", categoryName: "Salary", actual: 5000 },
+      { month: "2026-02", categoryId: "i1", categoryName: "Salary", actual: 999 },
+    ];
+    const pensionMonthly = [{ month: "2026-01", amount: 200 }];
+    expect(computeIncomeTotal(incomeMonthly, pensionMonthly, now, "2026-01")).toBe(5200);
+  });
+
+  it("returns 0 for no data", () => {
+    expect(computeIncomeTotal([], [], now)).toBe(0);
+  });
+});
+
+describe("computeIncomeBreakdown", () => {
+  const now = new Date(2026, 2, 15);
+
+  it("sums actuals per income category within the period, sorted by name", () => {
+    const incomeMonthly = [
+      { month: "2026-01", categoryId: "i2", categoryName: "Freelance", actual: 400 },
+      { month: "2026-01", categoryId: "i1", categoryName: "Salary", actual: 5000 },
+      { month: "2026-02", categoryId: "i1", categoryName: "Salary", actual: 5000 },
+      { month: "2025-12", categoryId: "i1", categoryName: "Salary", actual: 999 },
+    ];
+    const result = computeIncomeBreakdown(incomeMonthly, now);
+    expect(result).toEqual([
+      { categoryId: "i2", categoryName: "Freelance", amount: 400 },
+      { categoryId: "i1", categoryName: "Salary", amount: 10000 },
+    ]);
+  });
+
+  it("scopes to a single selected month", () => {
+    const incomeMonthly = [
+      { month: "2026-01", categoryId: "i1", categoryName: "Salary", actual: 5000 },
+      { month: "2026-02", categoryId: "i1", categoryName: "Salary", actual: 999 },
+    ];
+    const result = computeIncomeBreakdown(incomeMonthly, now, "2026-01");
+    expect(result).toEqual([{ categoryId: "i1", categoryName: "Salary", amount: 5000 }]);
+  });
+
+  it("returns an empty array for no input", () => {
+    expect(computeIncomeBreakdown([], now)).toEqual([]);
+  });
+});
+
+describe("computeUnbudgetedActual", () => {
+  const now = new Date(2026, 2, 15);
+
+  it("sums unbudgeted actuals within the YTD period", () => {
+    const unbudgetedMonthly = [
+      { month: "2026-01", actual: 30 },
+      { month: "2026-02", actual: 70 },
+      { month: "2025-12", actual: 999 },
+    ];
+    expect(computeUnbudgetedActual(unbudgetedMonthly, now)).toBe(100);
+  });
+
+  it("scopes to a single selected month", () => {
+    const unbudgetedMonthly = [
+      { month: "2026-01", actual: 30 },
+      { month: "2026-02", actual: 70 },
+    ];
+    expect(computeUnbudgetedActual(unbudgetedMonthly, now, "2026-02")).toBe(70);
+  });
+});
+
+describe("computePensionTotal", () => {
+  const now = new Date(2026, 2, 15);
+
+  it("sums pension amounts within the YTD period", () => {
+    const pensionMonthly = [
+      { month: "2026-01", amount: 200 },
+      { month: "2026-02", amount: 200 },
+      { month: "2025-12", amount: 999 },
+    ];
+    expect(computePensionTotal(pensionMonthly, now)).toBe(400);
+  });
+});
+
+describe("computeSurplus", () => {
+  it("returns a positive number when income exceeds spend", () => {
+    expect(computeSurplus(5000, 3000)).toBe(2000);
+  });
+
+  it("returns a negative number when spend exceeds income", () => {
+    expect(computeSurplus(3000, 5000)).toBe(-2000);
+  });
+});
+
+describe("appendUnbudgetedGroup", () => {
+  it("appends a Not in budget group when unbudgeted actual is positive", () => {
+    const groups = [{ key: "p1", label: "Food", budgeted: 100, actual: 80, children: [] }];
+    const result = appendUnbudgetedGroup(groups, 50);
+    expect(result).toEqual([
+      ...groups,
+      { key: "not-in-budget", label: "Not in budget", budgeted: 0, actual: 50, children: [] },
+    ]);
+  });
+
+  it("does not append a group when unbudgeted actual is zero", () => {
+    const groups = [{ key: "p1", label: "Food", budgeted: 100, actual: 80, children: [] }];
+    expect(appendUnbudgetedGroup(groups, 0)).toEqual(groups);
   });
 });

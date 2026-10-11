@@ -1,19 +1,19 @@
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect } from "vitest";
-import BudgetBarChart from "./BudgetBarChart";
+import SpendingBreakdownChart from "./SpendingBreakdownChart";
 
-describe("BudgetBarChart", () => {
+describe("SpendingBreakdownChart", () => {
   it("shows the empty state when there is no data", () => {
-    render(<BudgetBarChart data={[]} currency="CAD" />);
+    render(<SpendingBreakdownChart data={[]} currency="CAD" />);
     expect(screen.getByText("No data")).toBeInTheDocument();
   });
 
   it("renders without crashing given data", () => {
     const { container } = render(
-      <BudgetBarChart
+      <SpendingBreakdownChart
         data={[
-          { categoryId: "c1", categoryName: "Groceries", parentId: null, parentName: null, budgeted: 1500, actual: 1250 },
-          { categoryId: "c2", categoryName: "Dining", parentId: null, parentName: null, budgeted: 600, actual: 720 },
+          { key: "p1", label: "Food", budgeted: 500, actual: 450, children: [] },
+          { key: "not-in-budget", label: "Not in budget", budgeted: 0, actual: 120, children: [] },
         ]}
         currency="CAD"
       />

@@ -35,6 +35,47 @@ export function mapBudgetCategoryRow(r: {
   };
 }
 
+/** Income transactions are stored negative (inflow), so negate to get a positive actual. */
+export function mapIncomeMonthlyRow(r: {
+  month: string;
+  category_id: string;
+  category_name: string;
+  actual: string;
+}) {
+  return {
+    month: r.month,
+    categoryId: r.category_id,
+    categoryName: r.category_name,
+    actual: -parseFloat(r.actual),
+  };
+}
+
+export function mapUnbudgetedMonthlyRow(r: { month: string; actual: string }) {
+  return {
+    month: r.month,
+    actual: parseFloat(r.actual),
+  };
+}
+
+export function mapPensionMonthlyRow(r: { month: string; amount: string }) {
+  return {
+    month: r.month,
+    amount: parseFloat(r.amount),
+  };
+}
+
+/**
+ * Excludes any category in the Income tree from a budgeted-category list.
+ * A budget set directly on Income (or a child) should surface as income, not
+ * as a spend category, even though nothing stops a user from budgeting it.
+ */
+export function excludeIncomeCategories<T extends { categoryId: string }>(
+  categories: T[],
+  incomeCategoryIds: string[]
+): T[] {
+  return categories.filter((c) => !incomeCategoryIds.includes(c.categoryId));
+}
+
 const router = Router();
 router.use(requireAuth);
 
@@ -79,6 +120,20 @@ router.get("/summary", async (req, res) => {
       return;
     }
 
+    const { rows: incomeParentRows } = await pool.query<{ id: string }>(
+      `SELECT id FROM categories WHERE user_id = $1 AND name = 'Income' AND parent_id IS NULL`,
+      [userId]
+    );
+    const incomeParentId = incomeParentRows[0]?.id ?? null;
+    let incomeCategoryIds: string[] = [];
+    if (incomeParentId) {
+      const { rows: incomeChildRows } = await pool.query<{ id: string }>(
+        `SELECT id FROM categories WHERE user_id = $1 AND parent_id = $2`,
+        [userId, incomeParentId]
+      );
+      incomeCategoryIds = [incomeParentId, ...incomeChildRows.map((r) => r.id)];
+    }
+
     const { rows: budgetRows } = await pool.query<{
       category_id: string;
       category_name: string;
@@ -95,11 +150,38 @@ router.get("/summary", async (req, res) => {
       [userId]
     );
 
-    const categories = budgetRows.map(mapBudgetCategoryRow);
+    const categories = excludeIncomeCategories(budgetRows.map(mapBudgetCategoryRow), incomeCategoryIds);
     const totalMonthlyBudget = categories.reduce((sum, c) => sum + c.monthlyAmount, 0);
 
+    const pensionConditions: string[] = ["user_id = $1"];
+    const pensionValues: unknown[] = [userId];
+    const addPensionParam = (value: unknown): string => {
+      pensionValues.push(value);
+      return `$${pensionValues.length}`;
+    };
+    if (from) pensionConditions.push(`make_date(year, month, 1) >= ${addPensionParam(from)}`);
+    if (to) pensionConditions.push(`make_date(year, month, 1) <= ${addPensionParam(to)}`);
+
+    const { rows: pensionRows } = await pool.query<{ month: string; amount: string }>(
+      `SELECT TO_CHAR(make_date(year, month, 1), 'YYYY-MM') AS month, amount
+       FROM pension_contributions
+       WHERE ${pensionConditions.join(" AND ")}
+       ORDER BY year, month`,
+      pensionValues
+    );
+    const pensionMonthly = pensionRows.map(mapPensionMonthlyRow);
+
     if (categories.length === 0) {
-      res.json({ groupId: settings.group_id, groupName: settings.group_name, totalMonthlyBudget: 0, categories: [], monthly: [] });
+      res.json({
+        groupId: settings.group_id,
+        groupName: settings.group_name,
+        totalMonthlyBudget: 0,
+        categories: [],
+        monthly: [],
+        incomeMonthly: [],
+        unbudgetedMonthly: [],
+        pensionMonthly,
+      });
       return;
     }
 
@@ -133,12 +215,69 @@ router.get("/summary", async (req, res) => {
       values
     );
 
+    let incomeMonthly: ReturnType<typeof mapIncomeMonthlyRow>[] = [];
+    if (incomeCategoryIds.length > 0) {
+      const incomeConditions: string[] = ["t.user_id = $1", "t.group_id = $2", "t.category_id = ANY($3)"];
+      const incomeValues: unknown[] = [userId, settings.group_id, incomeCategoryIds];
+      const addIncomeParam = (value: unknown): string => {
+        incomeValues.push(value);
+        return `$${incomeValues.length}`;
+      };
+      if (from) incomeConditions.push(`t.date >= ${addIncomeParam(from)}`);
+      if (to) incomeConditions.push(`t.date <= ${addIncomeParam(to)}`);
+
+      const { rows: incomeRows } = await pool.query<{
+        month: string;
+        category_id: string;
+        category_name: string;
+        actual: string;
+      }>(
+        `SELECT TO_CHAR(t.date, 'YYYY-MM') AS month,
+                t.category_id,
+                c.name AS category_name,
+                SUM(t.amount_home) AS actual
+         FROM transactions t
+         JOIN categories c ON c.id = t.category_id
+         WHERE ${incomeConditions.join(" AND ")}
+         GROUP BY month, t.category_id, c.name
+         ORDER BY month, c.name`,
+        incomeValues
+      );
+      incomeMonthly = incomeRows.map(mapIncomeMonthlyRow);
+    }
+
+    const excludedIds = [...categoryIds, ...incomeCategoryIds];
+    const unbudgetedConditions: string[] = [
+      "t.user_id = $1",
+      "t.group_id = $2",
+      "(t.category_id IS NULL OR t.category_id <> ALL($3))",
+    ];
+    const unbudgetedValues: unknown[] = [userId, settings.group_id, excludedIds];
+    const addUnbudgetedParam = (value: unknown): string => {
+      unbudgetedValues.push(value);
+      return `$${unbudgetedValues.length}`;
+    };
+    if (from) unbudgetedConditions.push(`t.date >= ${addUnbudgetedParam(from)}`);
+    if (to) unbudgetedConditions.push(`t.date <= ${addUnbudgetedParam(to)}`);
+
+    const { rows: unbudgetedRows } = await pool.query<{ month: string; actual: string }>(
+      `SELECT TO_CHAR(t.date, 'YYYY-MM') AS month, SUM(t.amount_home) AS actual
+       FROM transactions t
+       WHERE ${unbudgetedConditions.join(" AND ")}
+       GROUP BY month
+       ORDER BY month`,
+      unbudgetedValues
+    );
+
     res.json({
       groupId: settings.group_id,
       groupName: settings.group_name,
       totalMonthlyBudget,
       categories,
       monthly: monthlyRows.map(mapBudgetMonthlyRow),
+      incomeMonthly,
+      unbudgetedMonthly: unbudgetedRows.map(mapUnbudgetedMonthlyRow),
+      pensionMonthly,
     });
   } catch (err) {
     console.error("GET /api/budgets/summary error:", err);

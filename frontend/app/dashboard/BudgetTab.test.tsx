@@ -117,15 +117,51 @@ describe("BudgetTab", () => {
             { month: "2026-01", categoryId: "c1", categoryName: "Groceries", actual: 300 },
             { month: "2026-02", categoryId: "c1", categoryName: "Groceries", actual: 450 },
           ],
+          incomeMonthly: [
+            { month: "2026-01", categoryId: "i1", categoryName: "Salary", actual: 2000 },
+            { month: "2026-02", categoryId: "i1", categoryName: "Salary", actual: 2000 },
+          ],
+          unbudgetedMonthly: [],
+          pensionMonthly: [],
         }),
       });
 
     render(<BudgetTab meta={makeMeta()} />);
 
-    expect(await screen.findByText("Actual spending")).toBeInTheDocument();
-    expect(screen.getByText("Budget")).toBeInTheDocument();
-    expect(screen.getByText("Avg monthly spending")).toBeInTheDocument();
-    expect(screen.getByText("Avg monthly budget")).toBeInTheDocument();
-    expect(screen.getByText("Food")).toBeInTheDocument();
+    expect(await screen.findByText("Target spend")).toBeInTheDocument();
+    expect(screen.getByText("Actual spend")).toBeInTheDocument();
+    expect(screen.getByText("Actual income")).toBeInTheDocument();
+    expect(screen.getByText("Surplus")).toBeInTheDocument();
+    expect(screen.getAllByText("Food").length).toBeGreaterThan(0);
+  });
+
+  it("shows Deficit in red when spend exceeds income", async () => {
+    (global.fetch as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ groupId: "g1", groupName: "Daily Living", groupType: "daily" }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          groupId: "g1",
+          groupName: "Daily Living",
+          totalMonthlyBudget: 500,
+          categories: [
+            { categoryId: "c1", categoryName: "Groceries", parentId: "p1", parentName: "Food", monthlyAmount: 500 },
+          ],
+          monthly: [{ month: "2026-01", categoryId: "c1", categoryName: "Groceries", actual: 300 }],
+          incomeMonthly: [],
+          unbudgetedMonthly: [],
+          pensionMonthly: [],
+        }),
+      });
+
+    render(<BudgetTab meta={makeMeta()} />);
+
+    const deficitLabel = await screen.findByText("Deficit");
+    expect(deficitLabel).toBeInTheDocument();
+    const deficitValue = deficitLabel.parentElement?.nextElementSibling;
+    expect(deficitValue).toHaveClass("text-red-600");
   });
 });
