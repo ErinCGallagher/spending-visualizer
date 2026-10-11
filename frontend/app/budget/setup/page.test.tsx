@@ -15,12 +15,24 @@ const categories = [
     parentId: null,
     children: [],
   },
+  {
+    id: "inc",
+    name: "Income",
+    parentId: null,
+    children: [],
+  },
 ];
 
-function mockInitialFetch(budgets: { categoryId: string; monthlyAmount: number }[] = []) {
+const defaultIncome = { parent: { id: "inc", name: "Income" }, children: [] };
+
+function mockInitialFetch(
+  budgets: { categoryId: string; monthlyAmount: number }[] = [],
+  income: { parent: { id: string; name: string }; children: { id: string; name: string }[] } = defaultIncome
+) {
   (global.fetch as ReturnType<typeof vi.fn>)
     .mockResolvedValueOnce({ ok: true, json: async () => categories })
-    .mockResolvedValueOnce({ ok: true, json: async () => ({ budgets }) });
+    .mockResolvedValueOnce({ ok: true, json: async () => ({ budgets }) })
+    .mockResolvedValueOnce({ ok: true, json: async () => income });
 }
 
 describe("BudgetSetupPage", () => {
@@ -33,7 +45,7 @@ describe("BudgetSetupPage", () => {
     render(<BudgetSetupPage />);
 
     expect(await screen.findByText(/no budget rows yet/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Add" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add Spending Category" })).toBeInTheDocument();
   });
 
   it("adding a row for a childless category shows a single editable row", async () => {
@@ -41,7 +53,7 @@ describe("BudgetSetupPage", () => {
     render(<BudgetSetupPage />);
     await screen.findByText(/no budget rows yet/i);
 
-    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add Spending Category" }));
     fireEvent.change(screen.getByRole("combobox"), { target: { value: "c3" } });
 
     expect(screen.getByText("Rent")).toBeInTheDocument();
@@ -53,17 +65,17 @@ describe("BudgetSetupPage", () => {
     render(<BudgetSetupPage />);
     await screen.findByText(/no budget rows yet/i);
 
-    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add Spending Category" }));
     fireEvent.change(screen.getByRole("combobox"), { target: { value: "c1" } });
 
     expect(screen.getByText("Groceries")).toBeInTheDocument();
     expect(screen.getByText("Snacks")).toBeInTheDocument();
-    expect(screen.getByText("0.00")).toBeInTheDocument();
+    expect(screen.getByText("$0.00")).toBeInTheDocument();
 
     const childInput = screen.getByPlaceholderText("0.00") as HTMLInputElement;
     fireEvent.change(childInput, { target: { value: "25" } });
 
-    expect(screen.getByText("25.00")).toBeInTheDocument();
+    expect(screen.getByText("$25.00")).toBeInTheDocument();
   });
 
   it("prefills groups and rows from existing budgets, including the derived parent total", async () => {
@@ -72,7 +84,7 @@ describe("BudgetSetupPage", () => {
 
     expect(await screen.findByText("Groceries")).toBeInTheDocument();
     expect(screen.getByText("Snacks")).toBeInTheDocument();
-    expect(screen.getByText("25.00")).toBeInTheDocument();
+    expect(screen.getByText("$25.00")).toBeInTheDocument();
     const input = screen.getByPlaceholderText("0.00") as HTMLInputElement;
     expect(input.value).toBe("25");
   });
@@ -86,7 +98,7 @@ describe("BudgetSetupPage", () => {
 
     expect(screen.queryByText("Snacks")).not.toBeInTheDocument();
     expect(screen.getByText("Groceries")).toBeInTheDocument();
-    expect(screen.getByText("0.00")).toBeInTheDocument();
+    expect(screen.getByText("$0.00")).toBeInTheDocument();
   });
 
   it("deleting a childless row removes it entirely", async () => {
@@ -139,10 +151,80 @@ describe("BudgetSetupPage", () => {
   it("shows a message when there are no categories yet", async () => {
     (global.fetch as ReturnType<typeof vi.fn>)
       .mockResolvedValueOnce({ ok: true, json: async () => [] })
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ budgets: [] }) });
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ budgets: [] }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => defaultIncome });
 
     render(<BudgetSetupPage />);
 
     expect(await screen.findByText(/no categories yet/i)).toBeInTheDocument();
+  });
+
+  it("renders distinct Budget and Income sections, excluding Income from the Budget dropdown", async () => {
+    mockInitialFetch([], {
+      parent: { id: "inc", name: "Income" },
+      children: [{ id: "inc-salary", name: "Salary" }],
+    });
+    render(<BudgetSetupPage />);
+
+    expect(await screen.findByRole("heading", { name: "Spending Budget" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Income" })).toBeInTheDocument();
+    expect(screen.getByText("Salary")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Add Spending Category" }));
+    const optionLabels = screen.getAllByRole("option").map((o) => o.textContent);
+    expect(optionLabels).not.toContain("Income");
+  });
+
+  it("shows the Income section subtitle and lists existing income categories", async () => {
+    mockInitialFetch([], {
+      parent: { id: "inc", name: "Income" },
+      children: [{ id: "inc-salary", name: "Salary" }],
+    });
+    render(<BudgetSetupPage />);
+
+    expect(await screen.findByText("Create a list of income sub categories")).toBeInTheDocument();
+    expect(screen.getByText("Salary")).toBeInTheDocument();
+  });
+
+  it("adding an income category posts to /api/categories with the income parentId", async () => {
+    mockInitialFetch();
+
+    render(<BudgetSetupPage />);
+    await screen.findByRole("heading", { name: "Income" });
+
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ id: "inc-bonus", name: "Bonus", parentId: "inc" }),
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /add income category/i }));
+    fireEvent.change(screen.getByPlaceholderText("Income Category Name"), {
+      target: { value: "Bonus" },
+    });
+    fireEvent.keyDown(screen.getByPlaceholderText("Income Category Name"), { key: "Enter" });
+
+    await waitFor(() => {
+      expect(screen.getByText("Bonus")).toBeInTheDocument();
+    });
+
+    expect(global.fetch).toHaveBeenLastCalledWith(
+      "/api/categories",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ name: "Bonus", parentId: "inc" }),
+      })
+    );
+  });
+
+  it("shows a $ prefix on amount inputs", async () => {
+    mockInitialFetch();
+    render(<BudgetSetupPage />);
+    await screen.findByText(/no budget rows yet/i);
+
+    fireEvent.click(screen.getByRole("button", { name: "Add Spending Category" }));
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "c3" } });
+
+    const input = screen.getByPlaceholderText("0.00");
+    expect(input.parentElement).toHaveTextContent("$");
   });
 });
