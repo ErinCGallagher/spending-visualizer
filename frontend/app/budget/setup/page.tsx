@@ -6,6 +6,7 @@ import { Fragment, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { X } from "lucide-react";
 import type { Category } from "@/app/upload/types";
+import { formatAmount } from "@/lib/format";
 
 interface ExistingBudget {
   categoryId: string;
@@ -21,6 +22,26 @@ interface IncomeData {
   parent: IncomeCategory;
   children: IncomeCategory[];
 }
+
+interface PensionContribution {
+  month: number;
+  amount: number;
+}
+
+const MONTH_NAMES = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
 
 /** Sum of a parent's child budget amounts, used for its read-only total. */
 function childTotal(parent: Category, amounts: Record<string, string>): number {
@@ -51,9 +72,10 @@ function AmountInput({
         step="0.01"
         value={value}
         onChange={onChange ? (e) => onChange(e.target.value) : undefined}
+        onWheel={(e) => e.currentTarget.blur()}
         disabled={disabled}
         placeholder="0.00"
-        className={`w-32 border rounded-lg pl-6 pr-3 py-1.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-emerald-800 ${
+        className={`w-32 border rounded-lg pl-6 pr-3 py-1.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-emerald-800 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
           disabled ? "border-gray-100 text-gray-300" : "border-gray-200"
         }`}
       />
@@ -72,6 +94,8 @@ export default function BudgetSetupPage() {
   const [pendingIncomeRows, setPendingIncomeRows] = useState<string[]>([]);
   const [incomeRowNames, setIncomeRowNames] = useState<Record<string, string>>({});
   const [submittingIncomeRows, setSubmittingIncomeRows] = useState<string[]>([]);
+  const [pensionYear, setPensionYear] = useState(() => new Date().getFullYear());
+  const [pensionAmounts, setPensionAmounts] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -125,6 +149,17 @@ export default function BudgetSetupPage() {
       .catch(() => setError("Failed to load categories or budgets."))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    fetch(`/api/pension?year=${pensionYear}`, { credentials: "include" })
+      .then((r) => r.json())
+      .then((data: { year: number; contributions: PensionContribution[] }) => {
+        const next: Record<number, string> = {};
+        for (const c of data.contributions) next[c.month] = String(c.amount);
+        setPensionAmounts(next);
+      })
+      .catch(() => setError("Failed to load pension contributions."));
+  }, [pensionYear]);
 
   function handleAmountChange(categoryId: string, value: string) {
     setAmounts((prev) => ({ ...prev, [categoryId]: value }));
@@ -234,13 +269,24 @@ export default function BudgetSetupPage() {
     }
   }
 
+  function handlePensionAmountChange(month: number, value: string) {
+    setPensionAmounts((prev) => ({ ...prev, [month]: value }));
+    setSaved(false);
+  }
+
   async function handleSave() {
     const budgets = Object.entries(amounts)
       .filter(([, value]) => value.trim() !== "")
       .map(([categoryId, value]) => ({ categoryId, monthlyAmount: Number(value) }))
       .filter((b) => Number.isFinite(b.monthlyAmount) && b.monthlyAmount >= 0);
 
-    if (budgets.length === 0 && pendingDeleteIds.length === 0) {
+    const pensionContributions: PensionContribution[] = Object.entries(pensionAmounts)
+      .filter(([, value]) => value.trim() !== "")
+      .map(([month, value]) => ({ month: Number(month), amount: Number(value) }))
+      .filter((c) => Number.isFinite(c.amount) && c.amount >= 0)
+      .sort((a, b) => a.month - b.month);
+
+    if (budgets.length === 0 && pendingDeleteIds.length === 0 && pensionContributions.length === 0) {
       setError("Set at least one monthly amount");
       return;
     }
@@ -268,6 +314,19 @@ export default function BudgetSetupPage() {
         }
       }
 
+      if (pensionContributions.length > 0) {
+        const res = await fetch("/api/pension", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ year: pensionYear, contributions: pensionContributions }),
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error ?? "Failed to save pension contributions");
+        }
+      }
+
       setPendingDeleteIds([]);
       setSaved(true);
     } catch (err) {
@@ -281,6 +340,13 @@ export default function BudgetSetupPage() {
     (c) => !selectedParentIds.includes(c.id) && c.id !== incomeParent?.id
   );
   const isEmpty = selectedParentIds.length === 0 && pendingRows.length === 0;
+  const totalSpendingBudget = selectedParentIds.reduce((sum, parentId) => {
+    const parent = categories.find((c) => c.id === parentId);
+    if (!parent) return sum;
+    return sum + (parent.children.length === 0 ? Number(amounts[parent.id]) || 0 : childTotal(parent, amounts));
+  }, 0);
+  const currentCalendarYear = new Date().getFullYear();
+  const pensionYearOptions = Array.from({ length: 5 }, (_, i) => currentCalendarYear - 3 + i);
 
   if (loading) {
     return (
@@ -412,6 +478,7 @@ export default function BudgetSetupPage() {
                       <tr key={rowKey} className="border-t border-gray-200 divide-x divide-gray-200">
                         <td className="py-2 px-3" colSpan={2}>
                           <select
+                            aria-label="Choose a category"
                             defaultValue=""
                             onChange={(e) => handlePickParent(rowKey, e.target.value)}
                             className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-800"
@@ -450,6 +517,19 @@ export default function BudgetSetupPage() {
                       </tr>
                     )}
                   </tbody>
+                  {!isEmpty && (
+                    <tfoot>
+                      <tr className="border-t border-gray-300 divide-x divide-gray-200">
+                        <td className="py-2 px-3 font-semibold text-gray-900" colSpan={2}>
+                          Total
+                        </td>
+                        <td className="py-2 px-3 text-right font-semibold text-gray-900">
+                          {formatAmount(totalSpendingBudget, "CAD", 2)}
+                        </td>
+                        <td className="py-2 pl-2 pr-3" />
+                      </tr>
+                    </tfoot>
+                  )}
                 </table>
                 </div>
 
@@ -529,6 +609,44 @@ export default function BudgetSetupPage() {
               >
                 Add Income Category
               </button>
+
+              <div className="pt-6 border-t border-gray-100 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">Pension contributions</h3>
+                    <p className="mt-1 text-sm text-gray-500">
+                      Input the amount you contributed to you pension for each month of the year.
+                    </p>
+                  </div>
+                  <select
+                    aria-label="Pension year"
+                    value={pensionYear}
+                    onChange={(e) => setPensionYear(Number(e.target.value))}
+                    className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-800"
+                  >
+                    {pensionYearOptions.map((year) => (
+                      <option key={year} value={year}>
+                        {year}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  {MONTH_NAMES.map((name, i) => {
+                    const month = i + 1;
+                    return (
+                      <div key={month} className="flex items-center justify-between gap-2">
+                        <span className="text-sm text-gray-500">{name}</span>
+                        <AmountInput
+                          label={`${name} pension amount`}
+                          value={pensionAmounts[month] ?? ""}
+                          onChange={(value) => handlePensionAmountChange(month, value)}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           )}
 
