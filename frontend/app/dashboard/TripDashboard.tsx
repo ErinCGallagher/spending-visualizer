@@ -79,7 +79,7 @@ export default function TripDashboard({ onSwitchView, currency, meta }: Props) {
     if (selectedGroup) params.set("groupId", selectedGroup.id);
     fetch(`/api/charts/category-totals?${params}`, { credentials: "include" })
       .then((r) => r.json())
-      .then((data) => setCategoryData(data))
+      .then((data) => setCategoryData(data.categories ?? []))
       .catch(() => setCategoryData([]))
       .finally(() => setCategoryLoading(false));
   }, [selectedGroup, filterState]);

@@ -43,6 +43,7 @@ export interface DashboardData {
   meta: Meta | null;
   metaLoading: boolean;
   categoryData: CategoryTotal[];
+  incomeTotal: number;
   monthlyData: MonthlyTotal[];
   cumulativeData: CumulativePoint[];
   categoryTimelineData: MonthlyTotal[];
@@ -62,6 +63,7 @@ export function useDashboardData(
   const [metaLoading, setMetaLoading] = useState(true);
 
   const [categoryData, setCategoryData] = useState<CategoryTotal[]>([]);
+  const [incomeTotal, setIncomeTotal] = useState(0);
   const [monthlyData, setMonthlyData] = useState<MonthlyTotal[]>([]);
   const [cumulativeData, setCumulativeData] = useState<CumulativePoint[]>([]);
   const [categoryTimelineData, setCategoryTimelineData] = useState<MonthlyTotal[]>([]);
@@ -114,7 +116,9 @@ export function useDashboardData(
       ]);
 
       if (catRes.status === "fulfilled" && catRes.value.ok) {
-        setCategoryData(await catRes.value.json());
+        const data = await catRes.value.json();
+        setCategoryData(data.categories ?? []);
+        setIncomeTotal(data.incomeTotal ?? 0);
       }
       setCategoryLoading(false);
 
@@ -148,6 +152,7 @@ export function useDashboardData(
     meta,
     metaLoading,
     categoryData,
+    incomeTotal,
     monthlyData,
     cumulativeData,
     categoryTimelineData,

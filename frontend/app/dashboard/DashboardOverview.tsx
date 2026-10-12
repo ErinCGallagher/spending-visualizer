@@ -21,6 +21,7 @@ import { formatCurrency } from "@/lib/format";
 
 interface Props {
   categoryData: CategoryTotal[];
+  incomeTotal: number;
   monthlyData: MonthlyTotal[];
   cumulativeData: CumulativePoint[];
   categoryTimelineData: MonthlyTotal[];
@@ -39,6 +40,7 @@ interface Props {
 
 export default function DashboardOverview({
   categoryData,
+  incomeTotal,
   monthlyData,
   cumulativeData,
   categoryTimelineData,
@@ -82,12 +84,20 @@ export default function DashboardOverview({
 
   return (
     <div className="relative space-y-6">
-      {/* Total spend */}
-      <div className="bg-slate-50/50 rounded-2xl border border-slate-100 p-6">
-        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Total spent</p>
-        <p className="text-3xl font-bold text-slate-900">
-          {categoryLoading ? "—" : formatCurrency(totalSpend, currency, 2)}
-        </p>
+      {/* Total spend + total income */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        <div className="bg-slate-50/50 rounded-2xl border border-slate-100 p-6">
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Total spent</p>
+          <p className="text-3xl font-bold text-slate-900">
+            {categoryLoading ? "—" : formatCurrency(totalSpend, currency, 2)}
+          </p>
+        </div>
+        <div className="bg-slate-50/50 rounded-2xl border border-slate-100 p-6">
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Total income</p>
+          <p className="text-3xl font-bold text-slate-900">
+            {categoryLoading ? "—" : formatCurrency(incomeTotal, currency, 2)}
+          </p>
+        </div>
       </div>
 
       {/* Top row: category breakdown + monthly spending */}

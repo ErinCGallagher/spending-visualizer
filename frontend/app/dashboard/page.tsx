@@ -50,6 +50,7 @@ function DashboardContent() {
     meta,
     metaLoading,
     categoryData,
+    incomeTotal,
     monthlyData,
     cumulativeData,
     categoryTimelineData,
@@ -126,6 +127,7 @@ function DashboardContent() {
             </div>
             <DashboardOverview
               categoryData={categoryData}
+              incomeTotal={incomeTotal}
               monthlyData={monthlyData}
               cumulativeData={cumulativeData}
               categoryTimelineData={categoryTimelineData}
