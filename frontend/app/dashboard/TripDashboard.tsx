@@ -76,10 +76,13 @@ export default function TripDashboard({ onSwitchView, currency, meta }: Props) {
     if (filterState.from) params.set("from", filterState.from);
     if (filterState.to) params.set("to", filterState.to);
     for (const t of filterState.travellers) params.append("traveller", t);
+    // The trips tab only shows trip data; scope to trip groups even before a
+    // specific trip is selected. A selected trip narrows further by groupId.
+    params.set("groupType", "trip");
     if (selectedGroup) params.set("groupId", selectedGroup.id);
     fetch(`/api/charts/category-totals?${params}`, { credentials: "include" })
       .then((r) => r.json())
-      .then((data) => setCategoryData(data))
+      .then((data) => setCategoryData(data.categories ?? []))
       .catch(() => setCategoryData([]))
       .finally(() => setCategoryLoading(false));
   }, [selectedGroup, filterState]);

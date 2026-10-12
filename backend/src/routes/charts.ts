@@ -5,6 +5,48 @@ import { requireAuth } from "../middleware/requireAuth";
 import { pool } from "../db";
 import { validateGroupTypes } from "../lib/queryParams";
 
+/**
+ * The reserved top-level category name for income. Income transactions carry the
+ * opposite sign to expenses, so they must be kept out of spending charts — otherwise
+ * they net against spending and drag totals negative.
+ */
+export const INCOME_CATEGORY = "Income";
+
+/**
+ * Drops the Income category (top-level or rolled-up children) from category-grouped
+ * rows so it is not counted as spending.
+ */
+export function excludeIncomeRows<T extends { category: string }>(rows: T[]): T[] {
+  return rows.filter((r) => r.category !== INCOME_CATEGORY);
+}
+
+/**
+ * Sums the Income category from category-grouped rows and returns it as a positive
+ * amount. Income is stored with the opposite sign to expenses, so the raw total is
+ * negative; this negates it so callers can display "total income" directly.
+ */
+export function extractIncomeTotal<T extends { category: string; total: number }>(rows: T[]): number {
+  const income = rows.find((r) => r.category === INCOME_CATEGORY);
+  return income ? -income.total : 0;
+}
+
+/**
+ * SQL predicate (takes no parameters) that keeps a transaction out of spending charts
+ * when it belongs to the Income category tree — the reserved top-level "Income"
+ * category or any of its children. Income carries the opposite sign to expenses, so
+ * leaving it in nets against spending. Uncategorized transactions (category_id IS NULL)
+ * are kept. Assumes the transactions table is aliased `t`.
+ */
+export const EXCLUDE_INCOME_SQL = `NOT EXISTS (
+  SELECT 1 FROM categories ic
+  LEFT JOIN categories ip ON ip.id = ic.parent_id
+  WHERE ic.id = t.category_id
+    AND (
+      (ic.name = '${INCOME_CATEGORY}' AND ic.parent_id IS NULL)
+      OR (ip.name = '${INCOME_CATEGORY}' AND ip.parent_id IS NULL)
+    )
+)`;
+
 export function mapCountryTotalRow(r: { country: string; total: string; days: string; per_day: string | null }) {
   return {
     country: r.country,
@@ -23,6 +65,8 @@ router.use(requireAuth);
  * Query params: from, to, traveller
  * When traveller is supplied, sums transaction_splits.amount_home for that traveller.
  * Otherwise sums transactions.amount_home.
+ * Returns { categories, incomeTotal }: spending categories (income excluded) plus the
+ * income total as a positive amount, so income is never counted as spending.
  */
 router.get("/category-totals", async (req, res) => {
   const userId: string = res.locals.userId;
@@ -99,7 +143,7 @@ router.get("/category-totals", async (req, res) => {
       rows = result.rows.map((r) => ({ category: r.category, total: parseFloat(r.total) }));
     }
 
-    res.json(rows);
+    res.json({ categories: excludeIncomeRows(rows), incomeTotal: extractIncomeTotal(rows) });
   } catch (err) {
     console.error("GET /api/charts/category-totals error:", err);
     res.status(500).json({ error: "Internal server error" });
@@ -296,6 +340,7 @@ router.get("/monthly-totals", async (req, res) => {
     conditions.push(`g.group_type = ANY(${addParam(groupTypes)})`);
   }
 
+  conditions.push(EXCLUDE_INCOME_SQL);
   const where = conditions.join(" AND ");
   const joinClause = joins.join(" ");
 
@@ -428,6 +473,7 @@ router.get("/cumulative", async (req, res) => {
     conditions.push(`g.group_type = ANY(${addParam(groupTypes)})`);
   }
 
+  conditions.push(EXCLUDE_INCOME_SQL);
   const where = conditions.join(" AND ");
   const joinClause = joins.join(" ");
 

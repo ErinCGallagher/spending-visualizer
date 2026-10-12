@@ -47,14 +47,10 @@ describe("StepGroup Business Logic", () => {
       />
     );
 
-    // Wait for groups to load
-    await waitFor(() => {
-      expect(screen.queryByText("Running AI categorisation…")).not.toBeInTheDocument();
-    });
-
-    // Check if "Daily Living" is selected (should have specific classes)
+    // Wait for groups to load and credit-card defaulting to apply, then
+    // check "Daily Living" is selected (should have specific classes)
     const dailyButton = screen.getByText("Daily Living");
-    expect(dailyButton).toHaveClass("bg-emerald-800");
+    await waitFor(() => expect(dailyButton).toHaveClass("bg-emerald-800"));
     expect(dailyButton).toHaveClass("text-white");
 
     // Check if the first daily group "Main Budget" is selected in the dropdown
