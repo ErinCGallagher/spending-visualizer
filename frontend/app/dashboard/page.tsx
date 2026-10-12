@@ -5,7 +5,7 @@
 
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
 import Filters, { type FilterValues } from "@/app/dashboard/Filters";
@@ -14,7 +14,16 @@ import DashboardTabBar from "@/app/dashboard/DashboardTabBar";
 import DashboardOverview from "@/app/dashboard/DashboardOverview";
 import BudgetTab from "@/app/dashboard/BudgetTab";
 import { useDashboardData } from "@/app/dashboard/useDashboardData";
+import { useDashboardView } from "@/app/dashboard/useDashboardView";
 import type { Granularity } from "@/app/dashboard/CumulativeLineChart";
+
+function DashboardLoading() {
+  return (
+    <main className="min-h-screen flex items-center justify-center">
+      <p className="text-sm text-gray-400">Loading…</p>
+    </main>
+  );
+}
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -24,10 +33,10 @@ function getGreeting(): string {
   return "Good night";
 }
 
-export default function DashboardPage() {
+function DashboardContent() {
   const { data: session } = authClient.useSession();
   const firstName = session?.user?.name?.split(" ")[0] ?? "";
-  const [view, setView] = useState<"overview" | "trip" | "budget">("overview");
+  const [view, setView] = useDashboardView();
 
   const [filters, setFilters] = useState<FilterValues | null>(null);
   const [monthlyGroupBy, setMonthlyGroupBy] = useState<"category" | "total">(
@@ -72,11 +81,7 @@ export default function DashboardPage() {
   }, []);
 
   if (metaLoading || !filters) {
-    return (
-      <main className="min-h-screen flex items-center justify-center">
-        <p className="text-sm text-gray-400">Loading…</p>
-      </main>
-    );
+    return <DashboardLoading />;
   }
 
   if (meta?.dateRange === null) {
@@ -153,5 +158,15 @@ export default function DashboardPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function DashboardPage() {
+  // useDashboardView reads the active tab from the URL via useSearchParams,
+  // which requires a Suspense boundary under the Next.js App Router.
+  return (
+    <Suspense fallback={<DashboardLoading />}>
+      <DashboardContent />
+    </Suspense>
   );
 }
