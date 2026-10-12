@@ -655,7 +655,7 @@ export default function BudgetSetupPage() {
 
           <div className="flex items-center justify-between pt-4 border-t border-gray-100">
             <Link
-              href="/dashboard"
+              href="/dashboard?tab=budget"
               className="border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg font-medium hover:bg-gray-50"
             >
               Back to dashboard
