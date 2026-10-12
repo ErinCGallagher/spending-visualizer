@@ -2,9 +2,10 @@
 
 "use client";
 
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { X } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { ArrowLeft, X } from "lucide-react";
 import type { Category } from "@/app/upload/types";
 import { formatAmount } from "@/lib/format";
 
@@ -53,11 +54,13 @@ function AmountInput({
   label,
   value,
   onChange,
+  onBlur,
   disabled,
 }: {
   label: string;
   value: string;
   onChange?: (value: string) => void;
+  onBlur?: () => void;
   disabled?: boolean;
 }) {
   return (
@@ -72,6 +75,7 @@ function AmountInput({
         step="0.01"
         value={value}
         onChange={onChange ? (e) => onChange(e.target.value) : undefined}
+        onBlur={onBlur}
         onWheel={(e) => e.currentTarget.blur()}
         disabled={disabled}
         placeholder="0.00"
@@ -83,12 +87,16 @@ function AmountInput({
   );
 }
 
-export default function BudgetSetupPage() {
+function BudgetSetupContent() {
+  const searchParams = useSearchParams();
+  const fromSettings = searchParams.get("from") === "settings";
+  const backHref = fromSettings ? "/settings" : "/dashboard?tab=budget";
+  const backLabel = fromSettings ? "Back to settings" : "Back to dashboard";
+
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedParentIds, setSelectedParentIds] = useState<string[]>([]);
   const [amounts, setAmounts] = useState<Record<string, string>>({});
   const [pendingRows, setPendingRows] = useState<string[]>([]);
-  const [pendingDeleteIds, setPendingDeleteIds] = useState<string[]>([]);
   const [incomeParent, setIncomeParent] = useState<IncomeCategory | null>(null);
   const [incomeChildren, setIncomeChildren] = useState<IncomeCategory[]>([]);
   const [pendingIncomeRows, setPendingIncomeRows] = useState<string[]>([]);
@@ -99,7 +107,6 @@ export default function BudgetSetupPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
   const nextRowKey = useRef(0);
   const nextIncomeRowKey = useRef(0);
 
@@ -161,14 +168,64 @@ export default function BudgetSetupPage() {
       .catch(() => setError("Failed to load pension contributions."));
   }, [pensionYear]);
 
+  /** Upsert a single category's monthly budget. Empty/invalid input is a no-op. */
+  async function persistBudget(categoryId: string, rawValue: string) {
+    const trimmed = rawValue.trim();
+    if (trimmed === "") return;
+    const monthlyAmount = Number(trimmed);
+    if (!Number.isFinite(monthlyAmount) || monthlyAmount < 0) return;
+
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/budgets", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ budgets: [{ categoryId, monthlyAmount }] }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error ?? "Failed to save budget");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An unexpected error occurred");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  /** Remove the given categories' budgets. */
+  async function persistDeletes(categoryIds: string[]) {
+    setSaving(true);
+    setError(null);
+    try {
+      await Promise.all(
+        categoryIds.map((categoryId) =>
+          fetch(`/api/budgets/${categoryId}`, { method: "DELETE", credentials: "include" }).then(
+            (res) => {
+              if (!res.ok) throw new Error("Failed to delete budget");
+            }
+          )
+        )
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An unexpected error occurred");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   function handleAmountChange(categoryId: string, value: string) {
     setAmounts((prev) => ({ ...prev, [categoryId]: value }));
-    setSaved(false);
+  }
+
+  function handleAmountBlur(categoryId: string) {
+    persistBudget(categoryId, amounts[categoryId] ?? "");
   }
 
   function handleAddRow() {
     setPendingRows((prev) => [...prev, `pending-${nextRowKey.current++}`]);
-    setSaved(false);
   }
 
   function handleCancelPendingRow(rowKey: string) {
@@ -190,7 +247,6 @@ export default function BudgetSetupPage() {
       }
       return next;
     });
-    setSaved(false);
   }
 
   function handleDeleteStandaloneRow(parent: Category) {
@@ -200,8 +256,7 @@ export default function BudgetSetupPage() {
       delete next[parent.id];
       return next;
     });
-    setPendingDeleteIds((prev) => [...prev, parent.id]);
-    setSaved(false);
+    persistDeletes([parent.id]);
   }
 
   function handleDeleteGroup(parent: Category) {
@@ -211,8 +266,7 @@ export default function BudgetSetupPage() {
       for (const child of parent.children) delete next[child.id];
       return next;
     });
-    setPendingDeleteIds((prev) => [...prev, parent.id, ...parent.children.map((c) => c.id)]);
-    setSaved(false);
+    persistDeletes([parent.id, ...parent.children.map((c) => c.id)]);
   }
 
   function handleDeleteChildRow(childId: string) {
@@ -221,8 +275,7 @@ export default function BudgetSetupPage() {
       delete next[childId];
       return next;
     });
-    setPendingDeleteIds((prev) => [...prev, childId]);
-    setSaved(false);
+    persistDeletes([childId]);
   }
 
   function handleAddIncomeRow() {
@@ -271,64 +324,28 @@ export default function BudgetSetupPage() {
 
   function handlePensionAmountChange(month: number, value: string) {
     setPensionAmounts((prev) => ({ ...prev, [month]: value }));
-    setSaved(false);
   }
 
-  async function handleSave() {
-    const budgets = Object.entries(amounts)
-      .filter(([, value]) => value.trim() !== "")
-      .map(([categoryId, value]) => ({ categoryId, monthlyAmount: Number(value) }))
-      .filter((b) => Number.isFinite(b.monthlyAmount) && b.monthlyAmount >= 0);
-
-    const pensionContributions: PensionContribution[] = Object.entries(pensionAmounts)
-      .filter(([, value]) => value.trim() !== "")
-      .map(([month, value]) => ({ month: Number(month), amount: Number(value) }))
-      .filter((c) => Number.isFinite(c.amount) && c.amount >= 0)
-      .sort((a, b) => a.month - b.month);
-
-    if (budgets.length === 0 && pendingDeleteIds.length === 0 && pensionContributions.length === 0) {
-      setError("Set at least one monthly amount");
-      return;
-    }
+  /** Upsert a single month's pension contribution. Empty/invalid input is a no-op. */
+  async function handlePensionAmountBlur(month: number) {
+    const trimmed = (pensionAmounts[month] ?? "").trim();
+    if (trimmed === "") return;
+    const amount = Number(trimmed);
+    if (!Number.isFinite(amount) || amount < 0) return;
 
     setSaving(true);
     setError(null);
-    setSaved(false);
     try {
-      await Promise.all(
-        pendingDeleteIds.map((categoryId) =>
-          fetch(`/api/budgets/${categoryId}`, { method: "DELETE", credentials: "include" })
-        )
-      );
-
-      if (budgets.length > 0) {
-        const res = await fetch("/api/budgets", {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ budgets }),
-        });
-        if (!res.ok) {
-          const data = await res.json();
-          throw new Error(data.error ?? "Failed to save budget");
-        }
+      const res = await fetch("/api/pension", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ year: pensionYear, contributions: [{ month, amount }] }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error ?? "Failed to save pension contributions");
       }
-
-      if (pensionContributions.length > 0) {
-        const res = await fetch("/api/pension", {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ year: pensionYear, contributions: pensionContributions }),
-        });
-        if (!res.ok) {
-          const data = await res.json();
-          throw new Error(data.error ?? "Failed to save pension contributions");
-        }
-      }
-
-      setPendingDeleteIds([]);
-      setSaved(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An unexpected error occurred");
     } finally {
@@ -359,7 +376,14 @@ export default function BudgetSetupPage() {
   return (
     <main className="min-h-screen animate-fade-in">
       <div className="max-w-3xl mx-auto px-6 py-8">
-        <h1 className="text-2xl font-bold text-white">Configure Monthly Budget</h1>
+        <Link
+          href={backHref}
+          className="inline-flex items-center gap-2 text-sm text-emerald-200 hover:text-white transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          {backLabel}
+        </Link>
+        <h1 className="mt-4 text-2xl font-bold text-white">Configure Monthly Budget</h1>
         <p className="mt-1 text-emerald-200 text-sm">
           Setup your monthly budget for spending, define income categories and pension
           contributions.
@@ -410,6 +434,7 @@ export default function BudgetSetupPage() {
                                 label={`${parent.name} monthly amount`}
                                 value={amounts[parent.id] ?? ""}
                                 onChange={(value) => handleAmountChange(parent.id, value)}
+                                onBlur={() => handleAmountBlur(parent.id)}
                               />
                             </td>
                             <td className="py-2 pl-2 pr-3 text-center">
@@ -456,6 +481,7 @@ export default function BudgetSetupPage() {
                                     label={`${child.name} monthly amount`}
                                     value={amounts[child.id] ?? ""}
                                     onChange={(value) => handleAmountChange(child.id, value)}
+                                    onBlur={() => handleAmountBlur(child.id)}
                                   />
                                 </td>
                                 <td className="py-2 pl-2 pr-3 text-center">
@@ -641,6 +667,7 @@ export default function BudgetSetupPage() {
                           label={`${name} pension amount`}
                           value={pensionAmounts[month] ?? ""}
                           onChange={(value) => handlePensionAmountChange(month, value)}
+                          onBlur={() => handlePensionAmountBlur(month)}
                         />
                       </div>
                     );
@@ -650,26 +677,27 @@ export default function BudgetSetupPage() {
             </div>
           )}
 
-          {error && <p className="text-sm text-red-600">{error}</p>}
-          {saved && <p className="text-sm text-emerald-700">Budget saved.</p>}
-
-          <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-            <Link
-              href="/dashboard?tab=budget"
-              className="border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg font-medium hover:bg-gray-50"
-            >
-              Back to dashboard
-            </Link>
-            <button
-              onClick={handleSave}
-              disabled={saving || categories.length === 0}
-              className="bg-emerald-800 hover:bg-emerald-900 text-white px-5 py-2.5 rounded-lg font-medium disabled:opacity-50"
-            >
-              {saving ? "Saving…" : "Save budget"}
-            </button>
+          <div className="flex items-center gap-2 pt-4 border-t border-gray-100 min-h-[1.5rem]">
+            {saving && (
+              <>
+                <div className="w-4 h-4 border-2 border-emerald-800 border-t-transparent rounded-full animate-spin" />
+                <span className="text-sm text-gray-500">Saving…</span>
+              </>
+            )}
+            {!saving && error && <p className="text-sm text-red-600">{error}</p>}
           </div>
         </div>
       </div>
     </main>
+  );
+}
+
+export default function BudgetSetupPage() {
+  // useSearchParams reads the entry point from the URL (?from=settings), which
+  // requires a Suspense boundary under the Next.js App Router.
+  return (
+    <Suspense>
+      <BudgetSetupContent />
+    </Suspense>
   );
 }

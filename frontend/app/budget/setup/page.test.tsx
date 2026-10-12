@@ -2,6 +2,12 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import BudgetSetupPage from "./page";
 
+let mockSearch = "";
+
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(mockSearch),
+}));
+
 const categories = [
   {
     id: "c1",
@@ -44,6 +50,7 @@ function mockInitialFetch(
 describe("BudgetSetupPage", () => {
   beforeEach(() => {
     global.fetch = vi.fn();
+    mockSearch = "";
   });
 
   it("starts with an empty table and an Add button", async () => {
@@ -97,6 +104,7 @@ describe("BudgetSetupPage", () => {
 
   it("deleting a child row removes it and updates the parent total, without removing the group", async () => {
     mockInitialFetch([{ categoryId: "c2", monthlyAmount: 25 }]);
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ ok: true }); // DELETE /api/budgets/c2
     render(<BudgetSetupPage />);
     await screen.findByText("Snacks");
 
@@ -109,6 +117,7 @@ describe("BudgetSetupPage", () => {
 
   it("deleting a childless row removes it entirely", async () => {
     mockInitialFetch([{ categoryId: "c3", monthlyAmount: 100 }]);
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ ok: true }); // DELETE /api/budgets/c3
     render(<BudgetSetupPage />);
     await screen.findByText("Rent");
 
@@ -118,40 +127,59 @@ describe("BudgetSetupPage", () => {
     expect(await screen.findByText(/no budget rows yet/i)).toBeInTheDocument();
   });
 
-  it("saves edited amounts via POST and deletes removed rows via DELETE", async () => {
-    mockInitialFetch([
-      { categoryId: "c2", monthlyAmount: 25 },
-      { categoryId: "c3", monthlyAmount: 100 },
-    ]);
-    (global.fetch as ReturnType<typeof vi.fn>)
-      .mockResolvedValueOnce({ ok: true }) // DELETE /api/budgets/c3
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ budgets: [] }) }); // POST /api/budgets
+  it("saves an edited amount on blur via POST", async () => {
+    mockInitialFetch([{ categoryId: "c2", monthlyAmount: 25 }]);
+    render(<BudgetSetupPage />);
+    await screen.findByText("Snacks");
 
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ budgets: [] }),
+    });
+
+    const childInput = screen.getByLabelText("Snacks monthly amount") as HTMLInputElement;
+    fireEvent.change(childInput, { target: { value: "30" } });
+    fireEvent.blur(childInput);
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenLastCalledWith(
+        "/api/budgets",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({ budgets: [{ categoryId: "c2", monthlyAmount: 30 }] }),
+        })
+      );
+    });
+  });
+
+  it("does not POST on blur when the amount is left empty", async () => {
+    mockInitialFetch();
+    render(<BudgetSetupPage />);
+    await screen.findByText(/no budget rows yet/i);
+
+    fireEvent.click(screen.getByRole("button", { name: "Add Spending Category" }));
+    fireEvent.change(screen.getByRole("combobox", { name: "Choose a category" }), { target: { value: "c3" } });
+
+    const input = screen.getByLabelText("Rent monthly amount") as HTMLInputElement;
+    fireEvent.blur(input);
+
+    expect(global.fetch).not.toHaveBeenCalledWith("/api/budgets", expect.objectContaining({ method: "POST" }));
+  });
+
+  it("deletes a removed row immediately via DELETE", async () => {
+    mockInitialFetch([{ categoryId: "c3", monthlyAmount: 100 }]);
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ ok: true }); // DELETE /api/budgets/c3
     render(<BudgetSetupPage />);
     await screen.findByText("Rent");
 
     fireEvent.click(screen.getByRole("button", { name: /delete rent/i }));
 
-    const childInput = screen.getByLabelText("Snacks monthly amount") as HTMLInputElement;
-    fireEvent.change(childInput, { target: { value: "30" } });
-
-    fireEvent.click(screen.getByRole("button", { name: /save budget/i }));
-
     await waitFor(() => {
-      expect(screen.getByText(/budget saved/i)).toBeInTheDocument();
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/api/budgets/c3",
+        expect.objectContaining({ method: "DELETE" })
+      );
     });
-
-    expect(global.fetch).toHaveBeenCalledWith(
-      "/api/budgets/c3",
-      expect.objectContaining({ method: "DELETE" })
-    );
-    expect(global.fetch).toHaveBeenLastCalledWith(
-      "/api/budgets",
-      expect.objectContaining({
-        method: "POST",
-        body: JSON.stringify({ budgets: [{ categoryId: "c2", monthlyAmount: 30 }] }),
-      })
-    );
   });
 
   it("shows a message when there are no categories yet", async () => {
@@ -278,47 +306,51 @@ describe("BudgetSetupPage", () => {
     expect((screen.getByLabelText("January pension amount") as HTMLInputElement).value).toBe("");
   });
 
-  it("saving entered pension amounts posts the year and contributions", async () => {
+  it("saves a pension amount on blur via POST", async () => {
     mockInitialFetch();
     render(<BudgetSetupPage />);
     await screen.findByRole("heading", { name: "Pension contributions" });
 
-    fireEvent.change(screen.getByLabelText("January pension amount"), {
-      target: { value: "150" },
-    });
-    fireEvent.change(screen.getByLabelText("February pension amount"), {
-      target: { value: "75.50" },
-    });
-
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       ok: true,
-      json: async () => ({
-        year: currentYear,
-        contributions: [
-          { month: 1, amount: 150 },
-          { month: 2, amount: 75.5 },
-        ],
-      }),
+      json: async () => ({ year: currentYear, contributions: [{ month: 1, amount: 150 }] }),
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /save budget/i }));
+    const janInput = screen.getByLabelText("January pension amount");
+    fireEvent.change(janInput, { target: { value: "150" } });
+    fireEvent.blur(janInput);
 
     await waitFor(() => {
-      expect(screen.getByText(/budget saved/i)).toBeInTheDocument();
+      expect(global.fetch).toHaveBeenLastCalledWith(
+        "/api/pension",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({ year: currentYear, contributions: [{ month: 1, amount: 150 }] }),
+        })
+      );
     });
+  });
 
-    expect(global.fetch).toHaveBeenLastCalledWith(
-      "/api/pension",
-      expect.objectContaining({
-        method: "POST",
-        body: JSON.stringify({
-          year: currentYear,
-          contributions: [
-            { month: 1, amount: 150 },
-            { month: 2, amount: 75.5 },
-          ],
-        }),
-      })
+  it("defaults the back link to the dashboard budget tab", async () => {
+    mockInitialFetch();
+    render(<BudgetSetupPage />);
+    await screen.findByText(/no budget rows yet/i);
+
+    expect(screen.getByRole("link", { name: /back to dashboard/i })).toHaveAttribute(
+      "href",
+      "/dashboard?tab=budget"
+    );
+  });
+
+  it("points the back link to settings when entered from settings", async () => {
+    mockSearch = "from=settings";
+    mockInitialFetch();
+    render(<BudgetSetupPage />);
+    await screen.findByText(/no budget rows yet/i);
+
+    expect(screen.getByRole("link", { name: /back to settings/i })).toHaveAttribute(
+      "href",
+      "/settings"
     );
   });
 });
