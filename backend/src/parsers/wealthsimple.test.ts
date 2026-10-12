@@ -9,6 +9,15 @@ const rows = [
   { transaction_date: "2026-02-12", post_date: "2026-02-12", type: "Payment", details: "From chequing account", amount: "-444.15", currency: "CAD" },
 ];
 
+const refundAndDisputeRows = [
+  { transaction_date: "2026-02-15", post_date: "2026-02-15", type: "Refund initiated", details: "EXAMPLE MERCHANT", amount: "-12.50", currency: "CAD" },
+  { transaction_date: "2026-02-15", post_date: "2026-02-16", type: "Refund settled", details: "EXAMPLE MERCHANT", amount: "12.50", currency: "CAD" },
+  { transaction_date: "2026-02-15", post_date: "2026-02-16", type: "Refund settled", details: "EXAMPLE MERCHANT", amount: "-12.50", currency: "CAD" },
+  { transaction_date: "2026-02-18", post_date: "2026-02-18", type: "Dispute initiated", details: "EXAMPLE FLORIST", amount: "-75.00", currency: "CAD" },
+  { transaction_date: "2026-02-20", post_date: "2026-02-20", type: "Dispute settled", details: "EXAMPLE FLORIST", amount: "-75.00", currency: "CAD" },
+  { transaction_date: "2026-02-20", post_date: "2026-02-20", type: "Dispute settled", details: "", amount: "75.00", currency: "CAD" },
+];
+
 const parser = new WealthsimpleParser();
 
 describe("WealthsimpleParser", () => {
@@ -101,6 +110,23 @@ describe("WealthsimpleParser", () => {
     it("omits skippedPayments when there are no payment rows", () => {
       const purchasesOnly = rows.filter((r) => r.type === "Purchase");
       const result = parser.parse(purchasesOnly, "upload-1", "user-1");
+      expect(result.skippedPayments).toBeUndefined();
+    });
+  });
+
+  describe("refund and dispute rows", () => {
+    it("keeps all refund and dispute rows as transactions", () => {
+      const result = parser.parse(refundAndDisputeRows, "upload-1", "user-1");
+      expect(result.transactions).toHaveLength(refundAndDisputeRows.length);
+    });
+
+    it("preserves the signed amounts so the pairs balance out", () => {
+      const result = parser.parse(refundAndDisputeRows, "upload-1", "user-1");
+      expect(result.transactions.map((tx) => tx.amountHome)).toEqual([-12.5, 12.5, -12.5, -75, -75, 75]);
+    });
+
+    it("does not count refund or dispute rows as skipped payments", () => {
+      const result = parser.parse(refundAndDisputeRows, "upload-1", "user-1");
       expect(result.skippedPayments).toBeUndefined();
     });
   });

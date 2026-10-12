@@ -16,7 +16,9 @@ export class WealthsimpleParser implements CsvParser {
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
 
-      if (row.type !== "Purchase") {
+      // Only bill payments are excluded (they are not spend). Refund and dispute
+      // rows are kept — they balance out across their initiated/settled pairs.
+      if (row.type === "Payment") {
         skippedPayments++;
         continue;
       }
