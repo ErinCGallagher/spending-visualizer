@@ -108,20 +108,45 @@ describe("WealthsimpleChequingParser", () => {
       expect(result.transactions.every((tx) => tx.description !== "Credit card payment")).toBe(true);
     });
 
+    it("excludes AFT_OUT rows for the Amex online bill payment", () => {
+      const rows = [row({ activity_sub_type: "AFT_OUT", description: "Online bill payment amex", net_cash_amount: "-68.74" }), row()];
+      const result = parser.parse(rows, "upload-1", "user-1");
+      expect(result.transactions).toHaveLength(1);
+      expect(result.transactions.every((tx) => tx.description !== "Online bill payment amex")).toBe(true);
+    });
+
+    it("does not exclude other AFT_OUT rows", () => {
+      const rows = [row({ activity_sub_type: "AFT_OUT", description: "Automated transfer out", net_cash_amount: "-50" })];
+      const result = parser.parse(rows, "upload-1", "user-1");
+      expect(result.transactions).toHaveLength(1);
+    });
+
     it("does not exclude other TRANSFER rows, like internal transfers", () => {
       const rows = [row({ activity_sub_type: "TRANSFER", description: "Money transfer into the account (executed at 2026-04-28)", net_cash_amount: "500" })];
       const result = parser.parse(rows, "upload-1", "user-1");
       expect(result.transactions).toHaveLength(1);
     });
 
+    it("excludes money transfers out of the account, under TRANSFER and TRANSFER_TF", () => {
+      const rows = [
+        row({ activity_sub_type: "TRANSFER", description: "Money transfer out of the account (executed at 2026-02-20)", net_cash_amount: "-13000" }),
+        row({ activity_sub_type: "TRANSFER_TF", description: "Money transfer out of the account (executed at 2026-08-16)", net_cash_amount: "-8000" }),
+        row(),
+      ];
+      const result = parser.parse(rows, "upload-1", "user-1");
+      expect(result.transactions).toHaveLength(1);
+      expect(result.transactions.every((tx) => !tx.description.startsWith("Money transfer out of the account"))).toBe(true);
+    });
+
     it("counts skipped rows in skippedPayments", () => {
       const rows = [
         row({ activity_sub_type: "OBP_OUT", description: "Online bill payment (executed at 2026-01-06)", net_cash_amount: "-139.13" }),
         row({ activity_sub_type: "TRANSFER", description: "Credit card payment", net_cash_amount: "-132.88" }),
+        row({ activity_sub_type: "AFT_OUT", description: "Online bill payment amex", net_cash_amount: "-68.74" }),
         row(),
       ];
       const result = parser.parse(rows, "upload-1", "user-1");
-      expect(result.skippedPayments).toBe(2);
+      expect(result.skippedPayments).toBe(3);
     });
 
     it("omits skippedPayments when there are no excluded rows", () => {

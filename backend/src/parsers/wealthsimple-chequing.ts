@@ -33,10 +33,17 @@ export class WealthsimpleChequingParser implements CsvParser {
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
 
-      // Online bill payments and credit card payments are excluded: the former
-      // aren't discretionary spend to track here, and the latter are already
-      // counted as spend by the Wealthsimple Visa parser.
-      if (row.activity_sub_type === "OBP_OUT" || (row.activity_sub_type === "TRANSFER" && row.description === "Credit card payment")) {
+      // Online bill payments, credit card payments, and money transfers out of
+      // the account are excluded: bill payments and outbound transfers aren't
+      // discretionary spend to track here, and credit card payments are already
+      // counted as spend by the card parsers (the Wealthsimple Visa parser for
+      // "Credit card payment", the Amex parser for the Amex bill payment).
+      if (
+        row.activity_sub_type === "OBP_OUT" ||
+        (row.activity_sub_type === "TRANSFER" && row.description === "Credit card payment") ||
+        (row.activity_sub_type === "AFT_OUT" && row.description === "Online bill payment amex") ||
+        row.description?.startsWith("Money transfer out of the account")
+      ) {
         skippedPayments++;
         continue;
       }
