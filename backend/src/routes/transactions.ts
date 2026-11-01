@@ -25,10 +25,10 @@ router.get("/", async (req, res) => {
     return;
   }
 
-  const { from, to, category, paymentMethod, traveller, groupId, groupType, search, page, limit } = params;
+  const { from, to, category, paymentMethod, traveller, groupId, groupType, search, notInBudget, page, limit } = params;
 
   const { joins, conditions, values } = buildTransactionFilterSQL(userId, {
-    from, to, category, paymentMethod, traveller, groupId, groupType, search,
+    from, to, category, paymentMethod, traveller, groupId, groupType, search, notInBudget,
   });
 
   const filterJoins = [...new Set(joins)].join("\n");

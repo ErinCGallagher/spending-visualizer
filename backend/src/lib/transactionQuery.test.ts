@@ -35,6 +35,20 @@ describe("buildTransactionFilterSQL", () => {
     expect(values.filter((v) => v === uuid)).toHaveLength(1);
   });
 
+  it("notInBudget excludes budgeted categories and Income without adding parameters", () => {
+    const { conditions, values } = buildTransactionFilterSQL("user1", { notInBudget: true });
+    expect(conditions).toHaveLength(2);
+    expect(conditions[1]).toContain("FROM budgets");
+    expect(conditions[1]).toContain("t.category_id IS NULL");
+    expect(conditions[1]).toContain("'Income'");
+    expect(values).toEqual(["user1"]);
+  });
+
+  it("does not touch budgets when notInBudget is not set", () => {
+    const { conditions } = buildTransactionFilterSQL("user1", {});
+    expect(conditions.join(" ")).not.toContain("budgets");
+  });
+
   // Bug 1: payer filter must filter by transactions.payer, not transaction_splits.traveller_name
   it("traveller filter adds a t.payer condition, not a transaction_splits join", () => {
     const { joins, conditions } = buildTransactionFilterSQL("user1", {

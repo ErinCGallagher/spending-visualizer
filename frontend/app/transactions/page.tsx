@@ -33,7 +33,8 @@ export default function TransactionsPage() {
   const [data, setData] = useState<TransactionsResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const { filters, page, setPage, handleFilterChange } = useTransactionFilters();
+  const { filters, page, setPage, handleFilterChange, handleNotInBudgetChange } =
+    useTransactionFilters();
   const { data: taxonomy } = useFetch<Category[]>("/api/categories", []);
 
   const [debouncedSearch, setDebouncedSearch] = useState(filters.search);
@@ -110,6 +111,7 @@ export default function TransactionsPage() {
       if (f.payer) params.set("traveller", f.payer);
       if (f.paymentMethod) params.set("paymentMethod", f.paymentMethod);
       if (f.search) params.set("search", f.search);
+      if (f.notInBudget) params.set("notInBudget", "true");
       params.set("page", String(currentPage));
       params.set("limit", String(PAGE_LIMIT));
 
@@ -131,7 +133,7 @@ export default function TransactionsPage() {
   }, [page, filters, fetchTransactions]);
 
   function buildFilterPayload(f: typeof filters) {
-    const payload: Record<string, string> = {};
+    const payload: Record<string, string | boolean> = {};
     if (f.from) payload.from = f.from;
     if (f.to) payload.to = f.to;
     if (f.category) payload.category = f.category;
@@ -139,6 +141,7 @@ export default function TransactionsPage() {
     if (f.payer) payload.traveller = f.payer;
     if (f.paymentMethod) payload.paymentMethod = f.paymentMethod;
     if (f.search) payload.search = f.search;
+    if (f.notInBudget) payload.notInBudget = true;
     return payload;
   }
 
@@ -304,6 +307,8 @@ export default function TransactionsPage() {
               payer={filters.payer}
               paymentMethod={filters.paymentMethod}
               search={debouncedSearch}
+              notInBudget={filters.notInBudget}
+              onNotInBudgetChange={handleNotInBudgetChange}
               onChange={(from, to, category, group, payer, paymentMethod, search) => {
                 setDebouncedSearch(search);
                 // Immediately apply other filters, but keep search debounced

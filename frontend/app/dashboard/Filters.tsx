@@ -40,6 +40,12 @@ interface Props {
   showDateRange?: boolean;
   showCountry?: boolean;
   showMonth?: boolean;
+  /**
+   * With showMonth, makes the year dropdown filter the data (an "All years"
+   * option is added and month chips only appear once a year is chosen). Without
+   * it, the year only picks which months the chips list.
+   */
+  filterByYear?: boolean;
 }
 
 type Preset = "30d" | "all";
@@ -69,6 +75,23 @@ function monthRange(fromStr: string, toStr: string): string[] {
 function monthLabel(monthKey: string): string {
   const [y, m] = monthKey.split("-").map(Number);
   return format(new Date(y, m - 1, 1), "MMM yyyy");
+}
+
+/**
+ * Whole-year range for the dashboard's default view: the current year if the
+ * data covers it, otherwise the most recent year with data. Unbounded when
+ * there is no data.
+ */
+export function defaultYearRange(
+  dateRange: { from: string; to: string } | null,
+  now: Date = new Date()
+): { from: string; to: string } {
+  if (!dateRange) return { from: "", to: "" };
+  const firstYear = Number(dateRange.from.slice(0, 4));
+  const lastYear = Number(dateRange.to.slice(0, 4));
+  const current = now.getFullYear();
+  const year = current >= firstYear && current <= lastYear ? current : lastYear;
+  return { from: `${year}-01-01`, to: `${year}-12-31` };
 }
 
 function MultiSelect({
@@ -162,11 +185,14 @@ export default function Filters({
   showDateRange = true,
   showCountry = true,
   showMonth = false,
+  filterByYear = false,
 }: Props) {
   const [from, setFrom] = useState(initialValues?.from ?? "");
   const [to, setTo] = useState(initialValues?.to ?? "");
   const [month, setMonth] = useState("");
-  const [selectedYear, setSelectedYear] = useState("");
+  const [selectedYear, setSelectedYear] = useState(
+    filterByYear && initialValues?.from ? initialValues.from.slice(0, 4) : ""
+  );
   const [travellers, setTravellers] = useState<string[]>(initialValues?.travellers ?? []);
   const [countries, setCountries] = useState<string[]>(initialValues?.countries ?? []);
   const [groupTypes, setGroupTypes] = useState<string[]>(initialValues?.groupTypes ?? []);
@@ -176,13 +202,14 @@ export default function Filters({
   const monthOptions = meta?.dateRange ? monthRange(meta.dateRange.from, meta.dateRange.to) : [];
   const years = Array.from(new Set(monthOptions.map((key) => key.slice(0, 4))));
   const monthsForYear = monthOptions.filter((key) => key.startsWith(selectedYear));
+  const showMonthChips = !filterByYear || selectedYear !== "";
 
   // Default the year dropdown to the most recent year once the data range loads.
   useEffect(() => {
-    if (selectedYear === "" && years.length > 0) {
+    if (!filterByYear && selectedYear === "" && years.length > 0) {
       setSelectedYear(years[years.length - 1]);
     }
-  }, [years, selectedYear]);
+  }, [years, selectedYear, filterByYear]);
 
   const hasActiveFilters =
     from !== "" ||
@@ -204,11 +231,22 @@ export default function Filters({
     };
   }, [from, to, travellers, countries, groupTypes, month, onChange]);
 
+  function setYearRange(year: string) {
+    setFrom(year ? `${year}-01-01` : "");
+    setTo(year ? `${year}-12-31` : "");
+  }
+
+  function handleYearChange(value: string) {
+    setSelectedYear(value);
+    if (!filterByYear) return;
+    setMonth("");
+    setYearRange(value);
+  }
+
   function handleMonthChange(value: string) {
     setMonth(value);
     if (!value) {
-      setFrom("");
-      setTo("");
+      setYearRange(filterByYear ? selectedYear : "");
       return;
     }
     const [year, monthNum] = value.split("-").map(Number);
@@ -231,6 +269,21 @@ export default function Filters({
         break;
     }
   }
+
+  const groupTypeFilter = (className: string) => (
+    <div className={`space-y-1.5 ${className}`}>
+      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+        Group Type
+      </label>
+      <MultiSelect
+        label="Type"
+        options={(meta?.groupTypes ?? []).map((gt) => gt.value)}
+        selected={groupTypes}
+        onChange={setGroupTypes}
+        renderOption={(val) => meta?.groupTypes?.find((gt) => gt.value === val)?.label ?? val}
+      />
+    </div>
+  );
 
   return (
     <div>
@@ -330,9 +383,10 @@ export default function Filters({
               <select
                 id="filter-year"
                 value={selectedYear}
-                onChange={(e) => setSelectedYear(e.target.value)}
+                onChange={(e) => handleYearChange(e.target.value)}
                 className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
               >
+                {filterByYear && <option value="">All years</option>}
                 {years.map((year) => (
                   <option key={year} value={year}>
                     {year}
@@ -342,6 +396,7 @@ export default function Filters({
             </div>
           </div>
 
+          {showMonthChips && (
           <div className="space-y-1.5 flex-1 min-w-0">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
               Month
@@ -374,6 +429,8 @@ export default function Filters({
               ))}
             </div>
           </div>
+          )}
+          {showGroupType && groupTypeFilter("w-full sm:w-48 shrink-0 sm:ml-auto")}
         </div>
       )}
 
@@ -407,23 +464,8 @@ export default function Filters({
         </div>
       )}
 
-      {/* Group Type multi-select */}
-      {showGroupType && (
-        <div className="space-y-1.5 lg:col-span-2">
-          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-            Group Type
-          </label>
-          <MultiSelect
-            label="Type"
-            options={(meta?.groupTypes ?? []).map((gt) => gt.value)}
-            selected={groupTypes}
-            onChange={setGroupTypes}
-            renderOption={(val) =>
-              meta?.groupTypes?.find((gt) => gt.value === val)?.label ?? val
-            }
-          />
-        </div>
-      )}
+      {/* Group Type multi-select (sits at the end of the year/month row when that row is shown) */}
+      {showGroupType && !showMonth && groupTypeFilter("lg:col-span-2")}
     </div>
     </div>
   );

@@ -3,6 +3,8 @@
  * Extracted so the logic can be unit-tested independently of the database.
  */
 
+import { EXCLUDE_INCOME_SQL } from "./incomeCategory";
+
 export interface TransactionFilterInput {
   from?: string;
   to?: string;
@@ -13,6 +15,8 @@ export interface TransactionFilterInput {
   groupId?: string;
   groupType?: string | string[];
   search?: string;
+  /** Only transactions whose category is neither budgeted nor Income. */
+  notInBudget?: boolean;
 }
 
 export interface TransactionFilterSQL {
@@ -66,6 +70,14 @@ export function buildTransactionFilterSQL(
     const s = `%${params.search}%`;
     const p = addParam(s);
     conditions.push(`(t.description ILIKE ${p} OR c.name ILIKE ${p} OR t.payer ILIKE ${p})`);
+  }
+
+  if (params.notInBudget) {
+    // Mirrors the budget summary's "Not in budget": uncategorized, or a category
+    // with no budget that isn't part of the Income tree.
+    conditions.push(
+      `(t.category_id IS NULL OR (t.category_id NOT IN (SELECT category_id FROM budgets WHERE user_id = $1) AND ${EXCLUDE_INCOME_SQL}))`
+    );
   }
 
   // Filter by the payer stored directly on the transaction, not by split participant.

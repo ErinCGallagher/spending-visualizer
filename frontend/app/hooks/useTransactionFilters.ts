@@ -15,12 +15,14 @@ export interface TransactionFilters {
   payer: string;
   paymentMethod: string;
   search: string;
+  notInBudget: boolean;
 }
 
 interface UseTransactionFiltersResult {
   filters: TransactionFilters;
   page: number;
   setPage: React.Dispatch<React.SetStateAction<number>>;
+  handleNotInBudgetChange: (notInBudget: boolean) => void;
   handleFilterChange: (
     from: string,
     to: string,
@@ -40,6 +42,7 @@ export function useTransactionFilters(): UseTransactionFiltersResult {
   const [payer, setPayer] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
   const [search, setSearch] = useState("");
+  const [notInBudget, setNotInBudget] = useState(false);
   const [page, setPage] = useState(1);
 
   const handleFilterChange = useCallback(
@@ -64,15 +67,21 @@ export function useTransactionFilters(): UseTransactionFiltersResult {
     []
   );
 
+  const handleNotInBudgetChange = useCallback((value: boolean) => {
+    setPage(1);
+    setNotInBudget(value);
+  }, []);
+
   const filters = useMemo(
-    () => ({ from, to, category, group, payer, paymentMethod, search }),
-    [from, to, category, group, payer, paymentMethod, search]
+    () => ({ from, to, category, group, payer, paymentMethod, search, notInBudget }),
+    [from, to, category, group, payer, paymentMethod, search, notInBudget]
   );
 
   return {
     filters,
     page,
     setPage,
+    handleNotInBudgetChange,
     handleFilterChange,
   };
 }

@@ -8,7 +8,7 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
-import Filters, { type FilterValues } from "@/app/dashboard/Filters";
+import Filters, { defaultYearRange, type FilterValues } from "@/app/dashboard/Filters";
 import TripDashboard from "@/app/dashboard/TripDashboard";
 import DashboardTabBar from "@/app/dashboard/DashboardTabBar";
 import DashboardOverview from "@/app/dashboard/DashboardOverview";
@@ -68,8 +68,7 @@ function DashboardContent() {
     if (!metaLoading && meta && !isSeeded.current) {
       isSeeded.current = true;
       setFilters({
-        from: "",
-        to: "",
+        ...defaultYearRange(meta.dateRange),
         travellers: [],
         countries: [],
         groupTypes: meta.overviewDefaultFilter ? [meta.overviewDefaultFilter] : [],
@@ -124,6 +123,10 @@ function DashboardContent() {
                 meta={meta}
                 onChange={handleFiltersChange}
                 showTravellers={false}
+                showDateRange={false}
+                showCountry={false}
+                showMonth
+                filterByYear
                 initialValues={filters}
               />
             </div>
