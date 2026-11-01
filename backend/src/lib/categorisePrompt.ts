@@ -1,12 +1,21 @@
 /** Pure helpers for building and parsing the AI categorisation prompt. */
 
+/** Below this confidence the answer is replaced with Uncategorized so a human decides. */
+export const MIN_CONFIDENCE = 0.3;
+
 export interface TransactionInput {
   description: string;
   country: string | null;
 }
 
+export interface CategoryOption {
+  name: string;
+  parentName: string | null;
+}
+
 export interface CategoriseResult {
-  categoryName: string;
+  parentName: string;
+  subName: string | null;
   confidence: number;
   source: "cache" | "ai";
 }
@@ -17,7 +26,7 @@ export interface CategoriseResult {
  */
 export function buildCategorisePrompt(
   transactions: TransactionInput[],
-  availableCategories: string[]
+  availableCategories: CategoryOption[]
 ): string {
   const lines = transactions
     .map((t, i) => {
@@ -28,23 +37,26 @@ export function buildCategorisePrompt(
 
   const categoryList =
     availableCategories.length > 0
-      ? `Available categories: ${availableCategories.join(", ")}`
+      ? `Available categories (a parent category, optionally followed by "> sub category"):\n${availableCategories
+          .map((c) => `- ${c.parentName ? `${c.parentName} > ${c.name}` : c.name}`)
+          .join("\n")}`
       : "No predefined categories — infer appropriate category names.";
 
   return `You are a personal finance assistant. Assign a category and a confidence score (0.0–1.0) to each transaction below.
 
 ${categoryList}
 
-Prefer categories from the available list when they fit. You may suggest a new category name only if none of the available categories are a reasonable match.
+Prefer categories from the available list when they fit, using the exact parent and sub category names shown. Set "subName" to null when only a parent category applies. You may suggest a new category only if none of the available categories are a reasonable match. If your confidence is below ${MIN_CONFIDENCE}, answer with "parentName": "Uncategorized" and "subName": null instead of guessing.
 
 Transactions (index: description):
 ${lines}
 
-Respond with a JSON array only — no prose, no markdown fences. Each element must have exactly two keys:
-  "categoryName": string
+Respond with a JSON array only — no prose, no markdown fences. Each element must have exactly three keys:
+  "parentName": string
+  "subName": string or null
   "confidence": number between 0 and 1
 
-Example: [{"categoryName":"Food","confidence":0.9},{"categoryName":"Transport","confidence":0.8}]`;
+Example: [{"parentName":"Travel","subName":"Food","confidence":0.9},{"parentName":"Transport","subName":null,"confidence":0.8}]`;
 }
 
 /**
@@ -57,7 +69,8 @@ export function parseCategoriseResponse(
   count: number
 ): CategoriseResult[] {
   const fallback: CategoriseResult[] = Array.from({ length: count }, () => ({
-    categoryName: "Uncategorized",
+    parentName: "Uncategorized",
+    subName: null,
     confidence: 0,
     source: "ai",
   }));
@@ -71,11 +84,19 @@ export function parseCategoriseResponse(
       return fallback;
     }
 
-    return parsed.map((item) => ({
-      categoryName: typeof item.categoryName === "string" ? item.categoryName : "Uncategorized",
-      confidence: typeof item.confidence === "number" ? Math.min(1, Math.max(0, item.confidence)) : 0,
-      source: "ai",
-    }));
+    return parsed.map((item): CategoriseResult => {
+      const confidence =
+        typeof item.confidence === "number" ? Math.min(1, Math.max(0, item.confidence)) : 0;
+      if (confidence < MIN_CONFIDENCE || typeof item.parentName !== "string") {
+        return { parentName: "Uncategorized", subName: null, confidence, source: "ai" };
+      }
+      return {
+        parentName: item.parentName,
+        subName: typeof item.subName === "string" ? item.subName : null,
+        confidence,
+        source: "ai",
+      };
+    });
   } catch {
     return fallback;
   }

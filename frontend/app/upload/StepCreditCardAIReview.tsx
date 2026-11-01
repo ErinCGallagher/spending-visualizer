@@ -7,13 +7,75 @@
 
 import { useEffect, useState } from "react";
 import { formatDate } from "@/lib/format";
-import type { Category, ParsedTransaction } from "./types";
+import type { Category, CategoryAssignment, ParsedTransaction } from "./types";
 
 interface Props {
   transactions: ParsedTransaction[];
   existingTaxonomy: Category[];
   onBack: () => void;
-  onContinue: (transactions: ParsedTransaction[], newCategoryNames: string[]) => void;
+  onContinue: (transactions: ParsedTransaction[], newCategories: CategoryAssignment[]) => void;
+}
+
+/** The AI's answer when it has no confident suggestion; left blank for the user to fill in. */
+const UNCATEGORIZED = "Uncategorized";
+
+/** Select value that switches a dropdown into inline "create new" mode. */
+const NEW_OPTION = "__new__";
+
+interface NewNameInputProps {
+  placeholder: string;
+  validate: (name: string) => string | null;
+  onSubmit: (name: string) => void;
+  onCancel: () => void;
+}
+
+function NewNameInput({ placeholder, validate, onSubmit, onCancel }: NewNameInputProps) {
+  const [name, setName] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  function submit() {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const message = validate(trimmed);
+    if (message) {
+      setError(message);
+      return;
+    }
+    onSubmit(trimmed);
+  }
+
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center gap-1">
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => {
+            setName(e.target.value);
+            setError(null);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") submit();
+            if (e.key === "Escape") onCancel();
+          }}
+          placeholder={placeholder}
+          autoFocus
+          className="border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-800 w-full"
+        />
+        <button
+          onClick={submit}
+          disabled={!name.trim()}
+          className="bg-emerald-800 text-white px-2 py-1 rounded-lg text-sm hover:bg-emerald-900 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Add
+        </button>
+        <button onClick={onCancel} className="text-gray-500 text-sm hover:text-gray-700">
+          Cancel
+        </button>
+      </div>
+      {error && <p className="text-xs text-red-600">{error}</p>}
+    </div>
+  );
 }
 
 function formatAmount(amount: number) {
@@ -24,8 +86,14 @@ function formatAmount(amount: number) {
   }).format(amount);
 }
 
+interface Choice {
+  parent: string;
+  sub: string;
+}
+
 interface CategoriseResult {
-  categoryName: string;
+  parentName: string;
+  subName: string | null;
   confidence: number;
   source: "cache" | "ai";
 }
@@ -39,8 +107,13 @@ export default function StepCreditCardAIReview({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<CategoriseResult[]>([]);
-  /** Final category choices keyed by transaction index */
-  const [choices, setChoices] = useState<Record<number, string>>({});
+  /**
+   * Final category choices keyed by transaction index. Parent and sub are kept
+   * separately because a name can be both a parent and a child (e.g. Food).
+   */
+  const [choices, setChoices] = useState<Record<number, Choice>>({});
+  /** The row and dropdown currently showing the inline "create new" input */
+  const [addingNew, setAddingNew] = useState<{ index: number; kind: "parent" | "sub" } | null>(null);
 
   useEffect(() => {
     async function runCategorisation() {
@@ -70,9 +143,12 @@ export default function StepCreditCardAIReview({
         const categoriseResults: CategoriseResult[] = data.results ?? [];
         setResults(categoriseResults);
 
-        const initialChoices: Record<number, string> = {};
+        const initialChoices: Record<number, Choice> = {};
         categoriseResults.forEach((r, i) => {
-          initialChoices[i] = r.categoryName;
+          initialChoices[i] =
+            r.source === "ai" && r.parentName === UNCATEGORIZED
+              ? { parent: "", sub: "" }
+              : toChoice(r.parentName, r.subName);
         });
         setChoices(initialChoices);
       } catch {
@@ -96,35 +172,67 @@ export default function StepCreditCardAIReview({
     .map((r, i) => ({ ...r, transactionIndex: i }))
     .filter((r) => r.source === "ai");
 
-  const allTaxonomyNames = new Set(
-    existingTaxonomy.flatMap((c) => [c.name, ...c.children.map((ch) => ch.name)])
-  );
-
   const parentCategories = existingTaxonomy.map((c) => c.name);
-  const childToParent = new Map<string, string>();
   const parentToChildren = new Map<string, string[]>();
+  const parentIds = new Map<string, string>();
+  const childIds = new Map<string, Map<string, string>>();
 
   for (const cat of existingTaxonomy) {
     parentToChildren.set(cat.name, cat.children.map((ch) => ch.name));
-    for (const child of cat.children) {
-      childToParent.set(child.name, cat.name);
+    parentIds.set(cat.name, cat.id);
+    childIds.set(cat.name, new Map(cat.children.map((ch) => [ch.name, ch.id])));
+  }
+
+  const existingNames = new Set(
+    existingTaxonomy.flatMap((c) => [c.name, ...c.children.map((ch) => ch.name)])
+  );
+
+  // The categorise route is keyed by name, so a new sub category can't reuse a
+  // name that already exists elsewhere in the taxonomy; those suggestions are dropped.
+  function toChoice(parent: string, sub: string | null): Choice {
+    const usableSub = sub && (parentToChildren.get(parent)?.includes(sub) || !existingNames.has(sub));
+    return { parent, sub: usableSub ? sub : "" };
+  }
+
+  /** New categories implied by the current choices, keyed by name → parent name (null for a new parent). */
+  function pendingCategories(): Map<string, string | null> {
+    const pending = new Map<string, string | null>();
+    for (const { parent, sub } of Object.values(choices)) {
+      if (parent === "") continue;
+      if (!parentIds.has(parent)) pending.set(parent, null);
+      if (sub && !childIds.get(parent)?.has(sub)) pending.set(sub, parent);
     }
+    return pending;
+  }
+
+  function validateNewName(name: string, parentName: string | null): string | null {
+    if (existingNames.has(name)) return `"${name}" already exists. Choose it from the list instead.`;
+    const pending = pendingCategories();
+    if (pending.has(name) && pending.get(name) !== parentName) {
+      return `"${name}" is already being added as a different category.`;
+    }
+    return null;
+  }
+
+  function existingCategoryId({ parent, sub }: Choice): string | undefined {
+    return sub ? childIds.get(parent)?.get(sub) : parentIds.get(parent);
   }
 
   function handleContinue() {
     const updated = transactions.map((t, i) => ({
       ...t,
-      categoryName: choices[i] ?? t.categoryName ?? undefined,
+      categoryName: choices[i] ? choices[i].sub || choices[i].parent || undefined : t.categoryName ?? undefined,
+      categoryId: choices[i] ? existingCategoryId(choices[i]) : undefined,
       categorySource: results[i]?.source === "cache" ? ("user" as const) : ("ai" as const),
       categoryConfidence: results[i]?.confidence ?? 0,
     }));
 
-    const confirmedNames = new Set(
-      updated.map((t) => t.categoryName).filter((n): n is string => !!n)
-    );
-    const newCategoryNames = [...confirmedNames].filter((name) => !allTaxonomyNames.has(name));
+    const newCategories = [...pendingCategories()].map(([categoryName, parentName]) => ({
+      categoryName,
+      parentName,
+    }));
 
-    onContinue(updated, newCategoryNames);
+    onContinue(updated, newCategories);
   }
 
   if (loading) {
@@ -196,17 +304,14 @@ export default function StepCreditCardAIReview({
                 <tbody>
                   {cacheHits.map((s) => {
                     const tx = transactions[s.transactionIndex];
-                    const currentChoice = s.categoryName;
-                    const inferredParent = childToParent.get(currentChoice) || (parentCategories.includes(currentChoice) ? currentChoice : null);
-                    const inferredSub = inferredParent && inferredParent !== currentChoice ? currentChoice : null;
 
                     return (
                       <tr key={s.transactionIndex} className="border-b border-gray-100 last:border-0">
                         <td className="py-2 pr-4 text-gray-500 whitespace-nowrap">{formatDate(tx.date)}</td>
                         <td className="py-2 pr-4 text-gray-700">{tx.description}</td>
                         <td className="py-2 pr-4 text-gray-700">{formatAmount(tx.amountHome)}</td>
-                        <td className="py-2 pr-4 text-gray-700">{inferredParent || "Uncategorised"}</td>
-                        <td className="py-2 text-gray-700">{inferredSub || "—"}</td>
+                        <td className="py-2 pr-4 text-gray-700">{s.parentName || "Uncategorised"}</td>
+                        <td className="py-2 text-gray-700">{s.subName || "—"}</td>
                       </tr>
                     );
                   })}
@@ -238,24 +343,26 @@ export default function StepCreditCardAIReview({
                 {aiSuggestions.map((s) => {
                   const tx = transactions[s.transactionIndex];
                   const isLowConfidence = s.confidence < 0.8;
-                  const currentChoice = choices[s.transactionIndex] ?? "";
-                  
-                  // Determine current parent and sub based on taxonomy
-                  const inferredParent = childToParent.get(currentChoice) || (parentCategories.includes(currentChoice) ? currentChoice : null);
-                  const inferredSub = inferredParent && inferredParent !== currentChoice ? currentChoice : null;
+                  const { parent: currentParent, sub: currentSub } = choices[s.transactionIndex] ?? {
+                    parent: "",
+                    sub: "",
+                  };
 
-                  const parentOptions = [...parentCategories];
-                  // If current choice is completely new, it acts as a new parent for now
-                  if (!inferredParent && currentChoice !== "") {
-                    parentOptions.unshift(currentChoice);
-                  }
+                  const pending = pendingCategories();
+                  const pendingParents = [...pending].filter(([, p]) => p === null).map(([n]) => n);
+                  const parentOptions = [...parentCategories, ...pendingParents];
 
-                  const subOptions = inferredParent ? parentToChildren.get(inferredParent) || [] : [];
+                  const pendingSubs = [...pending].filter(([, p]) => p === currentParent).map(([n]) => n);
+                  const subOptions = [...(parentToChildren.get(currentParent) || []), ...pendingSubs];
+                  const needsHuman = currentParent === "";
+                  const adding = addingNew?.index === s.transactionIndex ? addingNew.kind : null;
 
                   return (
                     <tr
                       key={s.transactionIndex}
-                      className={`border-b border-gray-100 ${isLowConfidence ? "bg-amber-50/40" : ""}`}
+                      className={`border-b border-gray-100 ${
+                        needsHuman ? "bg-red-50" : isLowConfidence ? "bg-amber-50/40" : ""
+                      }`}
                     >
                       <td className="py-3 pr-4 text-gray-600">{formatDate(tx.date)}</td>
                       <td className="py-3 pr-4 text-gray-800">{tx.description}</td>
@@ -263,58 +370,100 @@ export default function StepCreditCardAIReview({
                       <td className="py-3 pr-4">
                         <span
                           className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                            isLowConfidence
-                              ? "bg-amber-50 text-amber-800"
-                              : "bg-emerald-50 text-emerald-800"
+                            s.parentName === UNCATEGORIZED
+                              ? "bg-red-100 text-red-800"
+                              : isLowConfidence
+                                ? "bg-amber-50 text-amber-800"
+                                : "bg-emerald-50 text-emerald-800"
                           }`}
                         >
-                          {s.categoryName} ({Math.round(s.confidence * 100)}%)
+                          {s.parentName === UNCATEGORIZED
+                            ? "No suggestion"
+                            : `${s.subName ? `${s.parentName} > ${s.subName}` : s.parentName} (${Math.round(s.confidence * 100)}%)`}
                         </span>
                       </td>
                       <td className="py-3 pr-4">
-                        <select
-                          value={inferredParent || ""}
-                          onChange={(e) => {
-                            const newParent = e.target.value;
-                            setChoices((prev) => ({
-                              ...prev,
-                              [s.transactionIndex]: newParent,
-                            }));
-                          }}
-                          className="border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-800 w-full"
-                        >
-                          <option value="">Uncategorised</option>
-                          {parentOptions.map((p) => (
-                            <option key={p} value={p}>
-                              {p} {!allTaxonomyNames.has(p) ? "(New)" : ""}
-                            </option>
-                          ))}
-                        </select>
+                        {adding === "parent" ? (
+                          <NewNameInput
+                            placeholder="New parent name…"
+                            validate={(name) => validateNewName(name, null)}
+                            onCancel={() => setAddingNew(null)}
+                            onSubmit={(name) => {
+                              setChoices((prev) => ({
+                                ...prev,
+                                [s.transactionIndex]: { parent: name, sub: "" },
+                              }));
+                              setAddingNew(null);
+                            }}
+                          />
+                        ) : (
+                          <select
+                            value={currentParent}
+                            onChange={(e) => {
+                              const newParent = e.target.value;
+                              if (newParent === NEW_OPTION) {
+                                setAddingNew({ index: s.transactionIndex, kind: "parent" });
+                                return;
+                              }
+                              setChoices((prev) => ({
+                                ...prev,
+                                [s.transactionIndex]: { parent: newParent, sub: "" },
+                              }));
+                            }}
+                            className={`border rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-800 w-full ${
+                              needsHuman ? "border-red-400" : "border-gray-200"
+                            }`}
+                          >
+                            <option value="">Uncategorised</option>
+                            {parentOptions.map((p) => (
+                              <option key={p} value={p}>
+                                {p} {!parentCategories.includes(p) ? "(New)" : ""}
+                              </option>
+                            ))}
+                            <option value={NEW_OPTION}>+ New parent…</option>
+                          </select>
+                        )}
                       </td>
                       <td className="py-3">
-                        <select
-                          value={inferredSub || ""}
-                          disabled={!inferredParent}
-                          onChange={(e) => {
-                            const newSub = e.target.value;
-                            setChoices((prev) => ({
-                              ...prev,
-                              [s.transactionIndex]: newSub || inferredParent || "",
-                            }));
-                          }}
-                          className="border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-800 w-full disabled:bg-gray-50 disabled:text-gray-400"
-                        >
-                          <option value="">Optional / None</option>
-                          {subOptions.map((sub) => (
-                            <option key={sub} value={sub}>
-                              {sub}
-                            </option>
-                          ))}
-                          {/* If the AI suggested a sub that isn't in taxonomy yet */}
-                          {!inferredParent && !parentCategories.includes(currentChoice) && currentChoice !== "" && (
-                             <option value={currentChoice}>{currentChoice} (New)</option>
-                          )}
-                        </select>
+                        {adding === "sub" ? (
+                          <NewNameInput
+                            placeholder="New sub category name…"
+                            validate={(name) => validateNewName(name, currentParent)}
+                            onCancel={() => setAddingNew(null)}
+                            onSubmit={(name) => {
+                              setChoices((prev) => ({
+                                ...prev,
+                                [s.transactionIndex]: { parent: currentParent, sub: name },
+                              }));
+                              setAddingNew(null);
+                            }}
+                          />
+                        ) : (
+                          <select
+                            value={currentSub}
+                            disabled={!currentParent}
+                            onChange={(e) => {
+                              const newSub = e.target.value;
+                              if (newSub === NEW_OPTION) {
+                                setAddingNew({ index: s.transactionIndex, kind: "sub" });
+                                return;
+                              }
+                              setChoices((prev) => ({
+                                ...prev,
+                                [s.transactionIndex]: { parent: currentParent, sub: newSub },
+                              }));
+                            }}
+                            className="border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-800 w-full disabled:bg-gray-50 disabled:text-gray-400"
+                          >
+                            <option value="">Optional / None</option>
+                            {subOptions.map((sub) => (
+                              <option key={sub} value={sub}>
+                                {sub} {!parentToChildren.get(currentParent)?.includes(sub) ? "(New)" : ""}
+                              </option>
+                            ))}
+                            <option value={NEW_OPTION}>+ New sub category…</option>
+                          </select>
+                        )}
                       </td>
                     </tr>
                   );

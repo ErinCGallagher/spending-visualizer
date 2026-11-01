@@ -26,8 +26,7 @@ const mockData: TransactionsResponse = {
 };
 
 describe("TransactionTable", () => {
-  it("calls onDelete with the transaction id when the delete button is clicked", () => {
-    const onDelete = vi.fn();
+  it("does not render per-row edit or delete buttons", () => {
     render(
       <TransactionTable
         data={mockData}
@@ -35,18 +34,15 @@ describe("TransactionTable", () => {
         page={1}
         totalPages={1}
         onPageChange={vi.fn()}
-        onDelete={onDelete}
         selectedIds={new Set()}
         allOnPageSelected={false}
         onToggleRow={vi.fn()}
         onToggleAllOnPage={vi.fn()}
-        onEditCategory={vi.fn()}
       />
     );
 
-    fireEvent.click(screen.getByLabelText(/delete transaction coffee shop/i));
-
-    expect(onDelete).toHaveBeenCalledWith("tx-1");
+    expect(screen.queryByRole("button", { name: /edit category/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /delete transaction/i })).not.toBeInTheDocument();
   });
 
   it("calls onToggleRow when a row checkbox is clicked", () => {
@@ -58,12 +54,10 @@ describe("TransactionTable", () => {
         page={1}
         totalPages={1}
         onPageChange={vi.fn()}
-        onDelete={vi.fn()}
         selectedIds={new Set()}
         allOnPageSelected={false}
         onToggleRow={onToggleRow}
         onToggleAllOnPage={vi.fn()}
-        onEditCategory={vi.fn()}
       />
     );
 
@@ -81,12 +75,10 @@ describe("TransactionTable", () => {
         page={1}
         totalPages={1}
         onPageChange={vi.fn()}
-        onDelete={vi.fn()}
         selectedIds={new Set()}
         allOnPageSelected={false}
         onToggleRow={vi.fn()}
         onToggleAllOnPage={onToggleAllOnPage}
-        onEditCategory={vi.fn()}
       />
     );
 

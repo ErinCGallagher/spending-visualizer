@@ -17,7 +17,7 @@ import { useFetch } from "@/app/hooks/useFetch";
 import type { Category } from "@/app/upload/types";
 
 interface Meta {
-  categories: { id: string; name: string }[];
+  categories: { id: string; name: string; parentId: string | null }[];
   travellers: string[];
   paymentMethods: string[];
   dateRange: { from: string; to: string } | null;
@@ -66,7 +66,7 @@ export default function TransactionsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectAllMatching, setSelectAllMatching] = useState(false);
   const [showBulkCategoryModal, setShowBulkCategoryModal] = useState(false);
-  const [editingCategoryTxId, setEditingCategoryTxId] = useState<string | null>(null);
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [categorySaving, setCategorySaving] = useState(false);
   const [categoryError, setCategoryError] = useState<string | null>(null);
 
@@ -84,7 +84,6 @@ export default function TransactionsPage() {
   const [showGroupDeleteModal, setShowGroupDeleteModal] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteResult, setDeleteResult] = useState<number | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const fetchMeta = useCallback(() => {
@@ -130,16 +129,6 @@ export default function TransactionsPage() {
   useEffect(() => {
     fetchTransactions(page, filters);
   }, [page, filters, fetchTransactions]);
-
-  function findCategorySelection(categoryId: string | null) {
-    if (!categoryId || !taxonomy) return { parentId: undefined, subId: undefined };
-    for (const parent of taxonomy) {
-      if (parent.id === categoryId) return { parentId: parent.id, subId: undefined };
-      const child = parent.children.find((c) => c.id === categoryId);
-      if (child) return { parentId: parent.id, subId: child.id };
-    }
-    return { parentId: undefined, subId: undefined };
-  }
 
   function buildFilterPayload(f: typeof filters) {
     const payload: Record<string, string> = {};
@@ -204,27 +193,6 @@ export default function TransactionsPage() {
       .finally(() => setCategorySaving(false));
   }
 
-  function handleSingleCategorySave(categoryId: string) {
-    if (!editingCategoryTxId) return;
-    setCategorySaving(true);
-    setCategoryError(null);
-
-    fetch(`/api/transactions/${editingCategoryTxId}`, {
-      method: "PATCH",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ categoryId }),
-    })
-      .then((r) => {
-        if (!r.ok) throw new Error("Failed to update category");
-        setEditingCategoryTxId(null);
-        fetchMeta();
-        fetchTransactions(page, filters);
-      })
-      .catch(() => setCategoryError("Failed to update category. Please try again."))
-      .finally(() => setCategorySaving(false));
-  }
-
   function handleGroupDeleteConfirm() {
     setDeleteLoading(true);
     fetch("/api/transactions", {
@@ -269,31 +237,38 @@ export default function TransactionsPage() {
       .finally(() => setDeleteLoading(false));
   }
 
-  function openRowDeleteModal(id: string) {
+  function openBulkDeleteModal() {
     setDeleteError(null);
-    setDeleteTarget(id);
+    setShowBulkDeleteModal(true);
   }
 
-  function closeRowDeleteModal() {
-    setDeleteTarget(null);
+  function closeBulkDeleteModal() {
+    setShowBulkDeleteModal(false);
     setDeleteError(null);
   }
 
-  function handleRowDeleteConfirm() {
-    if (!deleteTarget) return;
+  function handleBulkDeleteConfirm() {
     setDeleteLoading(true);
     setDeleteError(null);
-    fetch(`/api/transactions/${deleteTarget}`, {
+    const body = selectAllMatching
+      ? { filter: buildFilterPayload(filters) }
+      : { ids: [...selectedIds] };
+
+    fetch("/api/transactions/bulk", {
       method: "DELETE",
       credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
     })
       .then((r) => {
-        if (!r.ok) throw new Error("Failed to delete transaction");
-        closeRowDeleteModal();
+        if (!r.ok) throw new Error("Failed to delete transactions");
+        closeBulkDeleteModal();
+        clearSelection();
+        setPage(1);
         fetchMeta();
-        fetchTransactions(page, filters);
+        fetchTransactions(1, filters);
       })
-      .catch(() => setDeleteError("Failed to delete transaction. Please try again."))
+      .catch(() => setDeleteError("Failed to delete transactions. Please try again."))
       .finally(() => setDeleteLoading(false));
   }
 
@@ -301,10 +276,9 @@ export default function TransactionsPage() {
   const allOnPageSelected =
     !!data && data.transactions.length > 0 && data.transactions.every((t) => selectedIds.has(t.id));
   const selectedCount = selectAllMatching ? (data?.total ?? 0) : selectedIds.size;
+  const allSelected = selectedCount > 0 && selectedCount === data?.total;
   const canSelectAllMatching =
     !selectAllMatching && allOnPageSelected && !!data && data.total > data.transactions.length;
-  const editingTx = data?.transactions.find((t) => t.id === editingCategoryTxId) ?? null;
-  const editingSelection = findCategorySelection(editingTx?.categoryId ?? null);
 
   return (
     <main className="min-h-screen animate-fade-in">
@@ -357,6 +331,15 @@ export default function TransactionsPage() {
               >
                 Edit
               </button>
+              {allSelected && (
+                <button
+                  onClick={openBulkDeleteModal}
+                  aria-label="Delete selected transactions"
+                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-1.5 rounded-lg font-medium text-xs"
+                >
+                  Delete
+                </button>
+              )}
               <button
                 onClick={clearSelection}
                 className="text-gray-500 hover:text-gray-700 font-medium"
@@ -372,12 +355,10 @@ export default function TransactionsPage() {
             page={page}
             totalPages={totalPages}
             onPageChange={setPage}
-            onDelete={openRowDeleteModal}
             selectedIds={selectedIds}
             allOnPageSelected={allOnPageSelected}
             onToggleRow={toggleRow}
             onToggleAllOnPage={toggleAllOnPage}
-            onEditCategory={setEditingCategoryTxId}
           />
         </div>
 
@@ -486,14 +467,14 @@ export default function TransactionsPage() {
         />
       )}
 
-      {deleteTarget && (
+      {showBulkDeleteModal && (
         <ConfirmModal
-          title="Delete transaction"
-          description="Are you sure you want to delete this transaction? This cannot be undone."
+          title="Delete transactions"
+          description={`Are you sure? This will delete ${selectedCount.toLocaleString()} transaction${selectedCount !== 1 ? "s" : ""}. This cannot be undone.`}
           confirmLabel="Delete"
           loadingLabel="Deleting…"
-          onConfirm={handleRowDeleteConfirm}
-          onCancel={closeRowDeleteModal}
+          onConfirm={handleBulkDeleteConfirm}
+          onCancel={closeBulkDeleteModal}
           loading={deleteLoading}
           error={deleteError ?? undefined}
           danger
@@ -515,22 +496,6 @@ export default function TransactionsPage() {
         />
       )}
 
-      {editingTx && (
-        <CategoryPickerModal
-          title="Edit category"
-          description={`Choose a new category for ${editingTx.description}.`}
-          taxonomy={taxonomy ?? []}
-          initialParentId={editingSelection.parentId}
-          initialSubId={editingSelection.subId}
-          saving={categorySaving}
-          error={categoryError ?? undefined}
-          onSave={handleSingleCategorySave}
-          onCancel={() => {
-            setEditingCategoryTxId(null);
-            setCategoryError(null);
-          }}
-        />
-      )}
     </main>
   );
 }

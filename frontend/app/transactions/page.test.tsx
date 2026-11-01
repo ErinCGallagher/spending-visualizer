@@ -51,141 +51,180 @@ describe("TransactionsPage", () => {
     });
   });
 
-  it("deletes a transaction after confirming in the modal", async () => {
-    render(<TransactionsPage />);
+  describe("category filter", () => {
+    const hierarchicalMeta = {
+      ...mockMeta,
+      // Sorted by name, as the meta endpoint returns them
+      categories: [
+        { id: "cat-flights", name: "Flights", parentId: "cat-travel" },
+        { id: "cat-food", name: "Food", parentId: null },
+        { id: "cat-travel-food", name: "Food", parentId: "cat-travel" },
+        { id: "cat-travel", name: "Travel", parentId: null },
+      ],
+    };
 
-    await waitFor(() => {
-      expect(screen.getByText("Coffee shop")).toBeInTheDocument();
+    beforeEach(() => {
+      global.fetch = vi.fn().mockImplementation((url: string) => {
+        if (typeof url === "string" && url.startsWith("/api/transactions/meta")) {
+          return Promise.resolve({ ok: true, json: async () => hierarchicalMeta });
+        }
+        return Promise.resolve({ ok: true, json: async () => mockTransactionsResponse });
+      });
     });
 
-    fireEvent.click(screen.getByLabelText(/delete transaction coffee shop/i));
+    async function categorySelect() {
+      render(<TransactionsPage />);
+      await waitFor(() => expect(screen.getByText("Coffee shop")).toBeInTheDocument());
+      fireEvent.click(screen.getByRole("button", { name: /filters/i }));
+      return (await screen.findByDisplayValue("All categories")) as HTMLSelectElement;
+    }
 
-    expect(screen.getByText("Delete transaction")).toBeInTheDocument();
+    it("lists each parent followed by its indented children", async () => {
+      const select = await categorySelect();
+      const labels = [...select.options].map((o) => o.textContent);
 
-    fireEvent.click(screen.getByRole("button", { name: /^delete$/i }));
+      expect(labels).toEqual([
+        "All categories",
+        "Food",
+        "Travel",
+        "\u00A0\u00A0\u00A0Flights",
+        "\u00A0\u00A0\u00A0Food",
+      ]);
+    });
 
-    await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(
-        "/api/transactions/tx-1",
-        expect.objectContaining({ method: "DELETE" })
+    it("filters by a parent's id", async () => {
+      const select = await categorySelect();
+      fireEvent.change(select, { target: { value: "cat-travel" } });
+
+      await waitFor(() => {
+        expect(global.fetch).toHaveBeenCalledWith(
+          expect.stringContaining("category=cat-travel"),
+          expect.anything()
+        );
+      });
+    });
+
+    it("filters by a child's id even when a parent shares its name", async () => {
+      const select = await categorySelect();
+      fireEvent.change(select, { target: { value: "cat-travel-food" } });
+
+      await waitFor(() => {
+        expect(global.fetch).toHaveBeenCalledWith(
+          expect.stringContaining("category=cat-travel-food"),
+          expect.anything()
+        );
+      });
+    });
+  });
+
+  describe("bulk delete", () => {
+    function mockBulk({ total, bulkOk = true }: { total: number; bulkOk?: boolean }) {
+      global.fetch = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+        if (typeof url === "string" && url.startsWith("/api/transactions/meta")) {
+          return Promise.resolve({ ok: true, json: async () => mockMeta });
+        }
+        if (url === "/api/transactions/bulk" && init?.method === "DELETE") {
+          return Promise.resolve({ ok: bulkOk, json: async () => ({ deleted: total }) });
+        }
+        if (typeof url === "string" && url.startsWith("/api/transactions")) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ ...mockTransactionsResponse, total }),
+          });
+        }
+        return Promise.reject(new Error(`Unexpected fetch: ${url}`));
+      });
+    }
+
+    async function selectRow() {
+      render(<TransactionsPage />);
+      await waitFor(() => expect(screen.getByText("Coffee shop")).toBeInTheDocument());
+      fireEvent.click(screen.getByLabelText("Select transaction Coffee shop"));
+    }
+
+    it("shows Delete beside Edit when every transaction is selected", async () => {
+      mockBulk({ total: 1 });
+      await selectRow();
+
+      expect(screen.getByRole("button", { name: "Edit" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /delete selected/i })).toBeInTheDocument();
+    });
+
+    it("hides Delete while only some transactions are selected", async () => {
+      mockBulk({ total: 2 });
+      await selectRow();
+
+      expect(screen.getByRole("button", { name: "Edit" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /delete selected/i })).not.toBeInTheDocument();
+    });
+
+    it("shows Delete once all matching transactions are selected", async () => {
+      mockBulk({ total: 2 });
+      await selectRow();
+
+      fireEvent.click(screen.getByText(/select all 2 matching/i));
+
+      expect(screen.getByRole("button", { name: /delete selected/i })).toBeInTheDocument();
+    });
+
+    it("deletes the selected ids after confirming and clears the selection", async () => {
+      mockBulk({ total: 1 });
+      await selectRow();
+
+      fireEvent.click(screen.getByRole("button", { name: /delete selected/i }));
+      expect(screen.getByText(/delete 1 transaction\b/i)).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: /^delete$/i }));
+
+      await waitFor(() => {
+        expect(global.fetch).toHaveBeenCalledWith(
+          "/api/transactions/bulk",
+          expect.objectContaining({
+            method: "DELETE",
+            body: JSON.stringify({ ids: ["tx-1"] }),
+          })
+        );
+      });
+      await waitFor(() => expect(screen.queryByText(/1 selected/)).not.toBeInTheDocument());
+    });
+
+    it("deletes by filter when all matching transactions are selected", async () => {
+      mockBulk({ total: 2 });
+      await selectRow();
+      fireEvent.click(screen.getByText(/select all 2 matching/i));
+
+      fireEvent.click(screen.getByRole("button", { name: /delete selected/i }));
+      fireEvent.click(screen.getByRole("button", { name: /^delete$/i }));
+
+      await waitFor(() => {
+        expect(global.fetch).toHaveBeenCalledWith(
+          "/api/transactions/bulk",
+          expect.objectContaining({ body: JSON.stringify({ filter: {} }) })
+        );
+      });
+    });
+
+    it("keeps the modal open with an error when the request fails", async () => {
+      mockBulk({ total: 1, bulkOk: false });
+      await selectRow();
+
+      fireEvent.click(screen.getByRole("button", { name: /delete selected/i }));
+      fireEvent.click(screen.getByRole("button", { name: /^delete$/i }));
+
+      expect(await screen.findByText(/failed to delete transactions/i)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /^delete$/i })).toBeInTheDocument();
+    });
+
+    it("does not delete when cancelled", async () => {
+      mockBulk({ total: 1 });
+      await selectRow();
+
+      fireEvent.click(screen.getByRole("button", { name: /delete selected/i }));
+      fireEvent.click(screen.getByRole("button", { name: /^cancel$/i }));
+
+      expect(global.fetch).not.toHaveBeenCalledWith(
+        "/api/transactions/bulk",
+        expect.anything()
       );
     });
-
-    await waitFor(() => {
-      expect(screen.queryByText("Delete transaction")).not.toBeInTheDocument();
-    });
-  });
-
-  it("closes the modal without deleting when cancel is clicked", async () => {
-    render(<TransactionsPage />);
-
-    await waitFor(() => {
-      expect(screen.getByText("Coffee shop")).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByLabelText(/delete transaction coffee shop/i));
-    expect(screen.getByText("Delete transaction")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: /^cancel$/i }));
-
-    expect(screen.queryByText("Delete transaction")).not.toBeInTheDocument();
-    expect(global.fetch).not.toHaveBeenCalledWith(
-      "/api/transactions/tx-1",
-      expect.objectContaining({ method: "DELETE" })
-    );
-  });
-
-  it("shows an error and keeps the modal open when the delete request fails", async () => {
-    global.fetch = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
-      if (typeof url === "string" && url.startsWith("/api/transactions/meta")) {
-        return Promise.resolve({ ok: true, json: async () => mockMeta });
-      }
-      if (typeof url === "string" && url.startsWith("/api/transactions/tx-1") && init?.method === "DELETE") {
-        return Promise.resolve({ ok: false, status: 500, json: async () => ({ error: "Internal server error" }) });
-      }
-      if (typeof url === "string" && url.startsWith("/api/transactions")) {
-        return Promise.resolve({ ok: true, json: async () => mockTransactionsResponse });
-      }
-      return Promise.reject(new Error(`Unexpected fetch: ${url}`));
-    });
-
-    render(<TransactionsPage />);
-
-    await waitFor(() => {
-      expect(screen.getByText("Coffee shop")).toBeInTheDocument();
-    });
-
-    const listCallsBefore = (global.fetch as any).mock.calls.filter(
-      (call: any[]) => typeof call[0] === "string" && call[0].startsWith("/api/transactions?")
-    ).length;
-
-    fireEvent.click(screen.getByLabelText(/delete transaction coffee shop/i));
-    fireEvent.click(screen.getByRole("button", { name: /^delete$/i }));
-
-    await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(
-        "/api/transactions/tx-1",
-        expect.objectContaining({ method: "DELETE" })
-      );
-    });
-
-    await waitFor(() => {
-      expect(
-        screen.getByText("Failed to delete transaction. Please try again.")
-      ).toBeInTheDocument();
-    });
-
-    // The modal should stay open so the user can retry or cancel.
-    expect(screen.getByText("Delete transaction")).toBeInTheDocument();
-
-    // A failed delete should not trigger a refetch of the transaction list.
-    const listCallsAfter = (global.fetch as any).mock.calls.filter(
-      (call: any[]) => typeof call[0] === "string" && call[0].startsWith("/api/transactions?")
-    ).length;
-    expect(listCallsAfter).toBe(listCallsBefore);
-
-    expect(screen.getByText("Coffee shop")).toBeInTheDocument();
-  });
-
-  it("clears a previous delete error when the modal is reopened", async () => {
-    let shouldFail = true;
-    global.fetch = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
-      if (typeof url === "string" && url.startsWith("/api/transactions/meta")) {
-        return Promise.resolve({ ok: true, json: async () => mockMeta });
-      }
-      if (typeof url === "string" && url.startsWith("/api/transactions/tx-1") && init?.method === "DELETE") {
-        return shouldFail
-          ? Promise.resolve({ ok: false, status: 500, json: async () => ({ error: "Internal server error" }) })
-          : Promise.resolve({ ok: true, json: async () => ({ ok: true }) });
-      }
-      if (typeof url === "string" && url.startsWith("/api/transactions")) {
-        return Promise.resolve({ ok: true, json: async () => mockTransactionsResponse });
-      }
-      return Promise.reject(new Error(`Unexpected fetch: ${url}`));
-    });
-
-    render(<TransactionsPage />);
-
-    await waitFor(() => {
-      expect(screen.getByText("Coffee shop")).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByLabelText(/delete transaction coffee shop/i));
-    fireEvent.click(screen.getByRole("button", { name: /^delete$/i }));
-
-    await waitFor(() => {
-      expect(
-        screen.getByText("Failed to delete transaction. Please try again.")
-      ).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: /^cancel$/i }));
-    shouldFail = false;
-
-    fireEvent.click(screen.getByLabelText(/delete transaction coffee shop/i));
-
-    expect(
-      screen.queryByText("Failed to delete transaction. Please try again.")
-    ).not.toBeInTheDocument();
   });
 });
