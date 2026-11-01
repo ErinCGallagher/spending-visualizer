@@ -117,6 +117,88 @@ describe("TransactionsPage", () => {
     });
   });
 
+  describe("not in budget filter", () => {
+    function stubFetch(total = 1) {
+      global.fetch = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+        if (typeof url === "string" && url.startsWith("/api/transactions/meta")) {
+          return Promise.resolve({ ok: true, json: async () => mockMeta });
+        }
+        if (url === "/api/transactions/bulk" && init?.method === "DELETE") {
+          return Promise.resolve({ ok: true, json: async () => ({ deleted: total }) });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ ...mockTransactionsResponse, total }),
+        });
+      });
+    }
+
+    function listUrls() {
+      return (global.fetch as any).mock.calls
+        .map((call: any[]) => call[0])
+        .filter((u: unknown) => typeof u === "string" && u.startsWith("/api/transactions?"));
+    }
+
+    async function openFilters() {
+      render(<TransactionsPage />);
+      await waitFor(() => expect(screen.getByText("Coffee shop")).toBeInTheDocument());
+      fireEvent.click(screen.getByRole("button", { name: /filters/i }));
+      return screen.findByLabelText("Not in budget") as Promise<HTMLInputElement>;
+    }
+
+    it("requests only transactions outside the budget when checked", async () => {
+      stubFetch();
+      const checkbox = await openFilters();
+      expect(listUrls().at(-1)).not.toContain("notInBudget");
+
+      fireEvent.click(checkbox);
+
+      await waitFor(() => expect(listUrls().at(-1)).toContain("notInBudget=true"));
+    });
+
+    it("stops filtering when unchecked", async () => {
+      stubFetch();
+      const checkbox = await openFilters();
+
+      fireEvent.click(checkbox);
+      await waitFor(() => expect(listUrls().at(-1)).toContain("notInBudget=true"));
+      fireEvent.click(checkbox);
+
+      await waitFor(() => expect(listUrls().at(-1)).not.toContain("notInBudget"));
+    });
+
+    it("is cleared by the reset button", async () => {
+      stubFetch();
+      const checkbox = await openFilters();
+      fireEvent.click(checkbox);
+      await waitFor(() => expect(checkbox.checked).toBe(true));
+
+      fireEvent.click(screen.getByTitle("Reset filters"));
+
+      await waitFor(() => expect(checkbox.checked).toBe(false));
+      await waitFor(() => expect(listUrls().at(-1)).not.toContain("notInBudget"));
+    });
+
+    it("limits a delete of all matching transactions to the filtered set", async () => {
+      stubFetch(2);
+      const checkbox = await openFilters();
+      fireEvent.click(checkbox);
+      await waitFor(() => expect(listUrls().at(-1)).toContain("notInBudget=true"));
+
+      fireEvent.click(await screen.findByLabelText("Select transaction Coffee shop"));
+      fireEvent.click(screen.getByText(/select all 2 matching/i));
+      fireEvent.click(screen.getByRole("button", { name: /delete selected/i }));
+      fireEvent.click(screen.getByRole("button", { name: /^delete$/i }));
+
+      await waitFor(() => {
+        expect(global.fetch).toHaveBeenCalledWith(
+          "/api/transactions/bulk",
+          expect.objectContaining({ body: JSON.stringify({ filter: { notInBudget: true } }) })
+        );
+      });
+    });
+  });
+
   describe("bulk delete", () => {
     function mockBulk({ total, bulkOk = true }: { total: number; bulkOk?: boolean }) {
       global.fetch = vi.fn().mockImplementation((url: string, init?: RequestInit) => {

@@ -22,6 +22,8 @@ export interface TransactionQueryParams {
   groupId: string | undefined;
   groupType: string[];
   search: string | undefined;
+  /** Only transactions whose category is neither budgeted nor Income. */
+  notInBudget: boolean;
   page: number;
   limit: number;
 }
@@ -82,6 +84,7 @@ export function parseTransactionQuery(raw: Record<string, unknown>): {
   const groupId = typeof raw.groupId === "string" ? raw.groupId : undefined;
   const groupType = [raw.groupType ?? []].flat().filter(Boolean) as string[];
   const search = typeof raw.search === "string" ? raw.search : undefined;
+  const notInBudget = raw.notInBudget === "true";
 
   if (from !== undefined && !ISO_DATE.test(from)) {
     errors.push({ field: "from", message: "Must be ISO date (YYYY-MM-DD)" });
@@ -104,7 +107,7 @@ export function parseTransactionQuery(raw: Record<string, unknown>): {
   const limit = parseLimitParam(raw.limit, 50, errors);
 
   return {
-    params: { from, to, category, paymentMethod, traveller, groupId, groupType, search, page, limit },
+    params: { from, to, category, paymentMethod, traveller, groupId, groupType, search, notInBudget, page, limit },
     errors,
   };
 }

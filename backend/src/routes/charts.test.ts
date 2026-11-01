@@ -1,7 +1,13 @@
 /** Unit tests for the charts route row mapper functions. */
 
 import { describe, it, expect } from "vitest";
-import { mapCountryTotalRow, excludeIncomeRows, extractIncomeTotal, INCOME_CATEGORY } from "./charts";
+import {
+  mapCountryTotalRow,
+  mapPaymentMethodTotalRow,
+  excludeIncomeRows,
+  extractIncomeTotal,
+  INCOME_CATEGORY,
+} from "./charts";
 
 describe("extractIncomeTotal", () => {
   it("negates the stored-negative income total into a positive amount", () => {
@@ -62,5 +68,16 @@ describe("mapCountryTotalRow", () => {
     const row = { country: "France", total: "999.99", days: "5", per_day: null };
     const result = mapCountryTotalRow(row);
     expect(result.perDay).toBe(0);
+  });
+});
+
+describe("mapPaymentMethodTotalRow", () => {
+  it("maps the method name and parses the total", () => {
+    const result = mapPaymentMethodTotalRow({ payment_method: "Amex", total: "1234.56" });
+    expect(result).toEqual({ paymentMethod: "Amex", total: 1234.56 });
+  });
+
+  it("keeps negative totals (refunds outweighing spend)", () => {
+    expect(mapPaymentMethodTotalRow({ payment_method: "Visa", total: "-20.5" }).total).toBe(-20.5);
   });
 });

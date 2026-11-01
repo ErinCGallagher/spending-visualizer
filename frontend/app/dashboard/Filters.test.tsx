@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import Filters, { type Meta } from "./Filters";
+import Filters, { defaultYearRange, type Meta } from "./Filters";
 
 const mockMeta: Meta = {
   categories: [],
@@ -175,5 +175,182 @@ describe("Filters Component", () => {
     expect(screen.getByText("Nov 2023")).toBeInTheDocument();
     expect(screen.getByText("Dec 2023")).toBeInTheDocument();
     expect(screen.queryByText("Jan 2024")).not.toBeInTheDocument();
+  });
+
+  describe("filterByYear", () => {
+    const multiYearMeta: Meta = {
+      ...mockMeta,
+      dateRange: { from: "2023-11-01", to: "2024-02-29" },
+    };
+
+    function renderByYear(onChange = vi.fn()) {
+      render(
+        <Filters
+          meta={multiYearMeta}
+          onChange={onChange}
+          showTravellers={false}
+          showDateRange={false}
+          showCountry={false}
+          showMonth
+          filterByYear
+        />
+      );
+      return onChange;
+    }
+
+    function lastEmitted(onChange: ReturnType<typeof vi.fn>) {
+      return onChange.mock.calls[onChange.mock.calls.length - 1][0];
+    }
+
+    it("offers All years first and starts unbounded", async () => {
+      const onChange = renderByYear();
+
+      const yearSelect = screen.getByLabelText(/year/i);
+      expect(yearSelect).toHaveValue("");
+      expect(
+        [...(yearSelect as HTMLSelectElement).options].map((o) => o.textContent)
+      ).toEqual(["All years", "2023", "2024"]);
+
+      await waitFor(() => {
+        expect(lastEmitted(onChange)).toEqual(expect.objectContaining({ from: "", to: "" }));
+      });
+    });
+
+    it("filters to the whole year when a year is chosen", async () => {
+      const onChange = renderByYear();
+
+      fireEvent.change(screen.getByLabelText(/year/i), { target: { value: "2023" } });
+
+      await waitFor(() => {
+        expect(lastEmitted(onChange)).toEqual(
+          expect.objectContaining({ from: "2023-01-01", to: "2023-12-31", month: "" })
+        );
+      });
+    });
+
+    it("only shows month chips once a year is chosen", () => {
+      renderByYear();
+
+      expect(screen.queryByText("All Months")).not.toBeInTheDocument();
+      expect(screen.queryByText("Nov 2023")).not.toBeInTheDocument();
+
+      fireEvent.change(screen.getByLabelText(/year/i), { target: { value: "2023" } });
+
+      expect(screen.getByText("All Months")).toBeInTheDocument();
+      expect(screen.getByText("Nov 2023")).toBeInTheDocument();
+      expect(screen.queryByText("Jan 2024")).not.toBeInTheDocument();
+    });
+
+    it("narrows to a month within the year and returns to the year on All Months", async () => {
+      const onChange = renderByYear();
+      fireEvent.change(screen.getByLabelText(/year/i), { target: { value: "2023" } });
+
+      fireEvent.click(screen.getByText("Nov 2023"));
+      await waitFor(() => {
+        expect(lastEmitted(onChange)).toEqual(
+          expect.objectContaining({ from: "2023-11-01", to: "2023-11-30", month: "2023-11" })
+        );
+      });
+
+      fireEvent.click(screen.getByText("All Months"));
+      await waitFor(() => {
+        expect(lastEmitted(onChange)).toEqual(
+          expect.objectContaining({ from: "2023-01-01", to: "2023-12-31", month: "" })
+        );
+      });
+    });
+
+    it("resets the month when the year changes", async () => {
+      const onChange = renderByYear();
+      fireEvent.change(screen.getByLabelText(/year/i), { target: { value: "2023" } });
+      fireEvent.click(screen.getByText("Nov 2023"));
+
+      fireEvent.change(screen.getByLabelText(/year/i), { target: { value: "2024" } });
+
+      await waitFor(() => {
+        expect(lastEmitted(onChange)).toEqual(
+          expect.objectContaining({ from: "2024-01-01", to: "2024-12-31", month: "" })
+        );
+      });
+    });
+
+    it("clears the range when All years is chosen again", async () => {
+      const onChange = renderByYear();
+      fireEvent.change(screen.getByLabelText(/year/i), { target: { value: "2023" } });
+      fireEvent.change(screen.getByLabelText(/year/i), { target: { value: "" } });
+
+      await waitFor(() => {
+        expect(lastEmitted(onChange)).toEqual(
+          expect.objectContaining({ from: "", to: "", month: "" })
+        );
+      });
+    });
+
+    it("starts on the year of the initial range", async () => {
+      const onChange = vi.fn();
+      render(
+        <Filters
+          meta={multiYearMeta}
+          onChange={onChange}
+          showDateRange={false}
+          showMonth
+          filterByYear
+          initialValues={{ from: "2024-01-01", to: "2024-12-31" }}
+        />
+      );
+
+      expect(screen.getByLabelText(/year/i)).toHaveValue("2024");
+      expect(screen.getByText("Feb 2024")).toBeInTheDocument();
+      await waitFor(() => {
+        expect(lastEmitted(onChange)).toEqual(
+          expect.objectContaining({ from: "2024-01-01", to: "2024-12-31" })
+        );
+      });
+    });
+
+    it("puts group type after the months, in the same row, with the months filling the middle", () => {
+      renderByYear();
+      fireEvent.change(screen.getByLabelText(/year/i), { target: { value: "2023" } });
+
+      const row = screen.getByLabelText(/year/i).closest(".flex-wrap")!;
+      const groupType = screen.getByText("Group Type");
+      const lastChip = screen.getByText("Dec 2023");
+
+      expect(row).toContainElement(groupType);
+      expect(lastChip.compareDocumentPosition(groupType) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(screen.getByText("Month").parentElement).toHaveClass("flex-1");
+    });
+
+    it("drops the quick range, date pickers and country but keeps group type", () => {
+      renderByYear();
+
+      expect(screen.queryByText("Quick range")).not.toBeInTheDocument();
+      expect(screen.queryByLabelText("From")).not.toBeInTheDocument();
+      expect(screen.queryByLabelText("To")).not.toBeInTheDocument();
+      expect(screen.queryByText("Country")).not.toBeInTheDocument();
+      expect(screen.getByText("Group Type")).toBeInTheDocument();
+    });
+  });
+});
+
+describe("defaultYearRange", () => {
+  const range = { from: "2023-11-01", to: "2026-03-31" };
+
+  it("is the current year when it has data", () => {
+    expect(defaultYearRange(range, new Date(2025, 5, 1))).toEqual({
+      from: "2025-01-01",
+      to: "2025-12-31",
+    });
+  });
+
+  it("falls back to the most recent year with data", () => {
+    expect(defaultYearRange(range, new Date(2030, 0, 1))).toEqual({
+      from: "2026-01-01",
+      to: "2026-12-31",
+    });
+  });
+
+  it("is unbounded when there is no data", () => {
+    expect(defaultYearRange(null, new Date(2026, 0, 1))).toEqual({ from: "", to: "" });
   });
 });

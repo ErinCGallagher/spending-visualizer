@@ -1,6 +1,6 @@
 /**
  * Manages all data fetching for the dashboard overview.
- * Fetches meta once on mount, then re-fetches all four chart datasets
+ * Fetches meta once on mount, then re-fetches all five chart datasets
  * whenever filters or granularity settings change.
  */
 
@@ -10,6 +10,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { FilterValues } from "@/app/dashboard/Filters";
 import type { CategoryTotal } from "@/app/dashboard/CategoryPieChart";
 import type { MonthlyTotal } from "@/app/dashboard/MonthlyBarChart";
+import type { PaymentMethodTotal } from "@/app/dashboard/PaymentMethodTable";
 import type { CumulativePoint, Granularity } from "@/app/dashboard/CumulativeLineChart";
 
 export interface Meta {
@@ -47,10 +48,12 @@ export interface DashboardData {
   monthlyData: MonthlyTotal[];
   cumulativeData: CumulativePoint[];
   categoryTimelineData: MonthlyTotal[];
+  paymentMethodData: PaymentMethodTotal[];
   categoryLoading: boolean;
   monthlyLoading: boolean;
   cumulativeLoading: boolean;
   categoryTimelineLoading: boolean;
+  paymentMethodLoading: boolean;
 }
 
 export function useDashboardData(
@@ -67,11 +70,13 @@ export function useDashboardData(
   const [monthlyData, setMonthlyData] = useState<MonthlyTotal[]>([]);
   const [cumulativeData, setCumulativeData] = useState<CumulativePoint[]>([]);
   const [categoryTimelineData, setCategoryTimelineData] = useState<MonthlyTotal[]>([]);
+  const [paymentMethodData, setPaymentMethodData] = useState<PaymentMethodTotal[]>([]);
 
   const [categoryLoading, setCategoryLoading] = useState(false);
   const [monthlyLoading, setMonthlyLoading] = useState(false);
   const [cumulativeLoading, setCumulativeLoading] = useState(false);
   const [categoryTimelineLoading, setCategoryTimelineLoading] = useState(false);
+  const [paymentMethodLoading, setPaymentMethodLoading] = useState(false);
 
   useEffect(() => {
     fetch("/api/transactions/meta", { credentials: "include" })
@@ -107,12 +112,14 @@ export function useDashboardData(
       setMonthlyLoading(true);
       setCumulativeLoading(true);
       setCategoryTimelineLoading(true);
+      setPaymentMethodLoading(true);
 
-      const [catRes, monthRes, cumRes, catTimelineRes] = await Promise.allSettled([
+      const [catRes, monthRes, cumRes, catTimelineRes, paymentMethodRes] = await Promise.allSettled([
         fetch(`/api/charts/category-totals?${base}`, { credentials: "include" }),
         fetch(`/api/charts/monthly-totals?${buildParams(f, { groupBy })}`, { credentials: "include" }),
         fetch(`/api/charts/cumulative?${buildParams(f, { granularity: gran })}`, { credentials: "include" }),
         fetch(`/api/charts/monthly-totals?${buildParams(f, { groupBy: "category", granularity: catTimelineGran })}`, { credentials: "include" }),
+        fetch(`/api/charts/payment-method-totals?${base}`, { credentials: "include" }),
       ]);
 
       if (catRes.status === "fulfilled" && catRes.value.ok) {
@@ -136,6 +143,11 @@ export function useDashboardData(
         setCategoryTimelineData(await catTimelineRes.value.json());
       }
       setCategoryTimelineLoading(false);
+
+      if (paymentMethodRes.status === "fulfilled" && paymentMethodRes.value.ok) {
+        setPaymentMethodData(await paymentMethodRes.value.json());
+      }
+      setPaymentMethodLoading(false);
     },
     []
   );
@@ -156,9 +168,11 @@ export function useDashboardData(
     monthlyData,
     cumulativeData,
     categoryTimelineData,
+    paymentMethodData,
     categoryLoading,
     monthlyLoading,
     cumulativeLoading,
     categoryTimelineLoading,
+    paymentMethodLoading,
   };
 }

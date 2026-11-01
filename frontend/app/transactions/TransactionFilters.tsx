@@ -25,6 +25,8 @@ interface Props {
   payer: string;
   paymentMethod: string;
   search: string;
+  notInBudget: boolean;
+  onNotInBudgetChange: (notInBudget: boolean) => void;
   onChange: (
     from: string,
     to: string,
@@ -54,6 +56,8 @@ export default function TransactionFilters({
   payer,
   paymentMethod,
   search,
+  notInBudget,
+  onNotInBudgetChange,
   onChange,
 }: Props) {
   const [showFilters, setShowFilters] = useState(false);
@@ -65,10 +69,12 @@ export default function TransactionFilters({
     group !== "" ||
     payer !== "" ||
     paymentMethod !== "" ||
-    search !== "";
+    search !== "" ||
+    notInBudget;
 
   function resetFilters() {
     onChange("", "", "", "", "", "", "");
+    onNotInBudgetChange(false);
   }
 
   return (
@@ -218,6 +224,17 @@ export default function TransactionFilters({
                 </button>
               )}
             </div>
+          </div>
+          <div className="flex items-end pb-2">
+            <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={notInBudget}
+                onChange={(e) => onNotInBudgetChange(e.target.checked)}
+                className="rounded border-slate-300"
+              />
+              Not in budget
+            </label>
           </div>
         </div>
       )}

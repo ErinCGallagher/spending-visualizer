@@ -13,6 +13,12 @@ describe("parseTransactionQuery", () => {
     expect(params.to).toBeUndefined();
   });
 
+  it("parses notInBudget=true as true and defaults to false", () => {
+    expect(parseTransactionQuery({ notInBudget: "true" }).params.notInBudget).toBe(true);
+    expect(parseTransactionQuery({}).params.notInBudget).toBe(false);
+    expect(parseTransactionQuery({ notInBudget: "false" }).params.notInBudget).toBe(false);
+  });
+
   it("accepts valid ISO dates", () => {
     const { params, errors } = parseTransactionQuery({ from: "2024-01-01", to: "2024-12-31" });
     expect(errors).toHaveLength(0);
