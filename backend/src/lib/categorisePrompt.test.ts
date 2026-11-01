@@ -10,7 +10,7 @@ describe("buildCategorisePrompt", () => {
         { description: "Supermarket", country: "Canada" },
         { description: "Taxi ride", country: null },
       ],
-      ["Food", "Transport"]
+      [{ name: "Food", parentName: null }, { name: "Transport", parentName: null }]
     );
     expect(prompt).toContain("Supermarket");
     expect(prompt).toContain("Taxi ride");
@@ -34,9 +34,27 @@ describe("buildCategorisePrompt", () => {
   });
 
   it("lists available categories when provided", () => {
-    const prompt = buildCategorisePrompt([], ["Food", "Transport"]);
+    const prompt = buildCategorisePrompt(
+      [],
+      [{ name: "Food", parentName: null }, { name: "Transport", parentName: null }]
+    );
     expect(prompt).toContain("Food");
     expect(prompt).toContain("Transport");
+  });
+
+  it("shows each sub category under its parent, keeping same-named categories distinct", () => {
+    const prompt = buildCategorisePrompt(
+      [],
+      [
+        { name: "Food", parentName: null },
+        { name: "Travel", parentName: null },
+        { name: "Food", parentName: "Travel" },
+        { name: "Flights", parentName: "Travel" },
+      ]
+    );
+    expect(prompt).toContain("- Food\n");
+    expect(prompt).toContain("- Travel > Food");
+    expect(prompt).toContain("- Travel > Flights");
   });
 
   it("handles empty category list gracefully", () => {
@@ -57,18 +75,18 @@ describe("buildCategorisePrompt", () => {
 describe("parseCategoriseResponse", () => {
   it("parses a valid JSON array response", () => {
     const text = JSON.stringify([
-      { categoryName: "Food", confidence: 0.9 },
-      { categoryName: "Transport", confidence: 0.7 },
+      { parentName: "Travel", subName: "Food", confidence: 0.9 },
+      { parentName: "Transport", subName: null, confidence: 0.7 },
     ]);
     const result = parseCategoriseResponse(text, 2);
-    expect(result[0]).toEqual({ categoryName: "Food", confidence: 0.9, source: "ai" });
-    expect(result[1]).toEqual({ categoryName: "Transport", confidence: 0.7, source: "ai" });
+    expect(result[0]).toEqual({ parentName: "Travel", subName: "Food", confidence: 0.9, source: "ai" });
+    expect(result[1]).toEqual({ parentName: "Transport", subName: null, confidence: 0.7, source: "ai" });
   });
 
   it("strips markdown code fences before parsing", () => {
-    const text = "```json\n[{\"categoryName\":\"Food\",\"confidence\":0.9}]\n```";
+    const text = "```json\n[{\"parentName\":\"Food\",\"subName\":null,\"confidence\":0.9}]\n```";
     const result = parseCategoriseResponse(text, 1);
-    expect(result[0].categoryName).toBe("Food");
+    expect(result[0].parentName).toBe("Food");
   });
 
   it("returns fallback entries when response is not valid JSON", () => {
@@ -78,7 +96,7 @@ describe("parseCategoriseResponse", () => {
   });
 
   it("returns fallback when array length does not match count", () => {
-    const text = JSON.stringify([{ categoryName: "Food", confidence: 0.9 }]);
+    const text = JSON.stringify([{ parentName: "Food", subName: null, confidence: 0.9 }]);
     const result = parseCategoriseResponse(text, 2);
     expect(result).toHaveLength(2);
     result.forEach((r) => expect(r.confidence).toBe(0));
@@ -86,17 +104,24 @@ describe("parseCategoriseResponse", () => {
 
   it("clamps confidence to 0–1 range", () => {
     const text = JSON.stringify([
-      { categoryName: "A", confidence: 1.5 },
-      { categoryName: "B", confidence: -0.2 },
+      { parentName: "A", subName: null, confidence: 1.5 },
+      { parentName: "B", subName: null, confidence: -0.2 },
     ]);
     const result = parseCategoriseResponse(text, 2);
     expect(result[0].confidence).toBe(1);
     expect(result[1].confidence).toBe(0);
   });
 
-  it("defaults categoryName to Uncategorized when missing", () => {
+  it("defaults parentName to Uncategorized and subName to null when missing", () => {
     const text = JSON.stringify([{ confidence: 0.5 }]);
     const result = parseCategoriseResponse(text, 1);
-    expect(result[0].categoryName).toBe("Uncategorized");
+    expect(result[0].parentName).toBe("Uncategorized");
+    expect(result[0].subName).toBeNull();
+  });
+
+  it("ignores a subName that is not a string", () => {
+    const text = JSON.stringify([{ parentName: "Food", subName: 5, confidence: 0.5 }]);
+    const result = parseCategoriseResponse(text, 1);
+    expect(result[0].subName).toBeNull();
   });
 });

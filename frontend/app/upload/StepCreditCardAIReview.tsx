@@ -24,8 +24,14 @@ function formatAmount(amount: number) {
   }).format(amount);
 }
 
+interface Choice {
+  parent: string;
+  sub: string;
+}
+
 interface CategoriseResult {
-  categoryName: string;
+  parentName: string;
+  subName: string | null;
   confidence: number;
   source: "cache" | "ai";
 }
@@ -39,8 +45,11 @@ export default function StepCreditCardAIReview({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<CategoriseResult[]>([]);
-  /** Final category choices keyed by transaction index */
-  const [choices, setChoices] = useState<Record<number, string>>({});
+  /**
+   * Final category choices keyed by transaction index. Parent and sub are kept
+   * separately because a name can be both a parent and a child (e.g. Food).
+   */
+  const [choices, setChoices] = useState<Record<number, Choice>>({});
 
   useEffect(() => {
     async function runCategorisation() {
@@ -70,9 +79,9 @@ export default function StepCreditCardAIReview({
         const categoriseResults: CategoriseResult[] = data.results ?? [];
         setResults(categoriseResults);
 
-        const initialChoices: Record<number, string> = {};
+        const initialChoices: Record<number, Choice> = {};
         categoriseResults.forEach((r, i) => {
-          initialChoices[i] = r.categoryName;
+          initialChoices[i] = toChoice(r.parentName, r.subName);
         });
         setChoices(initialChoices);
       } catch {
@@ -96,33 +105,44 @@ export default function StepCreditCardAIReview({
     .map((r, i) => ({ ...r, transactionIndex: i }))
     .filter((r) => r.source === "ai");
 
-  const allTaxonomyNames = new Set(
-    existingTaxonomy.flatMap((c) => [c.name, ...c.children.map((ch) => ch.name)])
-  );
-
   const parentCategories = existingTaxonomy.map((c) => c.name);
-  const childToParent = new Map<string, string>();
   const parentToChildren = new Map<string, string[]>();
+  const parentIds = new Map<string, string>();
+  const childIds = new Map<string, Map<string, string>>();
 
   for (const cat of existingTaxonomy) {
     parentToChildren.set(cat.name, cat.children.map((ch) => ch.name));
-    for (const child of cat.children) {
-      childToParent.set(child.name, cat.name);
-    }
+    parentIds.set(cat.name, cat.id);
+    childIds.set(cat.name, new Map(cat.children.map((ch) => [ch.name, ch.id])));
+  }
+
+  // A sub category the taxonomy doesn't know under its parent is dropped, as the
+  // sub dropdown can only offer existing children.
+  function toChoice(parent: string, sub: string | null): Choice {
+    const knownSub = sub && parentToChildren.get(parent)?.includes(sub) ? sub : "";
+    return { parent, sub: knownSub };
+  }
+
+  function existingCategoryId({ parent, sub }: Choice): string | undefined {
+    return sub ? childIds.get(parent)?.get(sub) : parentIds.get(parent);
   }
 
   function handleContinue() {
     const updated = transactions.map((t, i) => ({
       ...t,
-      categoryName: choices[i] ?? t.categoryName ?? undefined,
+      categoryName: choices[i] ? choices[i].sub || choices[i].parent || undefined : t.categoryName ?? undefined,
+      categoryId: choices[i] ? existingCategoryId(choices[i]) : undefined,
       categorySource: results[i]?.source === "cache" ? ("user" as const) : ("ai" as const),
       categoryConfidence: results[i]?.confidence ?? 0,
     }));
 
-    const confirmedNames = new Set(
-      updated.map((t) => t.categoryName).filter((n): n is string => !!n)
-    );
-    const newCategoryNames = [...confirmedNames].filter((name) => !allTaxonomyNames.has(name));
+    const newCategoryNames = [
+      ...new Set(
+        Object.values(choices)
+          .map((c) => c.parent)
+          .filter((name) => name !== "" && !parentIds.has(name))
+      ),
+    ];
 
     onContinue(updated, newCategoryNames);
   }
@@ -196,17 +216,14 @@ export default function StepCreditCardAIReview({
                 <tbody>
                   {cacheHits.map((s) => {
                     const tx = transactions[s.transactionIndex];
-                    const currentChoice = s.categoryName;
-                    const inferredParent = childToParent.get(currentChoice) || (parentCategories.includes(currentChoice) ? currentChoice : null);
-                    const inferredSub = inferredParent && inferredParent !== currentChoice ? currentChoice : null;
 
                     return (
                       <tr key={s.transactionIndex} className="border-b border-gray-100 last:border-0">
                         <td className="py-2 pr-4 text-gray-500 whitespace-nowrap">{formatDate(tx.date)}</td>
                         <td className="py-2 pr-4 text-gray-700">{tx.description}</td>
                         <td className="py-2 pr-4 text-gray-700">{formatAmount(tx.amountHome)}</td>
-                        <td className="py-2 pr-4 text-gray-700">{inferredParent || "Uncategorised"}</td>
-                        <td className="py-2 text-gray-700">{inferredSub || "—"}</td>
+                        <td className="py-2 pr-4 text-gray-700">{s.parentName || "Uncategorised"}</td>
+                        <td className="py-2 text-gray-700">{s.subName || "—"}</td>
                       </tr>
                     );
                   })}
@@ -238,19 +255,18 @@ export default function StepCreditCardAIReview({
                 {aiSuggestions.map((s) => {
                   const tx = transactions[s.transactionIndex];
                   const isLowConfidence = s.confidence < 0.8;
-                  const currentChoice = choices[s.transactionIndex] ?? "";
-                  
-                  // Determine current parent and sub based on taxonomy
-                  const inferredParent = childToParent.get(currentChoice) || (parentCategories.includes(currentChoice) ? currentChoice : null);
-                  const inferredSub = inferredParent && inferredParent !== currentChoice ? currentChoice : null;
+                  const { parent: currentParent, sub: currentSub } = choices[s.transactionIndex] ?? {
+                    parent: "",
+                    sub: "",
+                  };
 
                   const parentOptions = [...parentCategories];
-                  // If current choice is completely new, it acts as a new parent for now
-                  if (!inferredParent && currentChoice !== "") {
-                    parentOptions.unshift(currentChoice);
+                  // If the current parent is completely new, offer it as an option for now
+                  if (currentParent !== "" && !parentCategories.includes(currentParent)) {
+                    parentOptions.unshift(currentParent);
                   }
 
-                  const subOptions = inferredParent ? parentToChildren.get(inferredParent) || [] : [];
+                  const subOptions = parentToChildren.get(currentParent) || [];
 
                   return (
                     <tr
@@ -268,17 +284,17 @@ export default function StepCreditCardAIReview({
                               : "bg-emerald-50 text-emerald-800"
                           }`}
                         >
-                          {s.categoryName} ({Math.round(s.confidence * 100)}%)
+                          {s.subName ? `${s.parentName} > ${s.subName}` : s.parentName} ({Math.round(s.confidence * 100)}%)
                         </span>
                       </td>
                       <td className="py-3 pr-4">
                         <select
-                          value={inferredParent || ""}
+                          value={currentParent}
                           onChange={(e) => {
                             const newParent = e.target.value;
                             setChoices((prev) => ({
                               ...prev,
-                              [s.transactionIndex]: newParent,
+                              [s.transactionIndex]: { parent: newParent, sub: "" },
                             }));
                           }}
                           className="border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-800 w-full"
@@ -286,20 +302,20 @@ export default function StepCreditCardAIReview({
                           <option value="">Uncategorised</option>
                           {parentOptions.map((p) => (
                             <option key={p} value={p}>
-                              {p} {!allTaxonomyNames.has(p) ? "(New)" : ""}
+                              {p} {!parentCategories.includes(p) ? "(New)" : ""}
                             </option>
                           ))}
                         </select>
                       </td>
                       <td className="py-3">
                         <select
-                          value={inferredSub || ""}
-                          disabled={!inferredParent}
+                          value={currentSub}
+                          disabled={!currentParent}
                           onChange={(e) => {
                             const newSub = e.target.value;
                             setChoices((prev) => ({
                               ...prev,
-                              [s.transactionIndex]: newSub || inferredParent || "",
+                              [s.transactionIndex]: { parent: currentParent, sub: newSub },
                             }));
                           }}
                           className="border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-800 w-full disabled:bg-gray-50 disabled:text-gray-400"
@@ -310,10 +326,6 @@ export default function StepCreditCardAIReview({
                               {sub}
                             </option>
                           ))}
-                          {/* If the AI suggested a sub that isn't in taxonomy yet */}
-                          {!inferredParent && !parentCategories.includes(currentChoice) && currentChoice !== "" && (
-                             <option value={currentChoice}>{currentChoice} (New)</option>
-                          )}
                         </select>
                       </td>
                     </tr>

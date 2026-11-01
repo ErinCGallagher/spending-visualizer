@@ -152,14 +152,21 @@ router.post("/categorise", async (req, res) => {
 
   // Build merchant keys and check the cache for previously categorised merchants
   const merchantKeys = transactions.map((tx) => toMerchantKey(tx.description));
-  const { rows: cacheRows } = await pool.query<{ merchant_key: string; category_name: string }>(
-    `SELECT ccm.merchant_key, c.name AS category_name
+  const { rows: cacheRows } = await pool.query<{
+    merchant_key: string;
+    parent_name: string;
+    sub_name: string | null;
+  }>(
+    `SELECT ccm.merchant_key,
+            COALESCE(p.name, c.name) AS parent_name,
+            CASE WHEN p.name IS NOT NULL THEN c.name ELSE NULL END AS sub_name
      FROM credit_card_category_mappings ccm
      JOIN categories c ON c.id = ccm.category_id
+     LEFT JOIN categories p ON p.id = c.parent_id
      WHERE ccm.user_id = $1 AND ccm.merchant_key = ANY($2)`,
     [userId, merchantKeys]
   );
-  const cacheByKey = new Map(cacheRows.map((r) => [r.merchant_key, r.category_name]));
+  const cacheByKey = new Map(cacheRows.map((r) => [r.merchant_key, r]));
 
   // Partition into cache hits and transactions that need AI categorisation
   const uncachedIndices: number[] = [];
@@ -175,8 +182,8 @@ router.post("/categorise", async (req, res) => {
   const results: CategoriseResult[] = transactions.map((_, i) => {
     const cached = cacheByKey.get(merchantKeys[i]);
     return cached
-      ? { categoryName: cached, confidence: 1, source: "cache" }
-      : { categoryName: "Uncategorized", confidence: 0, source: "ai" };
+      ? { parentName: cached.parent_name, subName: cached.sub_name, confidence: 1, source: "cache" }
+      : { parentName: "Uncategorized", subName: null, confidence: 0, source: "ai" };
   });
 
   if (uncachedTransactions.length === 0) {
@@ -184,12 +191,16 @@ router.post("/categorise", async (req, res) => {
     return;
   }
 
-  // Fetch the user's existing category names to give the model context
-  const { rows: catRows } = await pool.query<{ name: string }>(
-    "SELECT name FROM categories WHERE user_id = $1 ORDER BY name",
+  // Fetch the user's existing categories with their parents to give the model context
+  const { rows: catRows } = await pool.query<{ name: string; parent_name: string | null }>(
+    `SELECT c.name, p.name AS parent_name
+     FROM categories c
+     LEFT JOIN categories p ON p.id = c.parent_id
+     WHERE c.user_id = $1
+     ORDER BY COALESCE(p.name, c.name), p.name NULLS FIRST, c.name`,
     [userId]
   );
-  const availableCategories = catRows.map((r) => r.name);
+  const availableCategories = catRows.map((r) => ({ name: r.name, parentName: r.parent_name }));
 
   const prompt = buildCategorisePrompt(uncachedTransactions, availableCategories);
 
@@ -208,10 +219,11 @@ router.post("/categorise", async (req, res) => {
           items: {
             type: "object",
             properties: {
-              categoryName: { type: "string" },
+              parentName: { type: "string" },
+              subName: { type: "string", nullable: true },
               confidence: { type: "number" },
             },
-            required: ["categoryName", "confidence"],
+            required: ["parentName", "subName", "confidence"],
           },
         },
       },
@@ -231,7 +243,7 @@ router.post("/categorise", async (req, res) => {
     // Degrade gracefully — the client can let the user categorise manually
     console.error("AI categorisation error:", err);
     for (const idx of uncachedIndices) {
-      results[idx] = { categoryName: "Uncategorized", confidence: 0, source: "ai" };
+      results[idx] = { parentName: "Uncategorized", subName: null, confidence: 0, source: "ai" };
     }
     res.json({ results });
   }

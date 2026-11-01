@@ -17,6 +17,8 @@ export interface ParsedTransaction {
   date: string;
   category?: string;
   categoryName?: string;
+  /** Set when the category already exists, so the server needn't resolve it by (possibly ambiguous) name. */
+  categoryId?: string;
   categorySource?: "csv" | "ai" | "user" | null;
   country?: string | null;
   traveller?: string;
