@@ -17,7 +17,7 @@ import { useFetch } from "@/app/hooks/useFetch";
 import type { Category } from "@/app/upload/types";
 
 interface Meta {
-  categories: { id: string; name: string }[];
+  categories: { id: string; name: string; parentId: string | null }[];
   travellers: string[];
   paymentMethods: string[];
   dateRange: { from: string; to: string } | null;

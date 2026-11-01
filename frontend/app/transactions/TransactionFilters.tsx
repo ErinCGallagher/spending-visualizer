@@ -9,7 +9,7 @@ import { useState } from "react";
 import { Search, Filter, X } from "lucide-react";
 
 interface Meta {
-  categories: { id: string; name: string }[];
+  categories: { id: string; name: string; parentId: string | null }[];
   travellers: string[];
   paymentMethods: string[];
   dateRange: { from: string; to: string } | null;
@@ -34,6 +34,15 @@ interface Props {
     paymentMethod: string,
     search: string
   ) => void;
+}
+
+type FilterCategory = { id: string; name: string; parentId: string | null };
+
+/** Lists each parent followed by its children, keeping the incoming order within each level. */
+function orderByParent(categories: FilterCategory[]): FilterCategory[] {
+  return categories
+    .filter((c) => !c.parentId)
+    .flatMap((parent) => [parent, ...categories.filter((c) => c.parentId === parent.id)]);
 }
 
 export default function TransactionFilters({
@@ -135,9 +144,9 @@ export default function TransactionFilters({
               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
             >
               <option value="">All categories</option>
-              {(meta?.categories ?? []).map((c) => (
+              {orderByParent(meta?.categories ?? []).map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.name}
+                  {c.parentId ? `\u00A0\u00A0\u00A0${c.name}` : c.name}
                 </option>
               ))}
             </select>

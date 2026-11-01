@@ -98,11 +98,21 @@ router.get("/meta", async (_req, res) => {
 
   try {
     const [catResult, travellerResult, pmResult, countryResult, dateResult, groupResult, currencyResult, userResult] = await Promise.all([
-      pool.query<{ id: string; name: string }>(
-        `SELECT DISTINCT c.id, c.name
-         FROM transactions t
-         JOIN categories c ON c.id = t.category_id
-         WHERE t.user_id = $1
+      // Categories in use, plus the parents of used sub categories so the
+      // filter can offer a parent that has no transactions of its own.
+      pool.query<{ id: string; name: string; parent_id: string | null }>(
+        `SELECT c.id, c.name, c.parent_id
+         FROM categories c
+         WHERE c.user_id = $1
+           AND (
+             c.id IN (SELECT category_id FROM transactions WHERE user_id = $1)
+             OR c.id IN (
+               SELECT sc.parent_id
+               FROM transactions t
+               JOIN categories sc ON sc.id = t.category_id
+               WHERE t.user_id = $1 AND sc.parent_id IS NOT NULL
+             )
+           )
          ORDER BY c.name`,
         [userId]
       ),
@@ -151,7 +161,7 @@ router.get("/meta", async (_req, res) => {
         : null;
 
     res.json({
-      categories: catResult.rows.map((r) => ({ id: r.id, name: r.name })),
+      categories: catResult.rows.map((r) => ({ id: r.id, name: r.name, parentId: r.parent_id })),
       travellers: travellerResult.rows.map((r) => r.payer),
       paymentMethods: pmResult.rows.map((r) => r.payment_method),
       countries: countryResult.rows.map((r) => r.country),

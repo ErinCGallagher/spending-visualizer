@@ -27,6 +27,14 @@ describe("buildTransactionFilterSQL", () => {
     expect(conditions.some((c) => c.includes("t.category_id"))).toBe(true);
   });
 
+  it("matches the category's children as well, binding the category once", () => {
+    const uuid = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
+    const { conditions, values } = buildTransactionFilterSQL("user1", { category: uuid });
+    const condition = conditions.find((c) => c.includes("t.category_id"))!;
+    expect(condition).toContain("parent_id");
+    expect(values.filter((v) => v === uuid)).toHaveLength(1);
+  });
+
   // Bug 1: payer filter must filter by transactions.payer, not transaction_splits.traveller_name
   it("traveller filter adds a t.payer condition, not a transaction_splits join", () => {
     const { joins, conditions } = buildTransactionFilterSQL("user1", {

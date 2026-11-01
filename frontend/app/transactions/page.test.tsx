@@ -51,6 +51,72 @@ describe("TransactionsPage", () => {
     });
   });
 
+  describe("category filter", () => {
+    const hierarchicalMeta = {
+      ...mockMeta,
+      // Sorted by name, as the meta endpoint returns them
+      categories: [
+        { id: "cat-flights", name: "Flights", parentId: "cat-travel" },
+        { id: "cat-food", name: "Food", parentId: null },
+        { id: "cat-travel-food", name: "Food", parentId: "cat-travel" },
+        { id: "cat-travel", name: "Travel", parentId: null },
+      ],
+    };
+
+    beforeEach(() => {
+      global.fetch = vi.fn().mockImplementation((url: string) => {
+        if (typeof url === "string" && url.startsWith("/api/transactions/meta")) {
+          return Promise.resolve({ ok: true, json: async () => hierarchicalMeta });
+        }
+        return Promise.resolve({ ok: true, json: async () => mockTransactionsResponse });
+      });
+    });
+
+    async function categorySelect() {
+      render(<TransactionsPage />);
+      await waitFor(() => expect(screen.getByText("Coffee shop")).toBeInTheDocument());
+      fireEvent.click(screen.getByRole("button", { name: /filters/i }));
+      return (await screen.findByDisplayValue("All categories")) as HTMLSelectElement;
+    }
+
+    it("lists each parent followed by its indented children", async () => {
+      const select = await categorySelect();
+      const labels = [...select.options].map((o) => o.textContent);
+
+      expect(labels).toEqual([
+        "All categories",
+        "Food",
+        "Travel",
+        "\u00A0\u00A0\u00A0Flights",
+        "\u00A0\u00A0\u00A0Food",
+      ]);
+    });
+
+    it("filters by a parent's id", async () => {
+      const select = await categorySelect();
+      fireEvent.change(select, { target: { value: "cat-travel" } });
+
+      await waitFor(() => {
+        expect(global.fetch).toHaveBeenCalledWith(
+          expect.stringContaining("category=cat-travel"),
+          expect.anything()
+        );
+      });
+    });
+
+    it("filters by a child's id even when a parent shares its name", async () => {
+      const select = await categorySelect();
+      fireEvent.change(select, { target: { value: "cat-travel-food" } });
+
+      await waitFor(() => {
+        expect(global.fetch).toHaveBeenCalledWith(
+          expect.stringContaining("category=cat-travel-food"),
+          expect.anything()
+        );
+      });
+    });
+  });
+
   describe("bulk delete", () => {
     function mockBulk({ total, bulkOk = true }: { total: number; bulkOk?: boolean }) {
       global.fetch = vi.fn().mockImplementation((url: string, init?: RequestInit) => {

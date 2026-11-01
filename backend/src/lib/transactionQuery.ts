@@ -43,7 +43,13 @@ export function buildTransactionFilterSQL(
 
   if (params.from) conditions.push(`t.date >= ${addParam(params.from)}`);
   if (params.to) conditions.push(`t.date <= ${addParam(params.to)}`);
-  if (params.category) conditions.push(`t.category_id = ${addParam(params.category)}`);
+  if (params.category) {
+    // A parent category also matches every one of its children.
+    const categoryParam = addParam(params.category);
+    conditions.push(
+      `(t.category_id = ${categoryParam} OR t.category_id IN (SELECT id FROM categories WHERE parent_id = ${categoryParam}))`
+    );
+  }
   if (params.paymentMethod) conditions.push(`t.payment_method = ${addParam(params.paymentMethod)}`);
   if (params.groupId) conditions.push(`t.group_id = ${addParam(params.groupId)}`);
   const groupTypes = [params.groupType ?? []].flat().filter(Boolean);
