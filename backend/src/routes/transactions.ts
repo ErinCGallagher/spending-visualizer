@@ -3,7 +3,7 @@
 import { Router } from "express";
 import { requireAuth } from "../middleware/requireAuth";
 import { pool } from "../db";
-import { parseTransactionQuery, GROUP_TYPE_OPTIONS, UUID_REGEX } from "../lib/queryParams";
+import { parseTransactionQuery, GROUP_TYPE_OPTIONS } from "../lib/queryParams";
 import { buildTransactionFilterSQL, buildGroupsMetaSQL } from "../lib/transactionQuery";
 import { parseBulkCategoryUpdateBody } from "../lib/categoryUpdateValidation";
 import { parseBulkDeleteBody } from "../lib/transactionSelection";
@@ -228,44 +228,6 @@ router.patch("/category", async (req, res) => {
   }
 });
 
-/** PATCH /api/transactions/:id — updates a single transaction's category. */
-router.patch("/:id", async (req, res) => {
-  const userId: string = res.locals.userId;
-  const { id } = req.params;
-  const { categoryId } = req.body as { categoryId: string | null };
-
-  if (categoryId !== null && (typeof categoryId !== "string" || !UUID_REGEX.test(categoryId))) {
-    res.status(400).json({ error: "categoryId must be a valid UUID or null" });
-    return;
-  }
-
-  try {
-    if (categoryId !== null) {
-      const { rows } = await pool.query(
-        "SELECT 1 FROM categories WHERE id = $1 AND user_id = $2",
-        [categoryId, userId]
-      );
-      if (rows.length === 0) {
-        res.status(404).json({ error: "Category not found" });
-        return;
-      }
-    }
-
-    const result = await pool.query(
-      "UPDATE transactions SET category_id = $1, category_source = 'user' WHERE id = $2 AND user_id = $3",
-      [categoryId, id, userId]
-    );
-    if ((result.rowCount ?? 0) === 0) {
-      res.status(404).json({ error: "Transaction not found" });
-      return;
-    }
-    res.json({ ok: true });
-  } catch (err) {
-    console.error("PATCH /api/transactions/:id error:", err);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
 /**
  * DELETE /api/transactions/bulk — deletes either an explicit list of ids or
  * every transaction matching the current list filters. Cascade handles
@@ -308,27 +270,6 @@ router.delete("/bulk", async (req, res) => {
     res.json({ deleted: result.rowCount ?? 0 });
   } catch (err) {
     console.error("DELETE /api/transactions/bulk error:", err);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
-/** DELETE /api/transactions/:id — deletes a single transaction. */
-router.delete("/:id", async (req, res) => {
-  const userId: string = res.locals.userId;
-  const { id } = req.params;
-
-  try {
-    const result = await pool.query(
-      "DELETE FROM transactions WHERE id = $1 AND user_id = $2",
-      [id, userId],
-    );
-    if ((result.rowCount ?? 0) === 0) {
-      res.status(404).json({ error: "Transaction not found" });
-      return;
-    }
-    res.json({ ok: true });
-  } catch (err) {
-    console.error("DELETE /api/transactions/:id error:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 });

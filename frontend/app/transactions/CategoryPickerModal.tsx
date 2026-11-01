@@ -14,8 +14,6 @@ interface Props {
   title: string;
   description: string;
   taxonomy: Category[];
-  initialParentId?: string;
-  initialSubId?: string;
   saving: boolean;
   error?: string;
   onSave: (categoryId: string) => void;
@@ -26,8 +24,6 @@ export default function CategoryPickerModal({
   title,
   description,
   taxonomy,
-  initialParentId,
-  initialSubId,
   saving,
   error,
   onSave,
@@ -36,8 +32,8 @@ export default function CategoryPickerModal({
   const [mounted, setMounted] = useState(false);
   const portalRef = useRef<HTMLElement | null>(null);
 
-  const [parentId, setParentId] = useState(initialParentId ?? "");
-  const [subId, setSubId] = useState(initialSubId ?? "");
+  const [parentId, setParentId] = useState("");
+  const [subId, setSubId] = useState("");
 
   useEffect(() => {
     portalRef.current = document.body;

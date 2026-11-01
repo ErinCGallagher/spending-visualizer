@@ -67,7 +67,6 @@ export default function TransactionsPage() {
   const [selectAllMatching, setSelectAllMatching] = useState(false);
   const [showBulkCategoryModal, setShowBulkCategoryModal] = useState(false);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
-  const [editingCategoryTxId, setEditingCategoryTxId] = useState<string | null>(null);
   const [categorySaving, setCategorySaving] = useState(false);
   const [categoryError, setCategoryError] = useState<string | null>(null);
 
@@ -85,7 +84,6 @@ export default function TransactionsPage() {
   const [showGroupDeleteModal, setShowGroupDeleteModal] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteResult, setDeleteResult] = useState<number | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const fetchMeta = useCallback(() => {
@@ -131,16 +129,6 @@ export default function TransactionsPage() {
   useEffect(() => {
     fetchTransactions(page, filters);
   }, [page, filters, fetchTransactions]);
-
-  function findCategorySelection(categoryId: string | null) {
-    if (!categoryId || !taxonomy) return { parentId: undefined, subId: undefined };
-    for (const parent of taxonomy) {
-      if (parent.id === categoryId) return { parentId: parent.id, subId: undefined };
-      const child = parent.children.find((c) => c.id === categoryId);
-      if (child) return { parentId: parent.id, subId: child.id };
-    }
-    return { parentId: undefined, subId: undefined };
-  }
 
   function buildFilterPayload(f: typeof filters) {
     const payload: Record<string, string> = {};
@@ -205,27 +193,6 @@ export default function TransactionsPage() {
       .finally(() => setCategorySaving(false));
   }
 
-  function handleSingleCategorySave(categoryId: string) {
-    if (!editingCategoryTxId) return;
-    setCategorySaving(true);
-    setCategoryError(null);
-
-    fetch(`/api/transactions/${editingCategoryTxId}`, {
-      method: "PATCH",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ categoryId }),
-    })
-      .then((r) => {
-        if (!r.ok) throw new Error("Failed to update category");
-        setEditingCategoryTxId(null);
-        fetchMeta();
-        fetchTransactions(page, filters);
-      })
-      .catch(() => setCategoryError("Failed to update category. Please try again."))
-      .finally(() => setCategorySaving(false));
-  }
-
   function handleGroupDeleteConfirm() {
     setDeleteLoading(true);
     fetch("/api/transactions", {
@@ -267,34 +234,6 @@ export default function TransactionsPage() {
       .catch(() => {
         setShowDeleteModal(false);
       })
-      .finally(() => setDeleteLoading(false));
-  }
-
-  function openRowDeleteModal(id: string) {
-    setDeleteError(null);
-    setDeleteTarget(id);
-  }
-
-  function closeRowDeleteModal() {
-    setDeleteTarget(null);
-    setDeleteError(null);
-  }
-
-  function handleRowDeleteConfirm() {
-    if (!deleteTarget) return;
-    setDeleteLoading(true);
-    setDeleteError(null);
-    fetch(`/api/transactions/${deleteTarget}`, {
-      method: "DELETE",
-      credentials: "include",
-    })
-      .then((r) => {
-        if (!r.ok) throw new Error("Failed to delete transaction");
-        closeRowDeleteModal();
-        fetchMeta();
-        fetchTransactions(page, filters);
-      })
-      .catch(() => setDeleteError("Failed to delete transaction. Please try again."))
       .finally(() => setDeleteLoading(false));
   }
 
@@ -340,8 +279,6 @@ export default function TransactionsPage() {
   const allSelected = selectedCount > 0 && selectedCount === data?.total;
   const canSelectAllMatching =
     !selectAllMatching && allOnPageSelected && !!data && data.total > data.transactions.length;
-  const editingTx = data?.transactions.find((t) => t.id === editingCategoryTxId) ?? null;
-  const editingSelection = findCategorySelection(editingTx?.categoryId ?? null);
 
   return (
     <main className="min-h-screen animate-fade-in">
@@ -418,12 +355,10 @@ export default function TransactionsPage() {
             page={page}
             totalPages={totalPages}
             onPageChange={setPage}
-            onDelete={openRowDeleteModal}
             selectedIds={selectedIds}
             allOnPageSelected={allOnPageSelected}
             onToggleRow={toggleRow}
             onToggleAllOnPage={toggleAllOnPage}
-            onEditCategory={setEditingCategoryTxId}
           />
         </div>
 
@@ -532,20 +467,6 @@ export default function TransactionsPage() {
         />
       )}
 
-      {deleteTarget && (
-        <ConfirmModal
-          title="Delete transaction"
-          description="Are you sure you want to delete this transaction? This cannot be undone."
-          confirmLabel="Delete"
-          loadingLabel="Deleting…"
-          onConfirm={handleRowDeleteConfirm}
-          onCancel={closeRowDeleteModal}
-          loading={deleteLoading}
-          error={deleteError ?? undefined}
-          danger
-        />
-      )}
-
       {showBulkDeleteModal && (
         <ConfirmModal
           title="Delete transactions"
@@ -575,22 +496,6 @@ export default function TransactionsPage() {
         />
       )}
 
-      {editingTx && (
-        <CategoryPickerModal
-          title="Edit category"
-          description={`Choose a new category for ${editingTx.description}.`}
-          taxonomy={taxonomy ?? []}
-          initialParentId={editingSelection.parentId}
-          initialSubId={editingSelection.subId}
-          saving={categorySaving}
-          error={categoryError ?? undefined}
-          onSave={handleSingleCategorySave}
-          onCancel={() => {
-            setEditingCategoryTxId(null);
-            setCategoryError(null);
-          }}
-        />
-      )}
     </main>
   );
 }

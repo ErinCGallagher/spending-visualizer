@@ -36,12 +36,10 @@ interface Props {
   page: number;
   totalPages: number;
   onPageChange: (page: number) => void;
-  onDelete: (id: string) => void;
   selectedIds: Set<string>;
   allOnPageSelected: boolean;
   onToggleRow: (id: string) => void;
   onToggleAllOnPage: () => void;
-  onEditCategory: (id: string) => void;
 }
 
 function formatAmount(amount: number) {
@@ -57,12 +55,10 @@ export default function TransactionTable({
   page,
   totalPages,
   onPageChange,
-  onDelete,
   selectedIds,
   allOnPageSelected,
   onToggleRow,
   onToggleAllOnPage,
-  onEditCategory,
 }: Props) {
   return (
     <div className="relative min-h-[480px]">
@@ -114,7 +110,6 @@ export default function TransactionTable({
                   <th className="px-4 py-3 text-xs font-semibold tracking-widest text-gray-400 uppercase">
                     Group
                   </th>
-                  <th className="px-4 py-3 text-xs font-semibold tracking-widest text-gray-400 uppercase" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -153,22 +148,6 @@ export default function TransactionTable({
                     </td>
                     <td className="px-4 py-3 text-gray-600">
                       {t.groupName ?? <span className="text-gray-300">—</span>}
-                    </td>
-                    <td className="px-4 py-3 text-right whitespace-nowrap">
-                      <button
-                        onClick={() => onEditCategory(t.id)}
-                        aria-label={`Edit category for ${t.description}`}
-                        className="text-emerald-600 hover:text-emerald-700 text-xs font-medium mr-3"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => onDelete(t.id)}
-                        aria-label={`Delete transaction ${t.description}`}
-                        className="text-red-600 hover:text-red-700 text-xs font-medium"
-                      >
-                        Delete
-                      </button>
                     </td>
                   </tr>
                 ))}
