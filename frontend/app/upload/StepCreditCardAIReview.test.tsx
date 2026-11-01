@@ -100,10 +100,10 @@ describe("StepCreditCardAIReview", () => {
     await screen.findAllByRole("combobox");
 
     fireEvent.click(screen.getByText("Continue"));
-    const [updated, newCategoryNames] = onContinue.mock.calls[0];
+    const [updated, newCategories] = onContinue.mock.calls[0];
     expect(updated[0].categoryName).toBe("Hobbies");
     expect(updated[0].categoryId).toBeUndefined();
-    expect(newCategoryNames).toEqual(["Hobbies"]);
+    expect(newCategories).toEqual([{ categoryName: "Hobbies", parentName: null }]);
   });
 
   it("keeps cache hits' parent and sub without flagging new categories", async () => {
@@ -112,9 +112,165 @@ describe("StepCreditCardAIReview", () => {
     await screen.findByText(/automatically tagged from history/);
 
     fireEvent.click(screen.getByText("Continue"));
-    const [updated, newCategoryNames] = onContinue.mock.calls[0];
+    const [updated, newCategories] = onContinue.mock.calls[0];
     expect(updated[0].categoryId).toBe("4");
-    expect(newCategoryNames).toEqual([]);
+    expect(newCategories).toEqual([]);
+  });
+
+  describe("when the AI has no answer", () => {
+    it("leaves the category blank and flags the row red instead of offering Uncategorized", async () => {
+      stubSuggestion("Uncategorized", null);
+      const onContinue = renderStep();
+
+      const [parentSelect] = (await screen.findAllByRole("combobox")) as HTMLSelectElement[];
+      expect(parentSelect.value).toBe("");
+      expect(screen.getByText("No suggestion")).toBeInTheDocument();
+      expect(parentSelect.closest("tr")).toHaveClass("bg-red-50");
+      expect(screen.queryByRole("option", { name: /Uncategorized \(New\)/ })).toBeNull();
+
+      fireEvent.click(screen.getByText("Continue"));
+      const [updated, newCategories] = onContinue.mock.calls[0];
+      expect(updated[0].categoryName).toBeUndefined();
+      expect(newCategories).toEqual([]);
+    });
+
+    it("clears the red flag once a category is picked", async () => {
+      stubSuggestion("Uncategorized", null);
+      renderStep();
+
+      const [parentSelect] = (await screen.findAllByRole("combobox")) as HTMLSelectElement[];
+      fireEvent.change(parentSelect, { target: { value: "Travel" } });
+
+      expect(parentSelect.closest("tr")).not.toHaveClass("bg-red-50");
+    });
+  });
+
+  describe("when the AI has no answer", () => {
+    it("leaves the category blank and flags the row red instead of creating Uncategorized", async () => {
+      stubSuggestion("Uncategorized", null);
+      const onContinue = renderStep();
+
+      const [parentSelect] = (await screen.findAllByRole("combobox")) as HTMLSelectElement[];
+      expect(parentSelect.value).toBe("");
+      expect(screen.getByText("No suggestion")).toBeInTheDocument();
+      expect(parentSelect.closest("tr")).toHaveClass("bg-red-50");
+
+      fireEvent.click(screen.getByText("Continue"));
+      const [updated, newCategories] = onContinue.mock.calls[0];
+      expect(updated[0].categoryName).toBeUndefined();
+      expect(newCategories).toEqual([]);
+    });
+
+    it("clears the red flag once a category is picked", async () => {
+      stubSuggestion("Uncategorized", null);
+      renderStep();
+
+      const [parentSelect] = (await screen.findAllByRole("combobox")) as HTMLSelectElement[];
+      fireEvent.change(parentSelect, { target: { value: "Travel" } });
+
+      expect(parentSelect.closest("tr")).not.toHaveClass("bg-red-50");
+    });
+  });
+
+  it("keeps a suggested sub category that is new under an existing parent", async () => {
+    stubSuggestion("Travel", "Hostels");
+    const onContinue = renderStep();
+
+    const [parentSelect, subSelect] = (await screen.findAllByRole("combobox")) as HTMLSelectElement[];
+    expect(parentSelect.value).toBe("Travel");
+    expect(subSelect.value).toBe("Hostels");
+
+    fireEvent.click(screen.getByText("Continue"));
+    const [updated, newCategories] = onContinue.mock.calls[0];
+    expect(updated[0].categoryName).toBe("Hostels");
+    expect(newCategories).toEqual([{ categoryName: "Hostels", parentName: "Travel" }]);
+  });
+
+  describe("creating categories inline", () => {
+    async function selects() {
+      return (await screen.findAllByRole("combobox")) as HTMLSelectElement[];
+    }
+
+    function addName(placeholder: string, name: string) {
+      fireEvent.change(screen.getByPlaceholderText(placeholder), { target: { value: name } });
+      fireEvent.click(screen.getByText("Add"));
+    }
+
+    it("creates a new parent and clears the sub category", async () => {
+      const onContinue = renderStep();
+      const [parentSelect] = await selects();
+
+      fireEvent.change(parentSelect, { target: { value: "__new__" } });
+      addName("New parent name…", "Hobbies");
+
+      const [newParentSelect, newSubSelect] = await selects();
+      expect(newParentSelect.value).toBe("Hobbies");
+      expect(newSubSelect.value).toBe("");
+
+      fireEvent.click(screen.getByText("Continue"));
+      const [updated, newCategories] = onContinue.mock.calls[0];
+      expect(updated[0].categoryName).toBe("Hobbies");
+      expect(newCategories).toEqual([{ categoryName: "Hobbies", parentName: null }]);
+    });
+
+    it("creates a new sub category under an existing parent", async () => {
+      const onContinue = renderStep();
+      const [, subSelect] = await selects();
+
+      fireEvent.change(subSelect, { target: { value: "__new__" } });
+      addName("New sub category name…", "Hostels");
+
+      const [, newSubSelect] = await selects();
+      expect(newSubSelect.value).toBe("Hostels");
+
+      fireEvent.click(screen.getByText("Continue"));
+      const [updated, newCategories] = onContinue.mock.calls[0];
+      expect(updated[0].categoryName).toBe("Hostels");
+      expect(updated[0].categoryId).toBeUndefined();
+      expect(newCategories).toEqual([{ categoryName: "Hostels", parentName: "Travel" }]);
+    });
+
+    it("creates a new sub category under a new parent", async () => {
+      const onContinue = renderStep();
+      const [parentSelect] = await selects();
+
+      fireEvent.change(parentSelect, { target: { value: "__new__" } });
+      addName("New parent name…", "Hobbies");
+      const [, subSelect] = await selects();
+      fireEvent.change(subSelect, { target: { value: "__new__" } });
+      addName("New sub category name…", "Climbing");
+
+      fireEvent.click(screen.getByText("Continue"));
+      const [updated, newCategories] = onContinue.mock.calls[0];
+      expect(updated[0].categoryName).toBe("Climbing");
+      expect(newCategories).toEqual([
+        { categoryName: "Hobbies", parentName: null },
+        { categoryName: "Climbing", parentName: "Hobbies" },
+      ]);
+    });
+
+    it("rejects a name that already exists in the taxonomy", async () => {
+      renderStep();
+      const [, subSelect] = await selects();
+
+      fireEvent.change(subSelect, { target: { value: "__new__" } });
+      addName("New sub category name…", "Flights");
+
+      expect(screen.getByText(/already exists/)).toBeInTheDocument();
+      expect(screen.getByPlaceholderText("New sub category name…")).toBeInTheDocument();
+    });
+
+    it("cancels without changing the selection", async () => {
+      renderStep();
+      const [parentSelect] = await selects();
+
+      fireEvent.change(parentSelect, { target: { value: "__new__" } });
+      fireEvent.click(screen.getByText("Cancel"));
+
+      const [restoredParent, restoredSub] = await selects();
+      expect(restoredParent.value).toBe("Travel");
+      expect(restoredSub.value).toBe("Food");
+    });
   });
 
   it("clears the sub category when the parent changes", async () => {

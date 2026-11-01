@@ -182,7 +182,7 @@ interface WizardState {
   assignments: CategoryAssignment[];
   transactions: ParsedTransaction[];
   primaryGroup: { id: string; name: string; groupType: GroupType } | null;
-  newCategoryNames: string[];
+  newCategories: CategoryAssignment[];
   existingTaxonomy: Category[];
 }
 
@@ -197,7 +197,7 @@ export default function UploadPage() {
     assignments: [],
     transactions: [],
     primaryGroup: null,
-    newCategoryNames: [],
+    newCategories: [],
     existingTaxonomy: [],
   });
 
@@ -409,9 +409,9 @@ export default function UploadPage() {
               transactions={state.transactions}
               existingTaxonomy={state.existingTaxonomy}
               onBack={goBack}
-              onContinue={(updated, newCategoryNames) => {
-                setState((prev) => ({ ...prev, transactions: updated, newCategoryNames }));
-                if (newCategoryNames.length === 0) {
+              onContinue={(updated, newCategories) => {
+                setState((prev) => ({ ...prev, transactions: updated, newCategories }));
+                if (newCategories.length === 0) {
                   setSkippedStepIds((prev) => new Set([...prev, "cc-categories"]));
                   // Explicitly jump to next step if skipping
                   const nextIndex = currentIndex + 1;
@@ -430,7 +430,7 @@ export default function UploadPage() {
 
           {currentStepId === "cc-categories" && (
             <StepCreditCardCategories
-              newCategoryNames={state.newCategoryNames}
+              newCategories={state.newCategories}
               existingTaxonomy={state.existingTaxonomy}
               onBack={goBack}
               onContinue={(taxonomy) => {

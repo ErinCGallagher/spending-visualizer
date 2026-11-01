@@ -1,7 +1,7 @@
 /** Unit tests for the AI categorisation prompt builder and response parser. */
 
 import { describe, it, expect } from "vitest";
-import { buildCategorisePrompt, parseCategoriseResponse } from "./categorisePrompt";
+import { buildCategorisePrompt, parseCategoriseResponse, MIN_CONFIDENCE } from "./categorisePrompt";
 
 describe("buildCategorisePrompt", () => {
   it("includes all transaction descriptions", () => {
@@ -55,6 +55,12 @@ describe("buildCategorisePrompt", () => {
     expect(prompt).toContain("- Food\n");
     expect(prompt).toContain("- Travel > Food");
     expect(prompt).toContain("- Travel > Flights");
+  });
+
+  it("tells the model to answer Uncategorized below the minimum confidence", () => {
+    const prompt = buildCategorisePrompt([], [{ name: "Food", parentName: null }]);
+    expect(prompt).toContain(`"Uncategorized"`);
+    expect(prompt).toContain(String(MIN_CONFIDENCE));
   });
 
   it("handles empty category list gracefully", () => {
@@ -117,6 +123,22 @@ describe("parseCategoriseResponse", () => {
     const result = parseCategoriseResponse(text, 1);
     expect(result[0].parentName).toBe("Uncategorized");
     expect(result[0].subName).toBeNull();
+  });
+
+  it("returns Uncategorized when confidence is below the minimum", () => {
+    const text = JSON.stringify([
+      { parentName: "Travel", subName: "Food", confidence: MIN_CONFIDENCE - 0.01 },
+      { parentName: "Travel", subName: "Food", confidence: MIN_CONFIDENCE },
+    ]);
+    const result = parseCategoriseResponse(text, 2);
+    expect(result[0]).toEqual({
+      parentName: "Uncategorized",
+      subName: null,
+      confidence: MIN_CONFIDENCE - 0.01,
+      source: "ai",
+    });
+    expect(result[1].parentName).toBe("Travel");
+    expect(result[1].subName).toBe("Food");
   });
 
   it("ignores a subName that is not a string", () => {

@@ -11,20 +11,26 @@ import type { Category, CategoryAssignment } from "./types";
 import { LockIcon, DragHandle, GROUP_COLORS, callOrganiseCategories } from "./category-shared";
 
 interface Props {
-  newCategoryNames: string[];
+  /** New categories chosen in the review step; a non-null parentName prefills the grouping. */
+  newCategories: CategoryAssignment[];
   existingTaxonomy: Category[];
   onBack: () => void;
   onContinue: (taxonomy: Category[]) => void;
 }
 
 export default function StepCreditCardCategories({
-  newCategoryNames,
+  newCategories,
   existingTaxonomy,
   onBack,
   onContinue,
 }: Props) {
+  const newCategoryNames = newCategories.map((c) => c.categoryName);
   /** child name → parent name */
-  const [categoryAssignments, setCategoryAssignments] = useState<Record<string, string>>({});
+  const [categoryAssignments, setCategoryAssignments] = useState<Record<string, string>>(() =>
+    Object.fromEntries(
+      newCategories.filter((c) => c.parentName).map((c) => [c.categoryName, c.parentName!])
+    )
+  );
   const [userParents, setUserParents] = useState<string[]>([]);
   const [dragging, setDragging] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);

@@ -1,5 +1,8 @@
 /** Pure helpers for building and parsing the AI categorisation prompt. */
 
+/** Below this confidence the answer is replaced with Uncategorized so a human decides. */
+export const MIN_CONFIDENCE = 0.3;
+
 export interface TransactionInput {
   description: string;
   country: string | null;
@@ -43,7 +46,7 @@ export function buildCategorisePrompt(
 
 ${categoryList}
 
-Prefer categories from the available list when they fit, using the exact parent and sub category names shown. Set "subName" to null when only a parent category applies. You may suggest a new category only if none of the available categories are a reasonable match.
+Prefer categories from the available list when they fit, using the exact parent and sub category names shown. Set "subName" to null when only a parent category applies. You may suggest a new category only if none of the available categories are a reasonable match. If your confidence is below ${MIN_CONFIDENCE}, answer with "parentName": "Uncategorized" and "subName": null instead of guessing.
 
 Transactions (index: description):
 ${lines}
@@ -81,12 +84,19 @@ export function parseCategoriseResponse(
       return fallback;
     }
 
-    return parsed.map((item) => ({
-      parentName: typeof item.parentName === "string" ? item.parentName : "Uncategorized",
-      subName: typeof item.subName === "string" ? item.subName : null,
-      confidence: typeof item.confidence === "number" ? Math.min(1, Math.max(0, item.confidence)) : 0,
-      source: "ai",
-    }));
+    return parsed.map((item): CategoriseResult => {
+      const confidence =
+        typeof item.confidence === "number" ? Math.min(1, Math.max(0, item.confidence)) : 0;
+      if (confidence < MIN_CONFIDENCE || typeof item.parentName !== "string") {
+        return { parentName: "Uncategorized", subName: null, confidence, source: "ai" };
+      }
+      return {
+        parentName: item.parentName,
+        subName: typeof item.subName === "string" ? item.subName : null,
+        confidence,
+        source: "ai",
+      };
+    });
   } catch {
     return fallback;
   }

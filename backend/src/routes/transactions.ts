@@ -6,6 +6,7 @@ import { pool } from "../db";
 import { parseTransactionQuery, GROUP_TYPE_OPTIONS, UUID_REGEX } from "../lib/queryParams";
 import { buildTransactionFilterSQL, buildGroupsMetaSQL } from "../lib/transactionQuery";
 import { parseBulkCategoryUpdateBody } from "../lib/categoryUpdateValidation";
+import { parseBulkDeleteBody } from "../lib/transactionSelection";
 
 const router = Router();
 
@@ -261,6 +262,52 @@ router.patch("/:id", async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     console.error("PATCH /api/transactions/:id error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+/**
+ * DELETE /api/transactions/bulk — deletes either an explicit list of ids or
+ * every transaction matching the current list filters. Cascade handles
+ * transaction_splits.
+ */
+router.delete("/bulk", async (req, res) => {
+  const userId: string = res.locals.userId;
+  const { params, errors } = parseBulkDeleteBody(req.body);
+
+  if (errors.length > 0) {
+    res.status(400).json({ errors });
+    return;
+  }
+
+  const { ids, filter } = params;
+
+  try {
+    if (ids) {
+      const result = await pool.query(
+        "DELETE FROM transactions WHERE user_id = $1 AND id = ANY($2)",
+        [userId, ids]
+      );
+      res.json({ deleted: result.rowCount ?? 0 });
+      return;
+    }
+
+    const { joins, conditions, values } = buildTransactionFilterSQL(userId, filter!);
+    const filterJoins = [...new Set(joins)].join("\n");
+    const where = conditions.join(" AND ");
+
+    const result = await pool.query(
+      `DELETE FROM transactions
+       WHERE id IN (
+         SELECT t.id FROM transactions t
+         ${filterJoins}
+         WHERE ${where}
+       )`,
+      values
+    );
+    res.json({ deleted: result.rowCount ?? 0 });
+  } catch (err) {
+    console.error("DELETE /api/transactions/bulk error:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 });

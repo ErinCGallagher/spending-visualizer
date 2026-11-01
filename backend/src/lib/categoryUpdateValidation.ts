@@ -1,17 +1,13 @@
 /** Pure validation for the bulk transaction category-update request body. */
 
 import { UUID_REGEX } from "./queryParams";
-import type { TransactionFilterInput } from "./transactionQuery";
+import { parseTransactionSelection } from "./transactionSelection";
+import type { ParamError, TransactionSelection } from "./transactionSelection";
 
-export interface BulkCategoryUpdateParams {
+export type { ParamError };
+
+export interface BulkCategoryUpdateParams extends TransactionSelection {
   categoryId: string | null;
-  ids?: string[];
-  filter?: TransactionFilterInput;
-}
-
-export interface ParamError {
-  field: string;
-  message: string;
 }
 
 /**
@@ -32,26 +28,11 @@ export function parseBulkCategoryUpdateBody(raw: unknown): {
     errors.push({ field: "categoryId", message: "Must be a valid UUID or null" });
   }
 
-  const hasIds = body.ids !== undefined;
-  const hasFilter = body.filter !== undefined;
-
-  if (hasIds === hasFilter) {
-    errors.push({ field: "ids", message: "Exactly one of ids or filter is required" });
-  }
-
-  let ids: string[] | undefined;
-  if (hasIds) {
-    if (!Array.isArray(body.ids) || body.ids.length === 0 || !body.ids.every((id) => typeof id === "string" && UUID_REGEX.test(id))) {
-      errors.push({ field: "ids", message: "Must be a non-empty array of UUIDs" });
-    } else {
-      ids = body.ids as string[];
-    }
-  }
-
-  const filter = hasFilter ? (body.filter as TransactionFilterInput) : undefined;
+  const { selection, errors: selectionErrors } = parseTransactionSelection(body);
+  errors.push(...selectionErrors);
 
   return {
-    params: { categoryId: categoryId as string | null, ids, filter },
+    params: { categoryId: categoryId as string | null, ...selection },
     errors,
   };
 }

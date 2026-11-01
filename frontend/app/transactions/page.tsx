@@ -66,6 +66,7 @@ export default function TransactionsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectAllMatching, setSelectAllMatching] = useState(false);
   const [showBulkCategoryModal, setShowBulkCategoryModal] = useState(false);
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [editingCategoryTxId, setEditingCategoryTxId] = useState<string | null>(null);
   const [categorySaving, setCategorySaving] = useState(false);
   const [categoryError, setCategoryError] = useState<string | null>(null);
@@ -297,10 +298,46 @@ export default function TransactionsPage() {
       .finally(() => setDeleteLoading(false));
   }
 
+  function openBulkDeleteModal() {
+    setDeleteError(null);
+    setShowBulkDeleteModal(true);
+  }
+
+  function closeBulkDeleteModal() {
+    setShowBulkDeleteModal(false);
+    setDeleteError(null);
+  }
+
+  function handleBulkDeleteConfirm() {
+    setDeleteLoading(true);
+    setDeleteError(null);
+    const body = selectAllMatching
+      ? { filter: buildFilterPayload(filters) }
+      : { ids: [...selectedIds] };
+
+    fetch("/api/transactions/bulk", {
+      method: "DELETE",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    })
+      .then((r) => {
+        if (!r.ok) throw new Error("Failed to delete transactions");
+        closeBulkDeleteModal();
+        clearSelection();
+        setPage(1);
+        fetchMeta();
+        fetchTransactions(1, filters);
+      })
+      .catch(() => setDeleteError("Failed to delete transactions. Please try again."))
+      .finally(() => setDeleteLoading(false));
+  }
+
   const totalPages = data ? Math.max(1, Math.ceil(data.total / PAGE_LIMIT)) : 1;
   const allOnPageSelected =
     !!data && data.transactions.length > 0 && data.transactions.every((t) => selectedIds.has(t.id));
   const selectedCount = selectAllMatching ? (data?.total ?? 0) : selectedIds.size;
+  const allSelected = selectedCount > 0 && selectedCount === data?.total;
   const canSelectAllMatching =
     !selectAllMatching && allOnPageSelected && !!data && data.total > data.transactions.length;
   const editingTx = data?.transactions.find((t) => t.id === editingCategoryTxId) ?? null;
@@ -357,6 +394,15 @@ export default function TransactionsPage() {
               >
                 Edit
               </button>
+              {allSelected && (
+                <button
+                  onClick={openBulkDeleteModal}
+                  aria-label="Delete selected transactions"
+                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-1.5 rounded-lg font-medium text-xs"
+                >
+                  Delete
+                </button>
+              )}
               <button
                 onClick={clearSelection}
                 className="text-gray-500 hover:text-gray-700 font-medium"
@@ -494,6 +540,20 @@ export default function TransactionsPage() {
           loadingLabel="Deleting…"
           onConfirm={handleRowDeleteConfirm}
           onCancel={closeRowDeleteModal}
+          loading={deleteLoading}
+          error={deleteError ?? undefined}
+          danger
+        />
+      )}
+
+      {showBulkDeleteModal && (
+        <ConfirmModal
+          title="Delete transactions"
+          description={`Are you sure? This will delete ${selectedCount.toLocaleString()} transaction${selectedCount !== 1 ? "s" : ""}. This cannot be undone.`}
+          confirmLabel="Delete"
+          loadingLabel="Deleting…"
+          onConfirm={handleBulkDeleteConfirm}
+          onCancel={closeBulkDeleteModal}
           loading={deleteLoading}
           error={deleteError ?? undefined}
           danger
