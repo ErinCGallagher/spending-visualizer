@@ -61,7 +61,7 @@ describe("useDashboardData Hook", () => {
 
   it("fetches charts when filters are provided", async () => {
     // 1st call: meta
-    // 2nd-5th calls: charts
+    // 2nd-6th calls: charts
     globalFetch.mockResolvedValue({
       ok: true,
       json: async () => mockMeta,
@@ -89,8 +89,14 @@ describe("useDashboardData Hook", () => {
 
     await waitFor(() => expect(result.current.categoryLoading).toBe(false));
     
-    // Should have fired 4 chart requests
-    expect(globalFetch).toHaveBeenCalledTimes(5);
+    await waitFor(() => expect(result.current.paymentMethodLoading).toBe(false));
+
+    // Should have fired 5 chart requests plus meta
+    expect(globalFetch).toHaveBeenCalledTimes(6);
+    expect(globalFetch).toHaveBeenCalledWith(
+      expect.stringContaining("/api/charts/payment-method-totals?from=2024-01-01&to=2024-01-31&groupType=trip"),
+      expect.any(Object)
+    );
     expect(globalFetch).toHaveBeenCalledWith(
       expect.stringContaining("/api/charts/category-totals?from=2024-01-01&to=2024-01-31&groupType=trip"),
       expect.any(Object)

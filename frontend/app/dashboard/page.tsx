@@ -54,10 +54,12 @@ function DashboardContent() {
     monthlyData,
     cumulativeData,
     categoryTimelineData,
+    paymentMethodData,
     categoryLoading,
     monthlyLoading,
     cumulativeLoading,
     categoryTimelineLoading,
+    paymentMethodLoading,
   } = useDashboardData(filters, monthlyGroupBy, granularity, categoryTimelineGranularity);
 
   // Seed filters once from meta defaults
@@ -131,10 +133,12 @@ function DashboardContent() {
               monthlyData={monthlyData}
               cumulativeData={cumulativeData}
               categoryTimelineData={categoryTimelineData}
+              paymentMethodData={paymentMethodData}
               categoryLoading={categoryLoading}
               monthlyLoading={monthlyLoading}
               cumulativeLoading={cumulativeLoading}
               categoryTimelineLoading={categoryTimelineLoading}
+              paymentMethodLoading={paymentMethodLoading}
               currency={currency}
               monthlyGroupBy={monthlyGroupBy}
               onMonthlyGroupByChange={setMonthlyGroupBy}

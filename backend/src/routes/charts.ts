@@ -4,6 +4,7 @@ import { Router } from "express";
 import { requireAuth } from "../middleware/requireAuth";
 import { pool } from "../db";
 import { validateGroupTypes } from "../lib/queryParams";
+import { buildChartFilterSQL } from "../lib/chartFilters";
 
 /**
  * The reserved top-level category name for income. Income transactions carry the
@@ -53,6 +54,13 @@ export function mapCountryTotalRow(r: { country: string; total: string; days: st
     total: parseFloat(r.total),
     days: parseInt(r.days, 10),
     perDay: r.per_day != null ? parseFloat(r.per_day) : 0,
+  };
+}
+
+export function mapPaymentMethodTotalRow(r: { payment_method: string; total: string }) {
+  return {
+    paymentMethod: r.payment_method,
+    total: parseFloat(r.total),
   };
 }
 
@@ -146,6 +154,61 @@ router.get("/category-totals", async (req, res) => {
     res.json({ categories: excludeIncomeRows(rows), incomeTotal: extractIncomeTotal(rows) });
   } catch (err) {
     console.error("GET /api/charts/category-totals error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+/**
+ * GET /api/charts/payment-method-totals
+ * Query params: from, to, traveller, country, groupType, groupId
+ * Returns total spent per payment method, largest first, excluding the Income
+ * category tree. Transactions without a payment method are grouped as
+ * "Unknown". When traveller is supplied, sums transaction_splits.amount_home
+ * for that traveller.
+ */
+router.get("/payment-method-totals", async (req, res) => {
+  const userId: string = res.locals.userId;
+  const { from, to, traveller } = req.query as Record<string, string | undefined>;
+  const countries = [req.query.country ?? []].flat().filter(Boolean) as string[];
+  const groupTypes = [req.query.groupType ?? []].flat().filter(Boolean) as string[];
+  const groupTypeError = validateGroupTypes(groupTypes);
+  if (groupTypeError) {
+    res.status(400).json({ error: groupTypeError });
+    return;
+  }
+  const groupId = typeof req.query.groupId === "string" ? req.query.groupId : undefined;
+
+  const { joins, conditions, values } = buildChartFilterSQL(userId, {
+    from,
+    to,
+    countries,
+    groupTypes,
+    groupId,
+  });
+  conditions.push(EXCLUDE_INCOME_SQL);
+
+  if (traveller) {
+    values.push(traveller);
+    joins.push(
+      `JOIN transaction_splits ts ON ts.transaction_id = t.id AND ts.traveller_name = $${values.length}`
+    );
+  }
+  const amountColumn = traveller ? "ts.amount_home" : "t.amount_home";
+
+  try {
+    const result = await pool.query<{ payment_method: string; total: string }>(
+      `SELECT COALESCE(t.payment_method, 'Unknown') AS payment_method,
+              SUM(${amountColumn}) AS total
+       FROM transactions t
+       ${joins.join(" ")}
+       WHERE ${conditions.join(" AND ")}
+       GROUP BY COALESCE(t.payment_method, 'Unknown')
+       ORDER BY total DESC`,
+      values
+    );
+    res.json(result.rows.map(mapPaymentMethodTotalRow));
+  } catch (err) {
+    console.error("GET /api/charts/payment-method-totals error:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 });

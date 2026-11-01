@@ -1,5 +1,5 @@
 /**
- * Overview tab layout — renders the four spending charts in a responsive grid.
+ * Overview tab layout — renders the spending charts and tables in a responsive grid.
  */
 
 "use client";
@@ -16,6 +16,9 @@ import CumulativeLineChart, {
   type Granularity,
 } from "@/app/dashboard/CumulativeLineChart";
 import CategoryLineChart from "@/app/dashboard/CategoryLineChart";
+import PaymentMethodTable, {
+  type PaymentMethodTotal,
+} from "@/app/dashboard/PaymentMethodTable";
 import { DashboardOverviewSkeleton } from "@/app/components/ui/LoadingSkeleton";
 import { formatCurrency } from "@/lib/format";
 
@@ -25,10 +28,12 @@ interface Props {
   monthlyData: MonthlyTotal[];
   cumulativeData: CumulativePoint[];
   categoryTimelineData: MonthlyTotal[];
+  paymentMethodData: PaymentMethodTotal[];
   categoryLoading: boolean;
   monthlyLoading: boolean;
   cumulativeLoading: boolean;
   categoryTimelineLoading: boolean;
+  paymentMethodLoading: boolean;
   currency: string;
   monthlyGroupBy: "category" | "total";
   onMonthlyGroupByChange: (groupBy: "category" | "total") => void;
@@ -44,10 +49,12 @@ export default function DashboardOverview({
   monthlyData,
   cumulativeData,
   categoryTimelineData,
+  paymentMethodData,
   categoryLoading,
   monthlyLoading,
   cumulativeLoading,
   categoryTimelineLoading,
+  paymentMethodLoading,
   currency,
   monthlyGroupBy,
   onMonthlyGroupByChange,
@@ -57,7 +64,11 @@ export default function DashboardOverview({
   onCategoryTimelineGranularityChange,
 }: Props) {
   const isLoading =
-    categoryLoading || monthlyLoading || cumulativeLoading || categoryTimelineLoading;
+    categoryLoading ||
+    monthlyLoading ||
+    cumulativeLoading ||
+    categoryTimelineLoading ||
+    paymentMethodLoading;
 
   const totalSpend = categoryData.reduce((sum, d) => sum + d.total, 0);
 
@@ -125,6 +136,18 @@ export default function DashboardOverview({
             onGroupByChange={onMonthlyGroupByChange}
           />
         </div>
+      </div>
+
+      {/* Spending by payment method */}
+      <div className="bg-slate-50/50 rounded-2xl border border-slate-100 p-6">
+        <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-6">
+          Spending by payment method
+        </h2>
+        <PaymentMethodTable
+          data={paymentMethodData}
+          currency={currency}
+          loading={paymentMethodLoading}
+        />
       </div>
 
       {/* Cumulative spending */}
