@@ -232,11 +232,35 @@ describe("TransactionsPage", () => {
       expect(screen.getByRole("button", { name: /delete selected/i })).toBeInTheDocument();
     });
 
-    it("hides Delete while only some transactions are selected", async () => {
+    it("shows Delete as soon as one transaction is selected, even when more match", async () => {
       mockBulk({ total: 2 });
       await selectRow();
 
       expect(screen.getByRole("button", { name: "Edit" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /delete selected/i })).toBeInTheDocument();
+    });
+
+    it("deletes just the selected transaction when others match the filters", async () => {
+      mockBulk({ total: 2 });
+      await selectRow();
+
+      fireEvent.click(screen.getByRole("button", { name: /delete selected/i }));
+      expect(screen.getByText(/delete 1 transaction\b/i)).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: /^delete$/i }));
+
+      await waitFor(() => {
+        expect(global.fetch).toHaveBeenCalledWith(
+          "/api/transactions/bulk",
+          expect.objectContaining({ body: JSON.stringify({ ids: ["tx-1"] }) })
+        );
+      });
+    });
+
+    it("hides Delete when nothing is selected", async () => {
+      mockBulk({ total: 1 });
+      render(<TransactionsPage />);
+      await waitFor(() => expect(screen.getByText("Coffee shop")).toBeInTheDocument());
+
       expect(screen.queryByRole("button", { name: /delete selected/i })).not.toBeInTheDocument();
     });
 

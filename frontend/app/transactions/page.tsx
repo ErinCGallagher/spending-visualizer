@@ -279,7 +279,6 @@ export default function TransactionsPage() {
   const allOnPageSelected =
     !!data && data.transactions.length > 0 && data.transactions.every((t) => selectedIds.has(t.id));
   const selectedCount = selectAllMatching ? (data?.total ?? 0) : selectedIds.size;
-  const allSelected = selectedCount > 0 && selectedCount === data?.total;
   const canSelectAllMatching =
     !selectAllMatching && allOnPageSelected && !!data && data.total > data.transactions.length;
 
@@ -336,15 +335,13 @@ export default function TransactionsPage() {
               >
                 Edit
               </button>
-              {allSelected && (
-                <button
-                  onClick={openBulkDeleteModal}
-                  aria-label="Delete selected transactions"
-                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-1.5 rounded-lg font-medium text-xs"
-                >
-                  Delete
-                </button>
-              )}
+              <button
+                onClick={openBulkDeleteModal}
+                aria-label="Delete selected transactions"
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-1.5 rounded-lg font-medium text-xs"
+              >
+                Delete
+              </button>
               <button
                 onClick={clearSelection}
                 className="text-gray-500 hover:text-gray-700 font-medium"
