@@ -51,6 +51,61 @@ describe("TransactionsPage", () => {
     });
   });
 
+  describe("default group filter", () => {
+    const groups = [
+      { id: "g-trip", name: "Greece Trip 2026", groupType: "trip" },
+      { id: "g-living", name: "Living", groupType: "daily" },
+    ];
+
+    function stubMeta(metaGroups: typeof groups) {
+      global.fetch = vi.fn().mockImplementation((url: string) => {
+        if (typeof url === "string" && url.startsWith("/api/transactions/meta")) {
+          return Promise.resolve({ ok: true, json: async () => ({ ...mockMeta, groups: metaGroups }) });
+        }
+        return Promise.resolve({ ok: true, json: async () => mockTransactionsResponse });
+      });
+    }
+
+    function listUrls(): string[] {
+      return (global.fetch as any).mock.calls
+        .map((call: any[]) => call[0])
+        .filter((u: unknown) => typeof u === "string" && u.startsWith("/api/transactions?"));
+    }
+
+    async function openFilters() {
+      render(<TransactionsPage />);
+      await waitFor(() => expect(screen.getByText("Coffee shop")).toBeInTheDocument());
+      fireEvent.click(screen.getByRole("button", { name: /filters/i }));
+    }
+
+    it("filters to the Living group by default", async () => {
+      stubMeta(groups);
+      await openFilters();
+
+      await waitFor(() => expect(listUrls().at(-1)).toContain("groupId=g-living"));
+      expect(await screen.findByDisplayValue("Living")).toBeInTheDocument();
+    });
+
+    it("leaves the group unfiltered when there is no Living group", async () => {
+      stubMeta(groups.slice(0, 1));
+      await openFilters();
+
+      await screen.findByDisplayValue("All groups");
+      expect(listUrls().at(-1)).not.toContain("groupId");
+    });
+
+    it("does not re-apply the default after the user clears the group", async () => {
+      stubMeta(groups);
+      await openFilters();
+      const select = await screen.findByDisplayValue("Living");
+
+      fireEvent.change(select, { target: { value: "" } });
+
+      await waitFor(() => expect(listUrls().at(-1)).not.toContain("groupId"));
+      expect(await screen.findByDisplayValue("All groups")).toBeInTheDocument();
+    });
+  });
+
   describe("category filter", () => {
     const hierarchicalMeta = {
       ...mockMeta,

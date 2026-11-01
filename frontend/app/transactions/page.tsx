@@ -5,7 +5,7 @@
 
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import TransactionTable, {
   type TransactionsResponse,
 } from "@/app/transactions/TransactionTable";
@@ -97,6 +97,26 @@ export default function TransactionsPage() {
   useEffect(() => {
     fetchMeta();
   }, [fetchMeta]);
+
+  // Land on the Living group the first time meta loads. Meta is refetched after
+  // edits, so the ref keeps this from overriding a filter the user has since changed.
+  const defaultGroupApplied = useRef(false);
+  useEffect(() => {
+    if (!meta || defaultGroupApplied.current) return;
+    defaultGroupApplied.current = true;
+    const living = meta.groups.find((g) => g.name === "Living");
+    if (!living) return;
+    handleFilterChange(
+      filters.from,
+      filters.to,
+      filters.category,
+      living.id,
+      filters.payer,
+      filters.paymentMethod,
+      filters.search
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [meta]);
 
   const fetchTransactions = useCallback(
     (currentPage: number, f: typeof filters) => {
