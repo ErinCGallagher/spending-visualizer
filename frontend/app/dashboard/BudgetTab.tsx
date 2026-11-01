@@ -219,15 +219,15 @@ export default function BudgetTab({ meta }: Props) {
 
   const now = new Date();
   const monthlyTotals = aggregateMonthlyActuals(summary.monthly);
-  const stats = computeBudgetStats(monthlyTotals, summary.totalMonthlyBudget, now, filters?.month);
+  const stats = computeBudgetStats(monthlyTotals, summary.totalMonthlyBudget, now, filters?.months);
   const categoryData = computeCategoryBudgetVsActual(
     summary.categories,
     summary.monthly,
     now,
-    filters?.month
+    filters?.months
   );
 
-  const unbudgetedActual = computeUnbudgetedActual(summary.unbudgetedMonthly, now, filters?.month);
+  const unbudgetedActual = computeUnbudgetedActual(summary.unbudgetedMonthly, now, filters?.months);
   const spendingGroups = appendUnbudgetedGroup(groupCategoryBreakdown(categoryData), unbudgetedActual);
   const spendingChartData = spendingGroups.map((group) => ({
     categoryId: group.key,
@@ -238,9 +238,9 @@ export default function BudgetTab({ meta }: Props) {
     actual: group.actual,
   }));
 
-  const incomeTotal = computeIncomeTotal(summary.incomeMonthly, summary.pensionMonthly, now, filters?.month);
-  const incomeBreakdown = computeIncomeBreakdown(summary.incomeMonthly, now, filters?.month);
-  const pensionTotal = computePensionTotal(summary.pensionMonthly, now, filters?.month);
+  const incomeTotal = computeIncomeTotal(summary.incomeMonthly, summary.pensionMonthly, now, filters?.months);
+  const incomeBreakdown = computeIncomeBreakdown(summary.incomeMonthly, now, filters?.months);
+  const pensionTotal = computePensionTotal(summary.pensionMonthly, now, filters?.months);
 
   const actualSpend = stats.ytdActual + unbudgetedActual;
   const surplus = computeSurplus(incomeTotal, actualSpend);
@@ -273,7 +273,7 @@ export default function BudgetTab({ meta }: Props) {
           label="Target spend"
           value={formatAmount(stats.ytdBudget, currency)}
           tooltip={
-            filters?.month
+            filters?.months?.length
               ? undefined
               : "Based only on the months elapsed so far this year"
           }

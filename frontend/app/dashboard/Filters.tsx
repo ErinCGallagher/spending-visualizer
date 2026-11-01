@@ -6,7 +6,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { endOfMonth, format, subDays } from "date-fns";
+import { format, subDays } from "date-fns";
+import { toggleMonthSelection, monthSelectionRange } from "@/lib/monthSelection";
 import { ChevronDown, SlidersHorizontal } from "lucide-react";
 
 export interface FilterValues {
@@ -15,7 +16,7 @@ export interface FilterValues {
   travellers: string[];
   countries: string[];
   groupTypes: string[];
-  month?: string;
+  months?: string[];
 }
 
 export interface Meta {
@@ -189,7 +190,7 @@ export default function Filters({
 }: Props) {
   const [from, setFrom] = useState(initialValues?.from ?? "");
   const [to, setTo] = useState(initialValues?.to ?? "");
-  const [month, setMonth] = useState("");
+  const [months, setMonths] = useState<string[]>([]);
   const [selectedYear, setSelectedYear] = useState(
     filterByYear && initialValues?.from ? initialValues.from.slice(0, 4) : ""
   );
@@ -224,12 +225,12 @@ export default function Filters({
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      onChange({ from, to, travellers, countries, groupTypes, month });
+      onChange({ from, to, travellers, countries, groupTypes, months });
     }, 300);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [from, to, travellers, countries, groupTypes, month, onChange]);
+  }, [from, to, travellers, countries, groupTypes, months, onChange]);
 
   function setYearRange(year: string) {
     setFrom(year ? `${year}-01-01` : "");
@@ -239,20 +240,20 @@ export default function Filters({
   function handleYearChange(value: string) {
     setSelectedYear(value);
     if (!filterByYear) return;
-    setMonth("");
+    setMonths([]);
     setYearRange(value);
   }
 
-  function handleMonthChange(value: string) {
-    setMonth(value);
-    if (!value) {
+  function handleMonthChange(key: string) {
+    const next = key ? toggleMonthSelection(months, key) : [];
+    setMonths(next);
+    if (next.length === 0) {
       setYearRange(filterByYear ? selectedYear : "");
       return;
     }
-    const [year, monthNum] = value.split("-").map(Number);
-    const start = new Date(year, monthNum - 1, 1);
-    setFrom(isoDate(start));
-    setTo(isoDate(endOfMonth(start)));
+    const range = monthSelectionRange(next);
+    setFrom(range.from);
+    setTo(range.to);
   }
 
   function applyPreset(preset: Preset) {
@@ -406,7 +407,7 @@ export default function Filters({
                 type="button"
                 onClick={() => handleMonthChange("")}
                 className={`px-3 py-1.5 text-sm font-semibold rounded-full transition-colors ${
-                  month === ""
+                  months.length === 0
                     ? "bg-brand-primary text-white"
                     : "bg-slate-50 border border-slate-200 text-slate-500 hover:bg-slate-100"
                 }`}
@@ -419,7 +420,7 @@ export default function Filters({
                   type="button"
                   onClick={() => handleMonthChange(key)}
                   className={`px-3 py-1.5 text-sm font-semibold rounded-full transition-colors ${
-                    month === key
+                    months.includes(key)
                       ? "bg-brand-primary text-white"
                       : "bg-slate-50 border border-slate-200 text-slate-500 hover:bg-slate-100"
                   }`}

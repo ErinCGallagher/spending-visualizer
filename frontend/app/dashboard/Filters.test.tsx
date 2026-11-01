@@ -102,7 +102,7 @@ describe("Filters Component", () => {
       const call = onChange.mock.calls[onChange.mock.calls.length - 1][0];
       expect(call.from).toBe("2024-02-01");
       expect(call.to).toBe("2024-02-29");
-      expect(call.month).toBe("2024-02");
+      expect(call.months).toEqual(["2024-02"]);
     });
   });
 
@@ -131,7 +131,35 @@ describe("Filters Component", () => {
     });
   });
 
-  it("only allows a single month chip to be selected at a time", () => {
+  it("selects contiguous months as one range and toggles them off when tapped again", async () => {
+    const onChange = vi.fn();
+    render(
+      <Filters
+        meta={mockMeta}
+        onChange={onChange}
+        showDateRange={false}
+        showMonth
+      />
+    );
+
+    fireEvent.click(screen.getByText("Feb 2024"));
+    fireEvent.click(screen.getByText("Mar 2024"));
+
+    expect(screen.getByText("Feb 2024")).toHaveClass("bg-brand-primary");
+    expect(screen.getByText("Mar 2024")).toHaveClass("bg-brand-primary");
+    await waitFor(() => {
+      const call = onChange.mock.calls[onChange.mock.calls.length - 1][0];
+      expect(call).toEqual(
+        expect.objectContaining({ from: "2024-02-01", to: "2024-03-31", months: ["2024-02", "2024-03"] })
+      );
+    });
+
+    fireEvent.click(screen.getByText("Feb 2024"));
+    expect(screen.getByText("Feb 2024")).not.toHaveClass("bg-brand-primary");
+    expect(screen.getByText("Mar 2024")).toHaveClass("bg-brand-primary");
+  });
+
+  it("restarts the selection when a non-adjacent month is tapped", () => {
     render(
       <Filters
         meta={mockMeta}
@@ -142,9 +170,9 @@ describe("Filters Component", () => {
     );
 
     fireEvent.click(screen.getByText("Feb 2024"));
-    fireEvent.click(screen.getByText("Mar 2024"));
+    fireEvent.click(screen.getByText("Jun 2024"));
 
-    expect(screen.getByText("Mar 2024")).toHaveClass("bg-brand-primary");
+    expect(screen.getByText("Jun 2024")).toHaveClass("bg-brand-primary");
     expect(screen.getByText("Feb 2024")).not.toHaveClass("bg-brand-primary");
   });
 
@@ -223,7 +251,7 @@ describe("Filters Component", () => {
 
       await waitFor(() => {
         expect(lastEmitted(onChange)).toEqual(
-          expect.objectContaining({ from: "2023-01-01", to: "2023-12-31", month: "" })
+          expect.objectContaining({ from: "2023-01-01", to: "2023-12-31", months: [] })
         );
       });
     });
@@ -248,14 +276,14 @@ describe("Filters Component", () => {
       fireEvent.click(screen.getByText("Nov 2023"));
       await waitFor(() => {
         expect(lastEmitted(onChange)).toEqual(
-          expect.objectContaining({ from: "2023-11-01", to: "2023-11-30", month: "2023-11" })
+          expect.objectContaining({ from: "2023-11-01", to: "2023-11-30", months: ["2023-11"] })
         );
       });
 
       fireEvent.click(screen.getByText("All Months"));
       await waitFor(() => {
         expect(lastEmitted(onChange)).toEqual(
-          expect.objectContaining({ from: "2023-01-01", to: "2023-12-31", month: "" })
+          expect.objectContaining({ from: "2023-01-01", to: "2023-12-31", months: [] })
         );
       });
     });
@@ -269,7 +297,7 @@ describe("Filters Component", () => {
 
       await waitFor(() => {
         expect(lastEmitted(onChange)).toEqual(
-          expect.objectContaining({ from: "2024-01-01", to: "2024-12-31", month: "" })
+          expect.objectContaining({ from: "2024-01-01", to: "2024-12-31", months: [] })
         );
       });
     });
@@ -281,7 +309,7 @@ describe("Filters Component", () => {
 
       await waitFor(() => {
         expect(lastEmitted(onChange)).toEqual(
-          expect.objectContaining({ from: "", to: "", month: "" })
+          expect.objectContaining({ from: "", to: "", months: [] })
         );
       });
     });

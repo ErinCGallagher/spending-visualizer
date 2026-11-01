@@ -9,9 +9,9 @@ export interface MonthlyActual {
   actual: number;
 }
 
-/** True when month falls within the selected month, or (absent a selection) the current year up to now. */
-function isInPeriod(month: string, now: Date, selectedMonth?: string): boolean {
-  if (selectedMonth) return month === selectedMonth;
+/** True when month falls within the selected months, or (absent a selection) the current year up to now. */
+function isInPeriod(month: string, now: Date, selectedMonths?: string[]): boolean {
+  if (selectedMonths?.length) return selectedMonths.includes(month);
   const year = String(now.getFullYear());
   const currentMonth = `${year}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   return month.startsWith(year) && month <= currentMonth;
@@ -22,10 +22,10 @@ function sumInPeriod<T>(
   getMonth: (item: T) => string,
   getValue: (item: T) => number,
   now: Date,
-  selectedMonth?: string
+  selectedMonths?: string[]
 ): number {
   return items
-    .filter((item) => isInPeriod(getMonth(item), now, selectedMonth))
+    .filter((item) => isInPeriod(getMonth(item), now, selectedMonths))
     .reduce((sum, item) => sum + getValue(item), 0);
 }
 
@@ -52,23 +52,23 @@ export function aggregateMonthlyActuals(
 /**
  * Computes YTD actual/budget and average monthly actual/budget.
  * YTD budget assumes the monthly budget amount applies to every calendar
- * month from January through the current month. When selectedMonth is
- * given, all four figures are scoped to that single month instead.
+ * month from January through the current month. When selectedMonths is
+ * given, all four figures are scoped to those months instead.
  */
 export function computeBudgetStats(
   monthlyTotals: MonthlyActual[],
   totalMonthlyBudget: number,
   now: Date = new Date(),
-  selectedMonth?: string
+  selectedMonths?: string[]
 ): BudgetStats {
-  if (selectedMonth) {
+  if (selectedMonths?.length) {
     const actual = monthlyTotals
-      .filter((m) => m.month === selectedMonth)
+      .filter((m) => selectedMonths.includes(m.month))
       .reduce((sum, m) => sum + m.actual, 0);
     return {
       ytdActual: actual,
-      ytdBudget: totalMonthlyBudget,
-      avgMonthlyActual: actual,
+      ytdBudget: totalMonthlyBudget * selectedMonths.length,
+      avgMonthlyActual: actual / selectedMonths.length,
       avgMonthlyBudget: totalMonthlyBudget,
     };
   }
@@ -104,7 +104,7 @@ export interface CategoryBudgetActual {
  * Computes budgeted vs. actual spend per category. With no selectedMonth,
  * budgeted is the category's monthly amount scaled by the number of calendar
  * months elapsed in the current year (YTD), matching the stats tiles. When
- * selectedMonth is given, both figures are scoped to that single month.
+ * selectedMonths is given, both figures are scoped to those months.
  */
 export function computeCategoryBudgetVsActual(
   categories: {
@@ -116,19 +116,19 @@ export function computeCategoryBudgetVsActual(
   }[],
   monthly: { month: string; categoryId: string; actual: number }[],
   now: Date = new Date(),
-  selectedMonth?: string
+  selectedMonths?: string[]
 ): CategoryBudgetActual[] {
-  if (selectedMonth) {
+  if (selectedMonths?.length) {
     return categories.map((c) => {
       const actual = monthly
-        .filter((m) => m.categoryId === c.categoryId && m.month === selectedMonth)
+        .filter((m) => m.categoryId === c.categoryId && selectedMonths.includes(m.month))
         .reduce((sum, m) => sum + m.actual, 0);
       return {
         categoryId: c.categoryId,
         categoryName: c.categoryName,
         parentId: c.parentId,
         parentName: c.parentName,
-        budgeted: c.monthlyAmount,
+        budgeted: c.monthlyAmount * selectedMonths.length,
         actual,
       };
     });
@@ -208,11 +208,11 @@ export function computeIncomeTotal(
   incomeMonthly: IncomeMonthly[],
   pensionMonthly: PensionMonthly[],
   now: Date = new Date(),
-  selectedMonth?: string
+  selectedMonths?: string[]
 ): number {
   return (
-    sumInPeriod(incomeMonthly, (m) => m.month, (m) => m.actual, now, selectedMonth) +
-    sumInPeriod(pensionMonthly, (m) => m.month, (m) => m.amount, now, selectedMonth)
+    sumInPeriod(incomeMonthly, (m) => m.month, (m) => m.actual, now, selectedMonths) +
+    sumInPeriod(pensionMonthly, (m) => m.month, (m) => m.amount, now, selectedMonths)
   );
 }
 
@@ -226,11 +226,11 @@ export interface IncomeBreakdownRow {
 export function computeIncomeBreakdown(
   incomeMonthly: IncomeMonthly[],
   now: Date = new Date(),
-  selectedMonth?: string
+  selectedMonths?: string[]
 ): IncomeBreakdownRow[] {
   const totals = new Map<string, IncomeBreakdownRow>();
   for (const m of incomeMonthly) {
-    if (!isInPeriod(m.month, now, selectedMonth)) continue;
+    if (!isInPeriod(m.month, now, selectedMonths)) continue;
     const existing = totals.get(m.categoryId);
     if (existing) {
       existing.amount += m.actual;
@@ -245,17 +245,17 @@ export function computeIncomeBreakdown(
 export function computeUnbudgetedActual(
   unbudgetedMonthly: MonthlyActual[],
   now: Date = new Date(),
-  selectedMonth?: string
+  selectedMonths?: string[]
 ): number {
-  return sumInPeriod(unbudgetedMonthly, (m) => m.month, (m) => m.actual, now, selectedMonth);
+  return sumInPeriod(unbudgetedMonthly, (m) => m.month, (m) => m.actual, now, selectedMonths);
 }
 
 export function computePensionTotal(
   pensionMonthly: PensionMonthly[],
   now: Date = new Date(),
-  selectedMonth?: string
+  selectedMonths?: string[]
 ): number {
-  return sumInPeriod(pensionMonthly, (m) => m.month, (m) => m.amount, now, selectedMonth);
+  return sumInPeriod(pensionMonthly, (m) => m.month, (m) => m.amount, now, selectedMonths);
 }
 
 /** Positive = surplus, negative = deficit. */

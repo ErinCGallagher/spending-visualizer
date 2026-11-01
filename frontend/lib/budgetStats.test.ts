@@ -72,7 +72,7 @@ describe("computeBudgetStats", () => {
       { month: "2026-03", actual: 80 },
       { month: "2026-04", actual: 999 },
     ];
-    const stats = computeBudgetStats(monthlyTotals, 100, now, "2026-03");
+    const stats = computeBudgetStats(monthlyTotals, 100, now, ["2026-03"]);
     expect(stats.ytdActual).toBe(80);
     expect(stats.ytdBudget).toBe(100);
     expect(stats.avgMonthlyActual).toBe(80);
@@ -82,9 +82,24 @@ describe("computeBudgetStats", () => {
   it("includes a prior-year selected month, unlike the default YTD path", () => {
     const now = new Date(2026, 9, 15);
     const monthlyTotals = [{ month: "2025-12", actual: 300 }];
-    const stats = computeBudgetStats(monthlyTotals, 100, now, "2025-12");
+    const stats = computeBudgetStats(monthlyTotals, 100, now, ["2025-12"]);
     expect(stats.ytdActual).toBe(300);
     expect(stats.avgMonthlyActual).toBe(300);
+  });
+
+  it("scales the budget and averages over several selected months", () => {
+    const now = new Date(2026, 9, 15);
+    const monthlyTotals = [
+      { month: "2026-01", actual: 999 },
+      { month: "2026-03", actual: 80 },
+      { month: "2026-04", actual: 120 },
+      { month: "2026-05", actual: 999 },
+    ];
+    const stats = computeBudgetStats(monthlyTotals, 100, now, ["2026-03", "2026-04"]);
+    expect(stats.ytdActual).toBe(200);
+    expect(stats.ytdBudget).toBe(200);
+    expect(stats.avgMonthlyActual).toBe(100);
+    expect(stats.avgMonthlyBudget).toBe(100);
   });
 });
 
@@ -142,7 +157,7 @@ describe("computeCategoryBudgetVsActual", () => {
       { month: "2026-04", categoryId: "c1", categoryName: "Groceries", actual: 999 },
     ];
 
-    const result = computeCategoryBudgetVsActual(categories, monthly, now, "2026-03");
+    const result = computeCategoryBudgetVsActual(categories, monthly, now, ["2026-03"]);
 
     expect(result).toEqual([
       { categoryId: "c1", categoryName: "Groceries", parentId: "p1", parentName: "Food", budgeted: 100, actual: 80 },
@@ -156,10 +171,28 @@ describe("computeCategoryBudgetVsActual", () => {
     ];
     const monthly = [{ month: "2025-12", categoryId: "c1", categoryName: "Groceries", actual: 300 }];
 
-    const result = computeCategoryBudgetVsActual(categories, monthly, now, "2025-12");
+    const result = computeCategoryBudgetVsActual(categories, monthly, now, ["2025-12"]);
 
     expect(result).toEqual([
       { categoryId: "c1", categoryName: "Groceries", parentId: null, parentName: null, budgeted: 100, actual: 300 },
+    ]);
+  });
+
+  it("scales the budget and sums actuals over several selected months", () => {
+    const now = new Date(2026, 9, 15);
+    const categories = [
+      { categoryId: "c1", categoryName: "Groceries", parentId: null, parentName: null, monthlyAmount: 100 },
+    ];
+    const monthly = [
+      { month: "2026-02", categoryId: "c1", categoryName: "Groceries", actual: 999 },
+      { month: "2026-03", categoryId: "c1", categoryName: "Groceries", actual: 80 },
+      { month: "2026-04", categoryId: "c1", categoryName: "Groceries", actual: 120 },
+    ];
+
+    const result = computeCategoryBudgetVsActual(categories, monthly, now, ["2026-03", "2026-04"]);
+
+    expect(result).toEqual([
+      { categoryId: "c1", categoryName: "Groceries", parentId: null, parentName: null, budgeted: 200, actual: 200 },
     ]);
   });
 });
@@ -260,11 +293,24 @@ describe("computeIncomeTotal", () => {
       { month: "2026-02", categoryId: "i1", categoryName: "Salary", actual: 999 },
     ];
     const pensionMonthly = [{ month: "2026-01", amount: 200 }];
-    expect(computeIncomeTotal(incomeMonthly, pensionMonthly, now, "2026-01")).toBe(5200);
+    expect(computeIncomeTotal(incomeMonthly, pensionMonthly, now, ["2026-01"])).toBe(5200);
   });
 
   it("returns 0 for no data", () => {
     expect(computeIncomeTotal([], [], now)).toBe(0);
+  });
+
+  it("sums over several selected months", () => {
+    const incomeMonthly = [
+      { month: "2026-01", categoryId: "i1", categoryName: "Salary", actual: 5000 },
+      { month: "2026-02", categoryId: "i1", categoryName: "Salary", actual: 4000 },
+      { month: "2026-03", categoryId: "i1", categoryName: "Salary", actual: 999 },
+    ];
+    const pensionMonthly = [
+      { month: "2026-01", amount: 200 },
+      { month: "2026-02", amount: 100 },
+    ];
+    expect(computeIncomeTotal(incomeMonthly, pensionMonthly, now, ["2026-01", "2026-02"])).toBe(9300);
   });
 });
 
@@ -290,7 +336,7 @@ describe("computeIncomeBreakdown", () => {
       { month: "2026-01", categoryId: "i1", categoryName: "Salary", actual: 5000 },
       { month: "2026-02", categoryId: "i1", categoryName: "Salary", actual: 999 },
     ];
-    const result = computeIncomeBreakdown(incomeMonthly, now, "2026-01");
+    const result = computeIncomeBreakdown(incomeMonthly, now, ["2026-01"]);
     expect(result).toEqual([{ categoryId: "i1", categoryName: "Salary", amount: 5000 }]);
   });
 
@@ -316,7 +362,16 @@ describe("computeUnbudgetedActual", () => {
       { month: "2026-01", actual: 30 },
       { month: "2026-02", actual: 70 },
     ];
-    expect(computeUnbudgetedActual(unbudgetedMonthly, now, "2026-02")).toBe(70);
+    expect(computeUnbudgetedActual(unbudgetedMonthly, now, ["2026-02"])).toBe(70);
+  });
+
+  it("sums over several selected months", () => {
+    const unbudgetedMonthly = [
+      { month: "2026-01", actual: 30 },
+      { month: "2026-02", actual: 70 },
+      { month: "2026-03", actual: 5 },
+    ];
+    expect(computeUnbudgetedActual(unbudgetedMonthly, now, ["2026-01", "2026-02"])).toBe(100);
   });
 });
 
