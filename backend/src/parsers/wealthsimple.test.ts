@@ -207,4 +207,40 @@ describe("WealthsimpleParser", () => {
       expect(result.dateRange).toEqual({ from: expect.any(Date), to: expect.any(Date) });
     });
   });
+
+  describe("activities export format", () => {
+    const activityRows = [
+      { transaction_date: "2026-11-01", transaction_type: "Purchase", status: "Completed", merchant: "Camh Foundation", amount: "-60.00", currency: "CAD", notes: "", category: "Donations" },
+      { transaction_date: "2026-10-28", transaction_type: "Payment", status: "Completed", merchant: "", amount: "250.10", currency: "CAD", notes: "", category: "Uncategorized" },
+      { transaction_date: "2026-10-23", transaction_type: "Refund", status: "Completed", merchant: "Global-E* Skims", amount: "164.98", currency: "CAD", notes: "", category: "Clothing" },
+    ];
+
+    it("maps merchant to description", () => {
+      const result = parser.parse(activityRows, "upload-1", "user-1");
+      expect(result.transactions[0].description).toBe("Camh Foundation");
+    });
+
+    it("flips the sign so purchases are positive spend and refunds negative", () => {
+      const result = parser.parse(activityRows, "upload-1", "user-1");
+      expect(result.transactions.map((t) => t.amountHome)).toEqual([60, -164.98]);
+    });
+
+    it("excludes Payment rows and counts them as skipped", () => {
+      const result = parser.parse(activityRows, "upload-1", "user-1");
+      expect(result.transactions).toHaveLength(2);
+      expect(result.skippedPayments).toBe(1);
+    });
+
+    it("uses the same payment method and source format as the statement format", () => {
+      const result = parser.parse(activityRows, "upload-1", "user-1");
+      expect(result.transactions[0].paymentMethod).toBe("Wealthsimple Visa");
+      expect(result.transactions[0].sourceFormat).toBe("wealthsimple");
+    });
+
+    it("records an error for an invalid amount", () => {
+      const result = parser.parse([{ ...activityRows[0], amount: "abc" }], "upload-1", "user-1");
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0].field).toBe("amount");
+    });
+  });
 });

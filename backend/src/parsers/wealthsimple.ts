@@ -1,7 +1,24 @@
-/** Parser for Wealthsimple Visa credit card CSV statement exports. */
+/**
+ * Parser for Wealthsimple Visa credit card CSV exports: both the statement
+ * format (type/details) and the activities format (transaction_type/merchant).
+ */
 
 import type { CsvParser, ParseResult, ParsedTransaction, ParseError } from "./types";
 import { buildCreditCardTransaction, calculateDateRange, parseDateSafe, parseAmountSafe } from "./utils";
+
+// The activities export lists purchases as negative amounts, the statement
+// export as positive; spend is stored positive.
+function normalizeRow(row: Record<string, string>): { type: string; description: string; amount: string } {
+  if (row.transaction_type === undefined) {
+    return { type: row.type, description: row.details, amount: row.amount };
+  }
+  const parsed = parseAmountSafe(row.amount);
+  return {
+    type: row.transaction_type,
+    description: row.merchant,
+    amount: parsed === null ? row.amount : String(-parsed),
+  };
+}
 
 export class WealthsimpleParser implements CsvParser {
   name = "Wealthsimple";
@@ -15,10 +32,11 @@ export class WealthsimpleParser implements CsvParser {
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
+      const { type, description, amount: rawAmount } = normalizeRow(row);
 
       // Only bill payments are excluded (they are not spend). Refund and dispute
       // rows are kept — they balance out across their initiated/settled pairs.
-      if (row.type === "Payment") {
+      if (type === "Payment") {
         skippedPayments++;
         continue;
       }
@@ -29,7 +47,7 @@ export class WealthsimpleParser implements CsvParser {
         continue;
       }
 
-      const amount = parseAmountSafe(row.amount);
+      const amount = parseAmountSafe(rawAmount);
       if (amount === null) {
         errors.push({ row: i + 1, field: "amount", message: `Invalid amount "${row.amount ?? ""}"` });
         continue;
@@ -38,7 +56,7 @@ export class WealthsimpleParser implements CsvParser {
       transactions.push(
         buildCreditCardTransaction({
           date,
-          description: row.details,
+          description,
           amount,
           paymentMethod: "Wealthsimple Visa",
           sourceFormat: "wealthsimple",
