@@ -9,6 +9,21 @@
 import { formatAmount } from "@/lib/format";
 import type { CategoryGroup } from "@/lib/budgetStats";
 
+/** Over budget reads red, under budget green; on budget is left plain. */
+function OverUnderCell({ budgeted, actual, currency, className }: {
+  budgeted: number;
+  actual: number;
+  currency: string;
+  className: string;
+}) {
+  const diff = actual - budgeted;
+  const rounded = Math.round(diff);
+  const tone = rounded > 0 ? "bg-red-50 text-red-700" : rounded < 0 ? "bg-green-50 text-green-700" : "";
+  const label = formatAmount(Math.abs(rounded), currency);
+
+  return <td className={`py-2 px-3 text-right ${className} ${tone}`}>{label}</td>;
+}
+
 interface Props {
   data: CategoryGroup[];
   currency: string;
@@ -41,6 +56,7 @@ export default function BudgetCategoryTable({ data, currency }: Props) {
               <th className="py-2 px-3">Category</th>
               <th className="py-2 px-3 text-right">Budgeted</th>
               <th className="py-2 px-3 text-right">Actual</th>
+              <th className="py-2 px-3 text-right">Over / Under</th>
             </tr>
           </thead>
           <tbody>
@@ -57,6 +73,7 @@ export default function BudgetCategoryTable({ data, currency }: Props) {
               <td className="py-2 px-3 text-right font-semibold text-gray-900">
                 {formatAmount(totalActual, currency)}
               </td>
+              <OverUnderCell budgeted={totalBudgeted} actual={totalActual} currency={currency} className="font-semibold" />
             </tr>
           </tfoot>
         </table>
@@ -78,6 +95,7 @@ function CategoryGroupRows({ group, currency }: { group: CategoryGroup; currency
         <td className="py-2 px-3 text-right font-semibold text-gray-700">
           {formatAmount(group.actual, currency)}
         </td>
+        <OverUnderCell budgeted={group.budgeted} actual={group.actual} currency={currency} className="font-semibold" />
       </tr>
       {hasChildren &&
         group.children.map((child) => (
@@ -85,6 +103,7 @@ function CategoryGroupRows({ group, currency }: { group: CategoryGroup; currency
             <td className="py-2 pl-6 pr-3 text-gray-500">{child.categoryName}</td>
             <td className="py-2 px-3 text-right text-gray-500">{formatAmount(child.budgeted, currency)}</td>
             <td className="py-2 px-3 text-right text-gray-500">{formatAmount(child.actual, currency)}</td>
+            <OverUnderCell budgeted={child.budgeted} actual={child.actual} currency={currency} className="" />
           </tr>
         ))}
     </>

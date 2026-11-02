@@ -72,4 +72,96 @@ describe("BudgetCategoryTable", () => {
     expect(footerRow).toHaveTextContent("$400");
     expect(footerRow).toHaveTextContent("$290");
   });
+
+  describe("over/under budget column", () => {
+    /** The Over / Under cell of every body and footer row, in order. */
+    function overUnderCells() {
+      return screen
+        .getAllByRole("row")
+        .slice(1)
+        .map((row) => row.lastElementChild as HTMLElement);
+    }
+
+    it("highlights a cell red when actual is over budget", () => {
+      render(
+        <BudgetCategoryTable
+          data={[{ key: "c1", label: "Rent", budgeted: 2000, actual: 2100, children: [] }]}
+          currency="CAD"
+        />
+      );
+
+      overUnderCells().forEach((cell) => {
+        expect(cell).toHaveTextContent(/^\$100$/);
+        expect(cell).toHaveClass("bg-red-50");
+      });
+    });
+
+    it("highlights a cell green when actual is under budget", () => {
+      render(
+        <BudgetCategoryTable
+          data={[{ key: "c1", label: "Rent", budgeted: 2000, actual: 1900, children: [] }]}
+          currency="CAD"
+        />
+      );
+
+      overUnderCells().forEach((cell) => {
+        expect(cell).toHaveTextContent(/^\$100$/);
+        expect(cell).toHaveClass("bg-green-50");
+      });
+    });
+
+    it("leaves the cell unhighlighted when exactly on budget", () => {
+      render(
+        <BudgetCategoryTable
+          data={[{ key: "c1", label: "Rent", budgeted: 2000, actual: 2000, children: [] }]}
+          currency="CAD"
+        />
+      );
+
+      overUnderCells().forEach((cell) => {
+        expect(cell).not.toHaveClass("bg-red-50");
+        expect(cell).not.toHaveClass("bg-green-50");
+      });
+    });
+
+    it("never spells out over or under in the cell", () => {
+      render(
+        <BudgetCategoryTable
+          data={[{ key: "c1", label: "Rent", budgeted: 2000, actual: 2100, children: [] }]}
+          currency="CAD"
+        />
+      );
+
+      overUnderCells().forEach((cell) => expect(cell).not.toHaveTextContent(/over|under/i));
+    });
+
+    it("calculates child rows, parent subtotals and the total", () => {
+      render(
+        <BudgetCategoryTable
+          data={[
+            {
+              key: "p1",
+              label: "Food",
+              budgeted: 450,
+              actual: 240,
+              children: [
+                { categoryId: "c2", categoryName: "Dining", parentId: "p1", parentName: "Food", budgeted: 150, actual: 190 },
+                { categoryId: "c1", categoryName: "Groceries", parentId: "p1", parentName: "Food", budgeted: 300, actual: 50 },
+              ],
+            },
+          ]}
+          currency="CAD"
+        />
+      );
+
+      const [parent, dining, groceries, total] = overUnderCells();
+      expect(parent).toHaveTextContent("$210");
+      expect(parent).toHaveClass("bg-green-50");
+      expect(dining).toHaveTextContent("$40");
+      expect(dining).toHaveClass("bg-red-50");
+      expect(groceries).toHaveTextContent("$250");
+      expect(groceries).toHaveClass("bg-green-50");
+      expect(total).toHaveTextContent("$210");
+    });
+  });
 });
