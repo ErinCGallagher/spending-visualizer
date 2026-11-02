@@ -191,15 +191,40 @@ router.post("/categorise", async (req, res) => {
     return;
   }
 
-  // Fetch the user's existing categories with their parents to give the model context
-  const { rows: catRows } = await pool.query<{ name: string; parent_name: string | null }>(
-    `SELECT c.name, p.name AS parent_name
-     FROM categories c
-     LEFT JOIN categories p ON p.id = c.parent_id
-     WHERE c.user_id = $1
-     ORDER BY COALESCE(p.name, c.name), p.name NULLS FIRST, c.name`,
+  // Offer only categories already used in the Living group (plus their parents,
+  // so the tree stays intact). Falls back to every category when Living has none.
+  const livingCategoriesSQL = `
+    SELECT c.name, p.name AS parent_name
+    FROM categories c
+    LEFT JOIN categories p ON p.id = c.parent_id
+    WHERE c.user_id = $1
+      AND c.id IN (
+        SELECT t.category_id
+        FROM transactions t
+        JOIN groups g ON g.id = t.group_id
+        WHERE t.user_id = $1 AND g.name = 'Living' AND t.category_id IS NOT NULL
+        UNION
+        SELECT sc.parent_id
+        FROM transactions t
+        JOIN groups g ON g.id = t.group_id
+        JOIN categories sc ON sc.id = t.category_id
+        WHERE t.user_id = $1 AND g.name = 'Living' AND sc.parent_id IS NOT NULL
+      )
+    ORDER BY COALESCE(p.name, c.name), p.name NULLS FIRST, c.name`;
+  const allCategoriesSQL = `
+    SELECT c.name, p.name AS parent_name
+    FROM categories c
+    LEFT JOIN categories p ON p.id = c.parent_id
+    WHERE c.user_id = $1
+    ORDER BY COALESCE(p.name, c.name), p.name NULLS FIRST, c.name`;
+
+  let { rows: catRows } = await pool.query<{ name: string; parent_name: string | null }>(
+    livingCategoriesSQL,
     [userId]
   );
+  if (catRows.length === 0) {
+    ({ rows: catRows } = await pool.query(allCategoriesSQL, [userId]));
+  }
   const availableCategories = catRows.map((r) => ({ name: r.name, parentName: r.parent_name }));
 
   const prompt = buildCategorisePrompt(uncachedTransactions, availableCategories);
